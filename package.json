@@ -1,0 +1,19 @@
+{
+  "name": "edutech-central",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "turbo": "^2.10.8"
+  },
+  "dependencies": {
+    "lucide-react": "^1.28.0"
+  }
+}
