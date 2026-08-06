@@ -1,8 +1,8 @@
-﻿
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // 1. Import useRouter từ next/navigation
 import { 
   ArrowLeft, 
   Mail, 
@@ -44,6 +44,7 @@ const posters = [
 ];
 
 export default function LoginPage() {
+  const router = useRouter(); // 2. Khai báo router
   const [showPassword, setShowPassword] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -60,6 +61,13 @@ export default function LoginPage() {
 
   const prevSlide = () => {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + posters.length) % posters.length);
+  };
+
+  // 3. Hàm xử lý đăng nhập và điều hướng sang trang chủ /trangchu
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Bạn có thể xử lý validate hoặc gọi API đăng nhập tại đây trước khi điều hướng
+    router.push("/trangchu");
   };
 
   return (
@@ -112,7 +120,7 @@ export default function LoginPage() {
             </div>
 
             {/* Form Inputs */}
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-4" onSubmit={handleLogin}>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   Email học viên
@@ -192,7 +200,10 @@ export default function LoginPage() {
 
             {/* Đăng nhập bằng Google & Microsoft */}
             <div className="grid grid-cols-2 gap-3">
-              <button className="flex items-center justify-center space-x-2 py-2.5 px-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98] cursor-pointer">
+              <button 
+                onClick={() => router.push("/trangchu")}
+                className="flex items-center justify-center space-x-2 py-2.5 px-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+              >
                 <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -202,7 +213,10 @@ export default function LoginPage() {
                 <span className="text-xs font-bold text-slate-700 whitespace-nowrap">Google</span>
               </button>
 
-              <button className="flex items-center justify-center space-x-2 py-2.5 px-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98] cursor-pointer">
+              <button 
+                onClick={() => router.push("/trangchu")}
+                className="flex items-center justify-center space-x-2 py-2.5 px-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+              >
                 <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 23 23">
                   <path fill="#f35325" d="M1 1h10v10H1z"/>
                   <path fill="#81bc06" d="M12 1h10v10H1z"/>
