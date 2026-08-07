@@ -1,100 +1,51 @@
-version: "3.8"
-
 services:
-  # --- DATABASES ---
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: edutech-postgres
     restart: always
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgrespassword
-      POSTGRES_DB: edutech_db
+      POSTGRES_DB: edutech_auth_db
+    ports:
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  mongodb:
-    image: mongo:6.0
-    container_name: edutech-mongodb
+  auth-service:
+    build:
+      context: .
+      dockerfile: backend/services/auth-service/Dockerfile
+    container_name: edutech-auth-service
     restart: always
     ports:
-      - "27017:27017"
+      - '8001:8001'
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: adminpassword
-    volumes:
-      - mongo_data:/data/db
-
-  redis:
-    image: redis:7-alpine
-    container_name: edutech-redis
-    restart: always
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
-  # --- BACKEND SERVICES ---
-  core-api:
-    build:
-      context: ./services/core-api
-      dockerfile: Dockerfile
-    container_name: edutech-core-api
-    restart: always
-    ports:
-      - "3000:3000"
+      NODE_ENV: development
+      PORT: 8001
+      DATABASE_URL: "postgresql://postgres:postgrespassword@postgres:5432/edutech_auth_db?schema=public"
+      JWT_SECRET: "your_jwt_secret_key_here"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
 
-  realtime-service:
-    build:
-      context: ./services/realtime-service
-      dockerfile: Dockerfile
-    container_name: edutech-realtime
-    restart: always
-    ports:
-      - "8080:8080"
-    depends_on:
-      - mongodb
-      - redis
-
-  submission-gateway:
-    build:
-      context: ./services/submission-gateway
-      dockerfile: Dockerfile
-    container_name: edutech-submission
-    restart: always
-    ports:
-      - "8081:8081"
-    depends_on:
-      - redis
-
-  ai-service:
-    build:
-      context: ./services/ai-service
-      dockerfile: Dockerfile
-    container_name: edutech-ai
-    restart: always
-    ports:
-      - "8000:8000"
-
-  # --- FRONTEND ---
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/web/Dockerfile
     container_name: edutech-web
     restart: always
     ports:
-      - "3001:3001"
+      - '5173:5173'
+    environment:
+      VITE_API_AUTH_URL: "http://localhost:8001"
     depends_on:
-      - core-api
+      - auth-service
 
 volumes:
   postgres_data:
-  mongo_data:
-  redis_data:
-

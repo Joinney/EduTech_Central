@@ -1,16 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
+COPY apps/web/package*.json ./
+RUN npm install --include=dev
+COPY apps/web/ ./
 RUN npm run build
 
-FROM node:20-alpine AS runner
-WORKDIR /app
-COPY package*.json ./
-RUN npm install --only=production
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-EXPOSE 3001
-ENV PORT=3001
-CMD ["npm", "run", "start"]
+FROM nginx:alpine AS runner
+COPY --from=builder /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
