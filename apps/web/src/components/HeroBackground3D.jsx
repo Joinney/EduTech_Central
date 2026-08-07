@@ -1,9 +1,7 @@
-﻿ "use client";
-
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 
 export default function HeroBackground3D() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -11,7 +9,7 @@ export default function HeroBackground3D() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let animationFrameId: number;
+    let animationFrameId;
     let width = (canvas.width = canvas.offsetWidth);
     let height = (canvas.height = canvas.offsetHeight);
 
@@ -26,7 +24,6 @@ export default function HeroBackground3D() {
     };
     window.addEventListener("resize", handleResize);
 
-    // Mouse Tracking
     const mouse = {
       x: width / 2,
       y: height / 2,
@@ -35,14 +32,13 @@ export default function HeroBackground3D() {
       radius: 220,
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e) => {
       const rect = canvas.getBoundingClientRect();
       mouse.targetX = e.clientX - rect.left;
       mouse.targetY = e.clientY - rect.top;
     };
     canvas.addEventListener("mousemove", handleMouseMove);
 
-    // Danh sách Quả Cầu 3D kèm Icon Neon chuẩn ảnh
     const spheres = [
       { x: width * 0.12, y: height * 0.78, z: 1.4, r: 105, isBlue: true, icon: "brain", vx: 0.1, vy: -0.08, pulse: 0 },
       { x: width * 0.88, y: height * 0.70, z: 1.6, r: 135, isBlue: false, icon: "cap", vx: -0.08, vy: 0.1, pulse: 1 },
@@ -50,8 +46,7 @@ export default function HeroBackground3D() {
       { x: width * 0.18, y: height * 0.22, z: 0.9, r: 60, isBlue: true, icon: "book", vx: -0.1, vy: -0.08, pulse: 3 },
     ];
 
-    // Vẽ điểm Neon Glow Dot
-    const drawGlowDot = (x: number, y: number, color = "#00f0ff") => {
+    const drawGlowDot = (x, y, color = "#00f0ff") => {
       ctx.beginPath();
       ctx.arc(x, y, 3.5, 0, Math.PI * 2);
       ctx.fillStyle = "#ffffff";
@@ -61,8 +56,7 @@ export default function HeroBackground3D() {
       ctx.shadowBlur = 0;
     };
 
-    // Hàm vẽ chi tiết từng Icon chuẩn hình minh họa
-    const drawSphereIcon = (type: string, cx: number, cy: number, radius: number) => {
+    const drawSphereIcon = (type, cx, cy, radius) => {
       ctx.save();
       ctx.translate(cx, cy);
       const scale = radius / 90;
@@ -76,7 +70,6 @@ export default function HeroBackground3D() {
       ctx.shadowBlur = 15;
 
       if (type === "brain") {
-        // 1. Icon Bộ Não Vi Mạch AI
         ctx.beginPath();
         ctx.moveTo(-25, -5);
         ctx.bezierCurveTo(-35, -25, -10, -35, -5, -20);
@@ -86,7 +79,6 @@ export default function HeroBackground3D() {
         ctx.bezierCurveTo(-35, 15, -35, -5, -25, -5);
         ctx.stroke();
 
-        // Đường mạch bên trong
         ctx.beginPath();
         ctx.moveTo(-15, -5); ctx.lineTo(-5, -5); ctx.lineTo(0, -15);
         ctx.moveTo(5, 5); ctx.lineTo(15, 5); ctx.lineTo(15, -10);
@@ -96,9 +88,7 @@ export default function HeroBackground3D() {
         drawGlowDot(0, -15);
         drawGlowDot(15, -10);
         drawGlowDot(5, 25);
-      } 
-      else if (type === "cap") {
-        // 2. Icon Mũ Cử Nhân Neon
+      } else if (type === "cap") {
         ctx.beginPath();
         ctx.moveTo(0, -25);
         ctx.lineTo(32, -10);
@@ -114,16 +104,13 @@ export default function HeroBackground3D() {
         ctx.lineTo(20, -2);
         ctx.stroke();
 
-        // Tua rua mũ
         ctx.beginPath();
         ctx.moveTo(22, -6);
         ctx.lineTo(28, 10);
         ctx.stroke();
         drawGlowDot(28, 10, "#ffaa00");
         drawGlowDot(0, -25, "#00f0ff");
-      } 
-      else if (type === "bulb") {
-        // 3. Icon Bóng Đèn Ý Tưởng
+      } else if (type === "bulb") {
         ctx.beginPath();
         ctx.arc(0, -10, 22, 0.22 * Math.PI, 0.78 * Math.PI, true);
         ctx.bezierCurveTo(12, 10, 10, 16, 10, 20);
@@ -131,20 +118,16 @@ export default function HeroBackground3D() {
         ctx.bezierCurveTo(-10, 16, -12, 10, -22, -10);
         ctx.stroke();
 
-        // Đuôi xoắn bóng đèn
         ctx.beginPath();
         ctx.moveTo(-8, 25); ctx.lineTo(8, 25);
         ctx.moveTo(-6, 30); ctx.lineTo(6, 30);
         ctx.stroke();
 
-        // Dây tóc trái tim bên trong
         ctx.beginPath();
         ctx.moveTo(-6, 5); ctx.lineTo(-3, -8); ctx.lineTo(0, 0); ctx.lineTo(3, -8); ctx.lineTo(6, 5);
         ctx.stroke();
         drawGlowDot(0, -32, "#ffaa00");
-      } 
-      else if (type === "book") {
-        // 4. Icon Cuốn Sách Tri Thức Mở
+      } else if (type === "book") {
         ctx.beginPath();
         ctx.moveTo(0, -15);
         ctx.bezierCurveTo(-12, -22, -28, -18, -32, -12);
@@ -155,7 +138,6 @@ export default function HeroBackground3D() {
         ctx.bezierCurveTo(28, -18, 12, -22, 0, -15);
         ctx.stroke();
 
-        // Gáy sách giữa
         ctx.beginPath();
         ctx.moveTo(0, -15);
         ctx.lineTo(0, 12);
@@ -169,9 +151,8 @@ export default function HeroBackground3D() {
       ctx.restore();
     };
 
-    // Mạng Lưới Hạt
     const nodesCount = Math.floor((width * height) / 5000);
-    const nodes: Array<{ x: number; y: number; z: number; vx: number; vy: number; baseR: number; color: string; glow: number }> = [];
+    const nodes = [];
     const nodeColors = ["#00f0ff", "#38bdf8", "#ff9100", "#ffaa00", "#ffffff"];
 
     for (let i = 0; i < nodesCount; i++) {
@@ -193,7 +174,6 @@ export default function HeroBackground3D() {
 
       ctx.clearRect(0, 0, width, height);
 
-      // Ảnh Trường Học
       if (bgImage.complete && bgImage.naturalWidth !== 0) {
         ctx.save();
         ctx.globalAlpha = 0.75;
@@ -201,7 +181,6 @@ export default function HeroBackground3D() {
         ctx.restore();
       }
 
-      // Gradient Nền Trong Suốt
       const bgGrad = ctx.createLinearGradient(0, 0, width, height);
       bgGrad.addColorStop(0, "rgba(0, 82, 212, 0.45)");
       bgGrad.addColorStop(0.4, "rgba(0, 114, 255, 0.35)");
@@ -210,7 +189,6 @@ export default function HeroBackground3D() {
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      // Quả Cầu 3D Phát Sáng Chứa Icon Nội Bội
       spheres.forEach((s) => {
         s.x += s.vx;
         s.y += s.vy;
@@ -258,11 +236,9 @@ export default function HeroBackground3D() {
         ctx.fillStyle = sphereGrad;
         ctx.fill();
 
-        // Vẽ Icon Chuẩn
         drawSphereIcon(s.icon, px, py, currentR);
       });
 
-      // Mạng Lưới Hạt
       for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i];
         n.x += n.vx;
@@ -337,4 +313,3 @@ export default function HeroBackground3D() {
     />
   );
 }
-

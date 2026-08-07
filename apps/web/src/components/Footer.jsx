@@ -1,13 +1,10 @@
-﻿import React from "react";
+﻿import React from "react"
 
 export default function Footer() {
   return (
     <footer className="relative z-10 w-full bg-white border-t border-gray-200">
       <div className="max-w-7xl mx-auto px-8 py-12 space-y-8">
-        
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-gray-200">
-          
-          {/* Col 1: Logo To Rõ Nét & Info */}
           <div className="space-y-4">
             <a href="#" className="inline-block">
               <img
@@ -15,14 +12,15 @@ export default function Footer() {
                 alt="EduTech Central Logo"
                 className="h-14 md:h-16 w-auto object-contain transition duration-200 hover:scale-105"
                 onError={(e) => {
-                  const target = e.target as HTMLElement;
-                  target.style.display = "none";
-                  const parent = target.parentElement;
+                  const target = e.target
+                  target.style.display = "none"
+                  const parent = target.parentElement
                   if (parent && !parent.querySelector(".fallback-logo")) {
-                    const fallback = document.createElement("div");
-                    fallback.className = "fallback-logo w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md";
-                    fallback.innerText = "EC";
-                    parent.appendChild(fallback);
+                    const fallback = document.createElement("div")
+                    fallback.className =
+                      "fallback-logo w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md"
+                    fallback.innerText = "EC"
+                    parent.appendChild(fallback)
                   }
                 }}
               />
@@ -32,7 +30,6 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Col 2: Platform */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-gray-900 tracking-wider uppercase">PLATFORM</h4>
             <ul className="space-y-2 text-xs text-gray-600 font-semibold">
@@ -42,7 +39,6 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 3: Resources */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-gray-900 tracking-wider uppercase">RESOURCES</h4>
             <ul className="space-y-2 text-xs text-gray-600 font-semibold">
@@ -52,7 +48,6 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Col 4: Social */}
           <div className="space-y-3">
             <h4 className="text-xs font-black text-gray-900 tracking-wider uppercase">FOLLOW US</h4>
             <div className="flex space-x-3 text-sm">
@@ -61,15 +56,12 @@ export default function Footer() {
               <a href="#" className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition shadow-sm">📺</a>
             </div>
           </div>
-
         </div>
 
-        {/* Copyright */}
         <div className="text-center text-xs text-gray-500 font-bold">
           © 2026 EduTech Central. Precision in Learning.
         </div>
-
       </div>
     </footer>
-  );
+  )
 }

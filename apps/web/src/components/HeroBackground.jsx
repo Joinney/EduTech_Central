@@ -1,8 +1,7 @@
-﻿ "use client";
-import React, { useEffect, useRef } from "react";
+﻿import React, { useEffect, useRef } from "react";
 
 export default function HeroBackground() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -10,7 +9,7 @@ export default function HeroBackground() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let animationFrameId: number;
+    let animationFrameId;
     let width = (canvas.width = canvas.offsetWidth);
     let height = (canvas.height = canvas.offsetHeight);
 
@@ -21,26 +20,16 @@ export default function HeroBackground() {
     };
     window.addEventListener("resize", handleResize);
 
-    // Mouse tracking
     const mouse = { x: width / 2, y: height / 2, radius: 150 };
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (e) => {
       const rect = canvas.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
       mouse.y = e.clientY - rect.top;
     };
     canvas.addEventListener("mousemove", handleMouseMove);
 
-    // Create Particles
     const particlesCount = Math.floor((width * height) / 9000);
-    const particles: Array<{
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      size: number;
-      color: string;
-    }> = [];
-
+    const particles = [];
     const colors = ["#3b82f6", "#f59e0b", "#60a5fa", "#f97316"];
 
     for (let i = 0; i < particlesCount; i++) {
@@ -54,11 +43,9 @@ export default function HeroBackground() {
       });
     }
 
-    // Animation Loop
     const animate = () => {
       ctx.clearRect(0, 0, width, height);
 
-      // Gradient background
       const grad = ctx.createLinearGradient(0, 0, width, height);
       grad.addColorStop(0, "#0b1536");
       grad.addColorStop(0.5, "#0f172a");
@@ -66,7 +53,6 @@ export default function HeroBackground() {
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, width, height);
 
-      // Draw & update particles
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
         p.x += p.vx;
@@ -75,13 +61,11 @@ export default function HeroBackground() {
         if (p.x < 0 || p.x > width) p.vx *= -1;
         if (p.y < 0 || p.y > height) p.vy *= -1;
 
-        // Draw node
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fillStyle = p.color;
         ctx.fill();
 
-        // Connect to mouse
         const dxMouse = mouse.x - p.x;
         const dyMouse = mouse.y - p.y;
         const distMouse = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
@@ -94,7 +78,6 @@ export default function HeroBackground() {
           ctx.stroke();
         }
 
-        // Connect to nearby nodes
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j];
           const dx = p.x - p2.x;
