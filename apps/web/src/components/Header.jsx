@@ -19,7 +19,7 @@ export default function Header() {
       <Link to="/" className="flex items-center group">
         <img
           src="/edutechcentral.png"
-          alt="EduTech Central Logo"
+          alt="Logo EduTech Central"
           className="h-10 md:h-12 w-auto object-contain transition duration-200 group-hover:scale-105"
           onError={(e) => {
             const target = e.target
@@ -45,19 +45,19 @@ export default function Header() {
               : "hover:text-blue-600 transition duration-200"
           }
         >
-          Home
+          Trang chủ
         </Link>
         <Link to="#" className="hover:text-blue-600 transition duration-200">
-          Courses
+          Khóa học
         </Link>
         <Link to="#" className="hover:text-blue-600 transition duration-200">
-          Solutions
+          Giải pháp
         </Link>
         <Link to="#" className="hover:text-blue-600 transition duration-200">
-          Resources
+          Tài nguyên
         </Link>
         <Link to="#" className="hover:text-blue-600 transition duration-200">
-          About Us
+          Về chúng tôi
         </Link>
       </nav>
 
@@ -68,14 +68,14 @@ export default function Header() {
               to="/login"
               className="text-sm font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-100 px-4 py-2 rounded-xl transition duration-200"
             >
-              Log In
+              Đăng nhập
             </Link>
 
             <Link
               to="/register"
               className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:opacity-90 active:scale-95 text-white text-sm font-extrabold px-5 py-2.5 rounded-xl shadow-md transition duration-200 flex items-center space-x-1.5"
             >
-              <span>Get Started</span>
+              <span>Trải nghiệm ngay</span>
               <Sparkles className="w-3.5 h-3.5" />
             </Link>
           </>
@@ -97,7 +97,7 @@ export default function Header() {
               <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 space-y-1">
                 <div className="px-4 py-2 border-b border-slate-100">
                   <p className="text-xs font-black text-slate-900 truncate">{userEmail}</p>
-                  <p className="text-[10px] text-emerald-600 font-bold">Học viên Active</p>
+                  <p className="text-[10px] text-emerald-600 font-bold">Học viên Hoạt động</p>
                 </div>
                 <Link to="#" className="flex items-center space-x-2 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600">
                   <BookOpen className="w-4 h-4 text-slate-400" />

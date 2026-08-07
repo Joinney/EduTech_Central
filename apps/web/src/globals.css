@@ -5,3 +5,21 @@ body {
   padding: 0;
   font-family: sans-serif;
 }
+/* Custom Scrollbar màu cam */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #ffff; /* Màu nền tối khớp với theme */
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #ff6b00, #ff4500);
+  border-radius: 9999px;
+  border: 2px solid #d0d5e2;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #ff8533, #ff5722);
+}
