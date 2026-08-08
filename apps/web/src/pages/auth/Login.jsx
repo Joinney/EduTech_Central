@@ -8,10 +8,13 @@ import {
   EyeOff,
   Sparkles,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react"
 
 import HeroBackground3D from "../../components/HeroBackground3D.jsx"
+
+const API_AUTH_URL = import.meta.env.VITE_API_AUTH_URL || "http://localhost:8001/api/v1"
 
 const posters = [
   {
@@ -45,6 +48,11 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
 
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState("")
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % posters.length)
@@ -60,10 +68,37 @@ export default function Login() {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + posters.length) % posters.length)
   }
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
-    // Điều hướng trực tiếp sang User Dashboard
-    navigate("/user/dashboard")
+    setLoading(true)
+    setErrorMsg("")
+
+    try {
+      const response = await fetch(`${API_AUTH_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Đăng nhập thất bại")
+      }
+
+      if (result.data?.token) {
+        localStorage.setItem("token", result.data.token)
+      }
+      if (result.data) {
+        localStorage.setItem("user", JSON.stringify(result.data))
+      }
+
+      navigate("/user/dashboard")
+    } catch (err) {
+      setErrorMsg(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -109,6 +144,12 @@ export default function Login() {
               </p>
             </div>
 
+            {errorMsg && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-600 text-center animate-shake">
+                {errorMsg}
+              </div>
+            )}
+
             <form className="space-y-4" onSubmit={handleLogin}>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -120,6 +161,8 @@ export default function Login() {
                   </div>
                   <input
                     type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="block w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
                     placeholder="nhapemail@domain.com"
                     required
@@ -142,6 +185,8 @@ export default function Login() {
                   </div>
                   <input
                     type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="block w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
                     placeholder="••••••••"
                     required
@@ -169,10 +214,17 @@ export default function Login() {
 
               <button
                 type="submit"
-                className="w-full flex justify-center items-center space-x-2 py-3 px-4 border border-transparent rounded-xl shadow-md shadow-orange-500/20 text-xs font-black text-white bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer"
+                disabled={loading}
+                className="w-full flex justify-center items-center space-x-2 py-3 px-4 border border-transparent rounded-xl shadow-md shadow-orange-500/20 text-xs font-black text-white bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>Đăng nhập hệ thống</span>
-                <Sparkles className="w-3.5 h-3.5" />
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>Đăng nhập hệ thống</span>
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </>
+                )}
               </button>
             </form>
 

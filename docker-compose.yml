@@ -1,22 +1,4 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: edutech-postgres
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
-      POSTGRES_DB: edutech_auth_db
-    ports:
-      - '5432:5432'
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   auth-service:
     build:
       context: .
@@ -25,14 +7,8 @@ services:
     restart: always
     ports:
       - '8001:8001'
-    environment:
-      NODE_ENV: development
-      PORT: 8001
-      DATABASE_URL: "postgresql://postgres:postgrespassword@postgres:5432/edutech_auth_db?schema=public"
-      JWT_SECRET: "your_jwt_secret_key_here"
-    depends_on:
-      postgres:
-        condition: service_healthy
+    env_file:
+      - backend/services/auth-service/.env
 
   web:
     build:
@@ -43,7 +19,7 @@ services:
     ports:
       - '5173:5173'
     environment:
-      VITE_API_AUTH_URL: "http://localhost:8001"
+      VITE_API_AUTH_URL: "http://localhost:8001/api/v1"
     depends_on:
       - auth-service
 

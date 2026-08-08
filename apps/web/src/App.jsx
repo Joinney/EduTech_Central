@@ -9,7 +9,9 @@ import UserHome from "./userdb/pages/UserHome.jsx"
 import Programs from "./userdb/pages/Chuongtrinhkhoilop/Programs.jsx"
 import Library from "./userdb/pages/Khohoclieu/Library.jsx"
 import Courses from "./userdb/pages/Monhoccuatoi/Courses.jsx"
-import Videos from "./userdb/pages/VideoEdu/Videos.jsx" // Import Videos
+import Videos from "./userdb/pages/VideoEdu/Videos.jsx"
+import Profile from "./userdb/pages/Profile.jsx" // Import Trang cá nhân
+
 export default function App() {
   return (
     <Routes>
@@ -26,6 +28,8 @@ export default function App() {
         <Route path="library" element={<Library />} />
         <Route path="courses" element={<Courses />} />
         <Route path="videos" element={<Videos />} />
+        <Route path="profile" element={<Profile />} /> {/* Đường dẫn Trang cá nhân */}
+        
         {/* Các trang chưa tạo component riêng tạm thời dùng UserHome */}
         <Route path="bookshelf" element={<UserHome />} />
       </Route>

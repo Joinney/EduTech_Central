@@ -1,28 +1,21 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
-}
-
-enum Role {
-  STUDENT
-  INSTRUCTOR
-  ADMIN
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  fullName  String
-  email     String   @unique
-  password  String?
-  googleId  String?  @unique
-  avatar    String?  @default("")
-  role      Role     @default(STUDENT)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int      @id @default(autoincrement()) @map("id_users")
+  email     String   @unique @db.VarChar(255)
+  password  String?  @db.VarChar(255)
+  fullName  String?  @map("full_name") @db.VarChar(255)
+  avatar    String?  @db.VarChar(500)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   @@map("users")
 }

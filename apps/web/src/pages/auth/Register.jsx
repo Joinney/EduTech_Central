@@ -12,10 +12,13 @@ import {
   ChevronRight,
   GraduationCap,
   CheckCircle2,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from "lucide-react"
 
 import HeroBackground3D from "../../components/HeroBackground3D.jsx"
+
+const API_AUTH_URL = import.meta.env.VITE_API_AUTH_URL || "http://localhost:8001/api/v1"
 
 const registerPosters = [
   {
@@ -49,7 +52,12 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [role, setRole] = useState("student")
+
+  const [fullName, setFullName] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState("")
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -75,9 +83,35 @@ export default function Register() {
 
   const strength = getPasswordStrength()
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault()
-    navigate("/")
+    setLoading(true)
+    setErrorMsg("")
+
+    try {
+      const response = await fetch(`${API_AUTH_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName,
+          email,
+          password,
+          role: role === "teacher" ? "INSTRUCTOR" : "STUDENT"
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Đăng ký thất bại")
+      }
+
+      navigate("/login")
+    } catch (err) {
+      setErrorMsg(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -150,6 +184,12 @@ export default function Register() {
               </button>
             </div>
 
+            {errorMsg && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-600 text-center animate-shake">
+                {errorMsg}
+              </div>
+            )}
+
             <form className="space-y-3.5" onSubmit={handleRegister}>
               <div className="space-y-1">
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
@@ -161,6 +201,8 @@ export default function Register() {
                   </div>
                   <input
                     type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
                     className="block w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
                     placeholder="Nguyễn Văn A"
                     required
@@ -178,6 +220,8 @@ export default function Register() {
                   </div>
                   <input
                     type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="block w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
                     placeholder="nhapemail@domain.com"
                     required
@@ -237,10 +281,17 @@ export default function Register() {
 
               <button
                 type="submit"
-                className="w-full flex justify-center items-center space-x-2 py-3 px-4 border border-transparent rounded-xl shadow-md shadow-orange-500/20 text-xs font-black text-white bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer"
+                disabled={loading}
+                className="w-full flex justify-center items-center space-x-2 py-3 px-4 border border-transparent rounded-xl shadow-md shadow-orange-500/20 text-xs font-black text-white bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>Tạo tài khoản EduTech</span>
-                <Sparkles className="w-3.5 h-3.5" />
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>Tạo tài khoản EduTech</span>
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </>
+                )}
               </button>
             </form>
 
