@@ -5,6 +5,7 @@ import {
   Mail,
   Lock,
   User,
+  Phone,
   Eye,
   EyeOff,
   Sparkles,
@@ -55,6 +56,7 @@ export default function Register() {
 
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
@@ -95,8 +97,9 @@ export default function Register() {
         body: JSON.stringify({
           fullName,
           email,
+          phone,
           password,
-          role: role === "teacher" ? "INSTRUCTOR" : "STUDENT"
+          role // Chuẩn hóa giá trị: 'student' hoặc 'teacher'
         })
       })
 
@@ -106,6 +109,8 @@ export default function Register() {
         throw new Error(result.message || "Đăng ký thất bại")
       }
 
+      // Lưu tạm vai trò để gợi ý khi chuyển hướng
+      localStorage.setItem("role", role)
       navigate("/login")
     } catch (err) {
       setErrorMsg(err.message)
@@ -116,6 +121,7 @@ export default function Register() {
 
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-slate-50 font-sans text-slate-800 selection:bg-orange-500 selection:text-white">
+      {/* Form Container */}
       <div className="w-full lg:w-1/2 h-full flex flex-col relative z-20 bg-white shadow-[10px_0_30px_rgba(0,0,0,0.05)] overflow-y-auto">
         <div className="absolute top-6 right-6 md:top-8 md:right-8 z-10">
           <Link
@@ -157,6 +163,7 @@ export default function Register() {
               </p>
             </div>
 
+            {/* Chọn vai trò người dùng */}
             <div className="grid grid-cols-2 gap-2.5 p-1 bg-slate-100 rounded-2xl border border-slate-200">
               <button
                 type="button"
@@ -225,6 +232,25 @@ export default function Register() {
                     className="block w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
                     placeholder="nhapemail@domain.com"
                     required
+                  />
+                </div>
+              </div>
+
+              {/* Ô nhập số điện thoại */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  Số điện thoại <span className="text-slate-400 font-normal">(Không bắt buộc)</span>
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Phone className="h-4 w-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                  </div>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="block w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+                    placeholder="0912345678"
                   />
                 </div>
               </div>
@@ -344,6 +370,7 @@ export default function Register() {
         </div>
       </div>
 
+      {/* Poster Slider Banner */}
       <div className="hidden lg:flex lg:w-1/2 h-full relative overflow-hidden bg-slate-900 p-8 flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
           <HeroBackground3D />

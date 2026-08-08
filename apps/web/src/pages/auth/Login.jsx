@@ -68,6 +68,11 @@ export default function Login() {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + posters.length) % posters.length)
   }
 
+  // Hàm tiện ích xác định URL điều hướng dựa trên role
+  const getRedirectPath = (role) => {
+    return role === "teacher" ? "/teacher/dashboard" : "/student/dashboard"
+  }
+
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -89,11 +94,21 @@ export default function Login() {
       if (result.data?.token) {
         localStorage.setItem("token", result.data.token)
       }
-      if (result.data) {
-        localStorage.setItem("user", JSON.stringify(result.data))
+      
+      const userData = result.data?.user || result.data
+      if (userData) {
+        localStorage.setItem("user", JSON.stringify(userData))
+        
+        // Trích xuất vai trò từ response API (hỗ trợ nhiều định dạng dữ liệu)
+        const userRole = userData.role || userData.user_type || "student"
+        localStorage.setItem("role", userRole)
+        
+        // Điều hướng theo role
+        navigate(getRedirectPath(userRole))
+      } else {
+        // Mặc định nếu không đọc được role
+        navigate("/student/dashboard")
       }
-
-      navigate("/user/dashboard")
     } catch (err) {
       setErrorMsg(err.message)
     } finally {
@@ -101,8 +116,15 @@ export default function Login() {
     }
   }
 
+  // Điều hướng OAuth (Google/Microsoft) dựa theo role đang lưu
+  const handleSocialLogin = () => {
+    const savedRole = localStorage.getItem("role") || "student"
+    navigate(getRedirectPath(savedRole))
+  }
+
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-slate-50 font-sans text-slate-800 selection:bg-blue-500 selection:text-white">
+      {/* Form Section */}
       <div className="w-full lg:w-1/2 h-full flex flex-col relative z-20 bg-white shadow-[10px_0_30px_rgba(0,0,0,0.05)] overflow-y-auto">
         <div className="absolute top-6 right-6 md:top-8 md:right-8 z-10">
           <Link
@@ -153,7 +175,7 @@ export default function Login() {
             <form className="space-y-4" onSubmit={handleLogin}>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Email học viên
+                  Email
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -240,7 +262,7 @@ export default function Login() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => navigate("/user/dashboard")}
+                onClick={handleSocialLogin}
                 className="flex items-center justify-center space-x-2 py-2.5 px-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98] cursor-pointer"
               >
                 <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
@@ -254,7 +276,7 @@ export default function Login() {
 
               <button
                 type="button"
-                onClick={() => navigate("/user/dashboard")}
+                onClick={handleSocialLogin}
                 className="flex items-center justify-center space-x-2 py-2.5 px-3 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all shadow-sm active:scale-[0.98] cursor-pointer"
               >
                 <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 23 23">
@@ -277,6 +299,7 @@ export default function Login() {
         </div>
       </div>
 
+      {/* Poster Slider Banner Section */}
       <div className="hidden lg:flex lg:w-1/2 h-full relative overflow-hidden bg-slate-900 p-8 flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
           <HeroBackground3D />

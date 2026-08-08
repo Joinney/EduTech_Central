@@ -8,14 +8,75 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Bảng Người Dùng (Users)
 model User {
-  id        Int      @id @default(autoincrement()) @map("id_users")
-  email     String   @unique @db.VarChar(255)
-  password  String?  @db.VarChar(255)
-  fullName  String?  @map("full_name") @db.VarChar(255)
-  avatar    String?  @db.VarChar(500)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id          Int      @id @default(autoincrement()) @map("id_users")
+  email       String   @unique @db.VarChar(255)
+  password    String?  @db.VarChar(255)
+  fullName    String?  @map("full_name") @db.VarChar(255)
+  avatar      String?  @db.VarChar(500)
+  role        String?  @db.VarChar(50)
+  phone       String?  @db.VarChar(20)
+  status      String?  @db.VarChar(50)
+  provider    String?  @db.VarChar(50)
+  isOnboarded Boolean  @default(false) @map("is_onboarded")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Quan hệ 1-1 với StudentProfile và TeacherProfile
+  studentProfile StudentProfile?
+  teacherProfile TeacherProfile?
 
   @@map("users")
+}
+
+// Bảng Trường Học (Schools)
+model School {
+  id           Int      @id @default(autoincrement()) @map("id_school")
+  schoolName   String   @map("school_name") @db.VarChar(255)
+  level        String?  @db.VarChar(50)
+  provinceName String?  @map("province_name") @db.VarChar(100)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  // Quan hệ 1-N với StudentProfile
+  studentProfiles StudentProfile[]
+
+  @@map("schools")
+}
+
+// Bảng Hồ Sơ Học Sinh (Student Profiles)
+model StudentProfile {
+  id              Int      @id @default(autoincrement()) @map("id_student_profile")
+  userId          Int      @unique @map("user_id")
+  educationLevel  String?  @map("education_level") @db.VarChar(50)
+  schoolId        Int?     @map("school_id")
+  schoolName      String?  @map("school_name") @db.VarChar(255)
+  gradeLevel      String?  @map("grade_level") @db.VarChar(50)
+  fieldOfInterest String?  @map("field_of_interest") @db.VarChar(255)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Quan hệ với User và School
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+
+  @@map("student_profiles")
+}
+
+// Bảng Hồ Sơ Giáo Viên (Teacher Profiles)
+model TeacherProfile {
+  id              Int      @id @default(autoincrement()) @map("id_teacher_profile")
+  userId          Int      @unique @map("user_id")
+  degree          String?  @db.VarChar(255)
+  workplace       String?  @db.VarChar(255)
+  specialization  String?  @db.VarChar(255)
+  yearsOfExperience Int?   @map("years_of_experience")
+  bio             String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Quan hệ với User
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("teacher_profiles")
 }

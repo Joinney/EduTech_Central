@@ -1,9 +1,8 @@
-﻿import React, { useEffect, useRef } from "react"
+﻿import React, { useState, useEffect, useRef } from "react"
 import { 
   Sparkles, 
   Video, 
   PlusCircle,
-  VideoOff,
   FileText, 
   Layers, 
   Network, 
@@ -16,6 +15,9 @@ import {
   Bookmark,
   Filter
 } from "lucide-react"
+
+// Import Modal Onboarding dành riêng cho Học sinh
+import WelcomeStudentModal from "../../components/WelcomeStudentModal.jsx"
 
 // Component Canvas hạt phân tử AI chuyển động
 function ParticleCanvas() {
@@ -111,8 +113,49 @@ function ParticleCanvas() {
 }
 
 export default function UserHome() {
+  const [user, setUser] = useState(null)
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+
+  // Đọc thông tin học sinh & kiểm tra cờ is_onboarded khi vào trang
+  useEffect(() => {
+    const loadUserData = () => {
+      const storedUser = localStorage.getItem("user")
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser)
+          setUser(parsedUser)
+
+          // Nếu học sinh chưa thực hiện onboarding (is_onboarded = false hoặc undefined)
+          if (!parsedUser.is_onboarded) {
+            setShowWelcomeModal(true)
+          }
+        } catch (e) {
+          console.error("Lỗi đọc dữ liệu người dùng:", e)
+        }
+      }
+    }
+
+    loadUserData()
+
+    window.addEventListener("storage", loadUserData)
+    return () => window.removeEventListener("storage", loadUserData)
+  }, [])
+
+  // Callback khi học sinh điền xong thông tin Modal
+  const handleOnboardingComplete = (updatedUser) => {
+    setUser(updatedUser)
+    setShowWelcomeModal(false)
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-10">
+      
+      {/* ================= MODAL CHÀO MỪNG LẦN ĐẦU ĐĂNG NHẬP DÀNH CHO STUDENT ================= */}
+      <WelcomeStudentModal
+        isOpen={showWelcomeModal}
+        user={user}
+        onComplete={handleOnboardingComplete}
+      />
       
       {/* ================= THANH TẠO VÀ THAM GIA CUỘC HỌP (TRÊN LỘ TRÌNH AI) ================= */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
