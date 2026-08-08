@@ -39,11 +39,57 @@ export default function HeroBackground3D() {
     };
     canvas.addEventListener("mousemove", handleMouseMove);
 
+    // Cấu hình vị trí neo (originX, originY) cố định cho từng quả cầu
+    // Dùng angle & orbitRadius để tạo chuyển động nhún/xoay tại chỗ
     const spheres = [
-      { x: width * 0.12, y: height * 0.78, z: 1.4, r: 105, isBlue: true, icon: "brain", vx: 0.1, vy: -0.08, pulse: 0 },
-      { x: width * 0.88, y: height * 0.70, z: 1.6, r: 135, isBlue: false, icon: "cap", vx: -0.08, vy: 0.1, pulse: 1 },
-      { x: width * 0.65, y: height * 0.25, z: 1.2, r: 85, isBlue: false, icon: "bulb", vx: 0.08, vy: 0.08, pulse: 2 },
-      { x: width * 0.18, y: height * 0.22, z: 0.9, r: 60, isBlue: true, icon: "book", vx: -0.1, vy: -0.08, pulse: 3 },
+      {
+        originX: width * 0.12,
+        originY: height * 0.78,
+        z: 1.4,
+        r: 105,
+        isBlue: true,
+        icon: "brain",
+        angle: 0,
+        speed: 0.015,
+        orbitRadius: 15, // Bán kính dao động tại chỗ (px)
+        pulse: 0,
+      },
+      {
+        originX: width * 0.88,
+        originY: height * 0.70,
+        z: 1.6,
+        r: 135,
+        isBlue: false,
+        icon: "cap",
+        angle: Math.PI / 2,
+        speed: 0.012,
+        orbitRadius: 20,
+        pulse: 1,
+      },
+      {
+        originX: width * 0.65,
+        originY: height * 0.25,
+        z: 1.2,
+        r: 85,
+        isBlue: false,
+        icon: "bulb",
+        angle: Math.PI,
+        speed: 0.018,
+        orbitRadius: 12,
+        pulse: 2,
+      },
+      {
+        originX: width * 0.18,
+        originY: height * 0.22,
+        z: 0.9,
+        r: 60,
+        isBlue: true,
+        icon: "book",
+        angle: (Math.PI * 3) / 2,
+        speed: 0.02,
+        orbitRadius: 10,
+        pulse: 3,
+      },
     ];
 
     const drawGlowDot = (x, y, color = "#00f0ff") => {
@@ -190,15 +236,17 @@ export default function HeroBackground3D() {
       ctx.fillRect(0, 0, width, height);
 
       spheres.forEach((s) => {
-        s.x += s.vx;
-        s.y += s.vy;
+        // Cập nhật góc quay để tạo hiệu ứng nhún/quỹ đạo tròn nhỏ tại chỗ
+        s.angle += s.speed;
         s.pulse += 0.02;
 
-        if (s.x - s.r < -20 || s.x + s.r > width + 20) s.vx *= -1;
-        if (s.y - s.r < -20 || s.y + s.r > height + 20) s.vy *= -1;
+        // Tọa độ gốc + bán kính dao động nhỏ
+        const currentX = s.originX + Math.cos(s.angle) * s.orbitRadius;
+        const currentY = s.originY + Math.sin(s.angle) * s.orbitRadius;
 
-        const px = s.x + (mouse.x - width / 2) * 0.035 * s.z;
-        const py = s.y + (mouse.y - height / 2) * 0.035 * s.z;
+        // Áp dụng hiệu ứng parallax theo chuột
+        const px = currentX + (mouse.x - width / 2) * 0.035 * s.z;
+        const py = currentY + (mouse.y - height / 2) * 0.035 * s.z;
         const currentR = s.r + Math.sin(s.pulse) * 3.5;
 
         const auraGrad = ctx.createRadialGradient(px, py, currentR * 0.6, px, py, currentR * 2.2);
