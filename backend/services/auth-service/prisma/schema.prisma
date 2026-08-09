@@ -4,24 +4,35 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
+
+// -------------------------------------------------------------
+// MODELS
+// -------------------------------------------------------------
 
 // Bảng Người Dùng (Users)
 model User {
-  id          Int      @id @default(autoincrement()) @map("id_users")
-  email       String   @unique @db.VarChar(255)
-  password    String?  @db.VarChar(255)
-  fullName    String?  @map("full_name") @db.VarChar(255)
-  avatar      String?  @db.VarChar(500)
-  role        String?  @db.VarChar(50)
-  phone       String?  @db.VarChar(20)
-  status      String?  @db.VarChar(50)
-  provider    String?  @db.VarChar(50)
-  isOnboarded Boolean  @default(false) @map("is_onboarded")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id           Int      @id @default(autoincrement()) @map("id_users")
+  email        String   @unique @db.VarChar(255)
+  password     String?  @db.VarChar(255)
+  fullName     String?  @map("full_name") @db.VarChar(255)
+  avatar       String?  @db.VarChar(500)
+  role         String?  @default("student") @db.VarChar(50)
+  phone        String?  @db.VarChar(20)
+  status       String?  @default("active") @db.VarChar(50)
+  provider     String?  @default("local") @db.VarChar(50)
+  
+  // 🟢 ĐẶT MẶC ĐỊNH LÀ TRUE KHI ĐĂNG KÝ MỚI
+isOnboarded  Boolean  @default(false) @map("is_onboarded")
+  
+  // Trường lưu Refresh Token mã hóa (Hỗ trợ Auth/Logout)
+  refreshToken String?  @map("refresh_token") @db.Text
+
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Quan hệ 1-1 với StudentProfile và TeacherProfile
   studentProfile StudentProfile?
@@ -57,7 +68,7 @@ model StudentProfile {
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Quan hệ với User và School
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   school School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
 
   @@map("student_profiles")
@@ -65,15 +76,15 @@ model StudentProfile {
 
 // Bảng Hồ Sơ Giáo Viên (Teacher Profiles)
 model TeacherProfile {
-  id              Int      @id @default(autoincrement()) @map("id_teacher_profile")
-  userId          Int      @unique @map("user_id")
-  degree          String?  @db.VarChar(255)
-  workplace       String?  @db.VarChar(255)
-  specialization  String?  @db.VarChar(255)
-  yearsOfExperience Int?   @map("years_of_experience")
-  bio             String?  @db.Text
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id                Int      @id @default(autoincrement()) @map("id_teacher_profile")
+  userId            Int      @unique @map("user_id")
+  degree            String?  @db.VarChar(255)
+  workplace         String?  @db.VarChar(255)
+  specialization    String?  @db.VarChar(255)
+  yearsOfExperience Int?     @map("years_of_experience")
+  bio               String?  @db.Text
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Quan hệ với User
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

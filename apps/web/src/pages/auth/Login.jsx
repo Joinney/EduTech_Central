@@ -13,8 +13,7 @@ import {
 } from "lucide-react"
 
 import HeroBackground3D from "../../components/HeroBackground3D.jsx"
-
-const API_AUTH_URL = import.meta.env.VITE_API_AUTH_URL || "http://localhost:8001/api/v1"
+import api from "../../api/axios.js"
 
 const posters = [
   {
@@ -68,9 +67,16 @@ export default function Login() {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + posters.length) % posters.length)
   }
 
-  // Hàm tiện ích xác định URL điều hướng dựa trên role
-  const getRedirectPath = (role) => {
-    return role === "teacher" ? "/teacher/dashboard" : "/student/dashboard"
+  // 🟢 Hàm điều hướng chuẩn theo quy định: Lần đầu Đăng nhập (isOnboarded == true) -> sang /welcome
+  const getRedirectPath = (role, isOnboarded) => {
+    if (isOnboarded === true || isOnboarded === "true") {
+      return "/welcome" // Đăng nhập lần đầu
+    }
+
+    const normalizedRole = role ? role.toLowerCase() : "student"
+    return normalizedRole === "teacher" || normalizedRole === "instructor"
+      ? "/teacher/dashboard"
+      : "/student/dashboard"
   }
 
   const handleLogin = async (e) => {
@@ -79,47 +85,69 @@ export default function Login() {
     setErrorMsg("")
 
     try {
-      const response = await fetch(`${API_AUTH_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      })
+      const response = await api.post("/auth/login", { email, password })
+      const result = response.data
 
-      const result = await response.json()
-
-      if (!response.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.message || "Đăng nhập thất bại")
       }
 
+      // 1. Lưu Access Token
       if (result.data?.token) {
         localStorage.setItem("token", result.data.token)
       }
-      
+
+      // 2. Lưu Refresh Token
+      const refreshToken = result.data?.refreshToken || result.data?.refresh_token
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken)
+      }
+
+      // 3. Xử lý User Data & Trạng thái isOnboarded
       const userData = result.data?.user || result.data
       if (userData) {
+        // Đọc giá trị isOnboarded (true: Lần đầu, false: Đã onboard)
+        const isOnboardedVal = userData.isOnboarded ?? userData.is_onboarded ?? true
+
+        userData.isOnboarded = isOnboardedVal
+        userData.is_onboarded = isOnboardedVal
+
         localStorage.setItem("user", JSON.stringify(userData))
-        
-        // Trích xuất vai trò từ response API (hỗ trợ nhiều định dạng dữ liệu)
+
         const userRole = userData.role || userData.user_type || "student"
         localStorage.setItem("role", userRole)
-        
-        // Điều hướng theo role
-        navigate(getRedirectPath(userRole))
+
+        // Phát sự kiện cập nhật UI cho Header
+        window.dispatchEvent(new Event("user-profile-updated"))
+
+        // 🟢 ĐIỀU HƯỚNG
+        navigate(getRedirectPath(userRole, isOnboardedVal))
       } else {
-        // Mặc định nếu không đọc được role
-        navigate("/student/dashboard")
+        navigate("/welcome")
       }
     } catch (err) {
-      setErrorMsg(err.message)
+      const message = err.response?.data?.message || err.message || "Đăng nhập thất bại, vui lòng kiểm tra lại."
+      setErrorMsg(message)
     } finally {
       setLoading(false)
     }
   }
 
-  // Điều hướng OAuth (Google/Microsoft) dựa theo role đang lưu
   const handleSocialLogin = () => {
     const savedRole = localStorage.getItem("role") || "student"
-    navigate(getRedirectPath(savedRole))
+    const storedUser = localStorage.getItem("user")
+    let isOnboarded = true
+
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser)
+        isOnboarded = parsed.isOnboarded ?? parsed.is_onboarded ?? true
+      } catch (e) {
+        console.error("Lỗi đọc user storage:", e)
+      }
+    }
+
+    navigate(getRedirectPath(savedRole, isOnboarded))
   }
 
   return (
@@ -299,7 +327,7 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Poster Slider Banner Section */}
+      {/* Poster Banner Section */}
       <div className="hidden lg:flex lg:w-1/2 h-full relative overflow-hidden bg-slate-900 p-8 flex-col justify-center items-center">
         <div className="absolute inset-0 z-0">
           <HeroBackground3D />

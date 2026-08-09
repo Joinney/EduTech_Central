@@ -15,6 +15,13 @@ const protect = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        success: false, 
+        code: 'TOKEN_EXPIRED', 
+        message: 'Unauthorized: Token đã hết hạn' 
+      });
+    }
     return res.status(401).json({ success: false, message: 'Unauthorized: Token không hợp lệ' });
   }
 };

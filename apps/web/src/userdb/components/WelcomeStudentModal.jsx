@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
+import ReactDOM from "react-dom"
 import { 
   Sparkles, 
   GraduationCap, 
@@ -104,14 +105,12 @@ export default function WelcomeStudentModal({ isOpen, user, onComplete }) {
 
   const dropdownRef = useRef(null)
 
-  // Cập nhật khối lớp tự động khi đổi Cấp học
   useEffect(() => {
     if (gradesByLevel[educationLevel]) {
       setGradeLevel(gradesByLevel[educationLevel][0])
     }
   }, [educationLevel])
 
-  // Đóng Dropdown danh sách trường khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -122,7 +121,6 @@ export default function WelcomeStudentModal({ isOpen, user, onComplete }) {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  // Tìm kiếm trường học với Debounce & Xử lý An Toàn
   useEffect(() => {
     const getSchoolName = (school) => school?.schoolName || school?.school_name || school?.name
     
@@ -138,7 +136,6 @@ export default function WelcomeStudentModal({ isOpen, user, onComplete }) {
           `${API_AUTH_URL}/schools/search?query=${encodeURIComponent(schoolSearchQuery)}&level=${educationLevel}`
         )
 
-        // Kiểm tra xem res có phải là JSON hay không trước khi parse .json()
         const contentType = res.headers.get("content-type")
         if (res.ok && contentType && contentType.includes("application/json")) {
           const data = await res.json()
@@ -208,6 +205,8 @@ export default function WelcomeStudentModal({ isOpen, user, onComplete }) {
     setErrorMsg("")
 
     try {
+      const userIdToSend = user?.id || user?.id_users;
+
       const response = await fetch(`${API_AUTH_URL}/student/onboarding`, {
         method: "PUT",
         headers: {
@@ -215,7 +214,7 @@ export default function WelcomeStudentModal({ isOpen, user, onComplete }) {
           Authorization: `Bearer ${localStorage.getItem("token") || ""}`
         },
         body: JSON.stringify({
-          userId: user?.id_users || user?.id,
+          userId: userIdToSend,
           educationLevel,
           schoolId: selectedSchool?.id || selectedSchool?.id_school || null,
           schoolName: schoolSearchQuery.trim(),
@@ -235,9 +234,18 @@ export default function WelcomeStudentModal({ isOpen, user, onComplete }) {
         throw new Error(result.message || "Cập nhật hồ sơ thất bại!")
       }
 
-      const updatedUser = { ...user, ...result.data, is_onboarded: true }
-      localStorage.setItem("user", JSON.stringify(updatedUser))
+      // 🟢 Bóc tách chính xác user trả về từ service (result.data.user)
+      // Inside WelcomeStudentModal.jsx -> handleSubmit
 
+const updatedUserFromBackend = result.data?.user || result.data;
+
+      const updatedUser = { 
+        ...user, 
+        ...updatedUserFromBackend
+      };
+
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      onComplete(updatedUser);
       onComplete(updatedUser)
     } catch (err) {
       setErrorMsg(err.message)
@@ -253,11 +261,10 @@ export default function WelcomeStudentModal({ isOpen, user, onComplete }) {
     { id: 4, name: "Xác nhận", subtitle: "Hoàn tất" }
   ]
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-slate-950/80 backdrop-blur-md transition-all">
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 md:p-6 bg-slate-950/80 backdrop-blur-md transition-all">
       <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative max-h-[90vh] flex flex-col">
         
-        {/* Glow Effects Nền */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-72 h-72 bg-gradient-to-br from-orange-400/20 via-amber-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-72 h-72 bg-gradient-to-tr from-blue-500/20 via-cyan-400/20 to-transparent rounded-full blur-3xl pointer-events-none" />
 
@@ -695,6 +702,7 @@ export default function WelcomeStudentModal({ isOpen, user, onComplete }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

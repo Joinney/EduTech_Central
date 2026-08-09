@@ -16,8 +16,10 @@ import {
   Filter
 } from "lucide-react"
 
-// Import Modal Onboarding dành riêng cho Học sinh
+// 🟢 Đường dẫn trỏ tới WelcomeStudentModal
 import WelcomeStudentModal from "../../components/WelcomeStudentModal.jsx"
+
+const API_AUTH_URL = import.meta.env.VITE_API_AUTH_URL || "http://localhost:8001/api/v1"
 
 // Component Canvas hạt phân tử AI chuyển động
 function ParticleCanvas() {
@@ -29,7 +31,6 @@ function ParticleCanvas() {
     const ctx = canvas.getContext("2d")
     let animationFrameId
 
-    // Đặt kích thước canvas theo container
     const resizeCanvas = () => {
       canvas.width = canvas.offsetWidth
       canvas.height = canvas.offsetHeight
@@ -37,7 +38,6 @@ function ParticleCanvas() {
     resizeCanvas()
     window.addEventListener("resize", resizeCanvas)
 
-    // Khởi tạo danh sách phân tử (45 hạt)
     const particleCount = 45
     const particles = []
 
@@ -45,43 +45,37 @@ function ParticleCanvas() {
       particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.8, // Tốc độ di chuyển X
-        vy: (Math.random() - 0.5) * 0.8, // Tốc độ di chuyển Y
-        radius: Math.random() * 2 + 1.5,   // Kích thước hạt
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: (Math.random() - 0.5) * 0.8,
+        radius: Math.random() * 2 + 1.5,
         alpha: Math.random() * 0.5 + 0.5
       })
     }
 
-    // Vòng lặp vẽ Animation
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      // 1. Cập nhật vị trí và vẽ các hạt
       particles.forEach((p, i) => {
         p.x += p.vx
         p.y += p.vy
 
-        // Bật lại khi chạm viền canvas
         if (p.x < 0 || p.x > canvas.width) p.vx *= -1
         if (p.y < 0 || p.y > canvas.height) p.vy *= -1
 
-        // Vẽ hạt phân tử phát sáng nhẹ
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
         ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`
         ctx.shadowBlur = 6
         ctx.shadowColor = "#ffffff"
         ctx.fill()
-        ctx.shadowBlur = 0 // Reset shadow
+        ctx.shadowBlur = 0
 
-        // 2. Vẽ đường nối mạng lưới giữa các hạt lại gần nhau
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j]
           const dx = p.x - p2.x
           const dy = p.y - p2.y
           const dist = Math.sqrt(dx * dx + dy * dy)
 
-          // Nếu khoảng cách < 110px thì nối dây mờ
           if (dist < 110) {
             ctx.beginPath()
             ctx.moveTo(p.x, p.y)
@@ -116,39 +110,88 @@ export default function UserHome() {
   const [user, setUser] = useState(null)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
-  // Đọc thông tin học sinh & kiểm tra cờ is_onboarded khi vào trang
+  // 1. Đồng bộ profile mới nhất từ Server khi mở trang
+  useEffect(() => {
+    const fetchLatestProfile = async () => {
+      const token = localStorage.getItem("token")
+      if (!token) return
+
+      try {
+        const res = await fetch(`${API_AUTH_URL}/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        const result = await res.json()
+
+        if (res.ok && result.success) {
+          const latestUser = result.data?.user || result.data
+          localStorage.setItem("user", JSON.stringify(latestUser))
+          window.dispatchEvent(new Event("user-profile-updated"))
+        }
+      } catch (err) {
+        console.error("Không thể tự động đồng bộ profile từ Server:", err)
+      }
+    }
+
+    fetchLatestProfile()
+  }, [])
+
+  // 2. Lắng nghe thay đổi User và kiểm tra điều kiện bật Modal Onboarding
   useEffect(() => {
     const loadUserData = () => {
       const storedUser = localStorage.getItem("user")
+
       if (storedUser) {
         try {
-          const parsedUser = JSON.parse(storedUser)
+          let parsedUser = JSON.parse(storedUser)
+
+          // Bóc tách lớp vỏ bọc nếu object bị lồng { user: ... }
+          while (parsedUser && (parsedUser.user || parsedUser.data)) {
+            parsedUser = parsedUser.user || parsedUser.data
+          }
+
           setUser(parsedUser)
 
-          // Nếu học sinh chưa thực hiện onboarding (is_onboarded = false hoặc undefined)
-          if (!parsedUser.is_onboarded) {
+          // Lấy cờ onboarding (hỗ trợ cả camelCase và snake_case)
+          const onboardedStatus = parsedUser?.isOnboarded ?? parsedUser?.is_onboarded
+
+          // 🟢 ĐIỀU KIỆN QUYẾT ĐỊNH: Bật Modal nếu cờ chưa bằng true
+          if (onboardedStatus !== true) {
             setShowWelcomeModal(true)
+          } else {
+            setShowWelcomeModal(false)
           }
         } catch (e) {
-          console.error("Lỗi đọc dữ liệu người dùng:", e)
+          console.error("Lỗi parse JSON user:", e)
+          setShowWelcomeModal(true)
         }
+      } else {
+        setShowWelcomeModal(true)
       }
     }
 
     loadUserData()
 
     window.addEventListener("storage", loadUserData)
-    return () => window.removeEventListener("storage", loadUserData)
+    window.addEventListener("user-profile-updated", loadUserData)
+
+    return () => {
+      window.removeEventListener("storage", loadUserData)
+      window.removeEventListener("user-profile-updated", loadUserData)
+    }
   }, [])
 
-  // Callback khi học sinh điền xong thông tin Modal
+  // 🟢 Callback xử lý khi hoàn thành Onboarding
   const handleOnboardingComplete = (updatedUser) => {
     setUser(updatedUser)
+    localStorage.setItem("user", JSON.stringify(updatedUser))
+    localStorage.setItem("isJustRegistered", "false")
+
+    window.dispatchEvent(new Event("user-profile-updated"))
     setShowWelcomeModal(false)
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-10">
+    <div className="max-w-7xl mx-auto space-y-8 pb-10 relative">
       
       {/* ================= MODAL CHÀO MỪNG LẦN ĐẦU ĐĂNG NHẬP DÀNH CHO STUDENT ================= */}
       <WelcomeStudentModal
@@ -157,8 +200,8 @@ export default function UserHome() {
         onComplete={handleOnboardingComplete}
       />
       
-      {/* ================= THANH TẠO VÀ THAM GIA CUỘC HỌP (TRÊN LỘ TRÌNH AI) ================= */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* ================= THANH TẠO VÀ THAM GIA CUỘC HỌP ================= */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
             <Video className="w-5 h-5" />
@@ -181,19 +224,16 @@ export default function UserHome() {
         </div>
       </div>
 
-      {/* ================= HÀNG 1: LỘ TRÌNH AI (NỀN BẠC + CANVAS CHUYỂN ĐỘNG) ================= */}
+      {/* ================= HÀNG 1: LỘ TRÌNH AI ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Banner Lộ trình AI đề xuất */}
         <div className="lg:col-span-2 relative rounded-3xl p-6 border border-slate-300/60 shadow-md overflow-hidden flex flex-col justify-between bg-gradient-to-br from-[#c8d3e0] via-[#b6c4d4] to-[#9eb0c3]">
           
-          {/* Hiệu ứng mờ ánh bạc kim loại */}
           <div className="absolute inset-0 bg-gradient-to-tr from-white/30 via-transparent to-blue-200/20 pointer-events-none z-0" />
 
-          {/* Canvas Hạt Phân Tử AI Chuyển Động */}
           <ParticleCanvas />
 
-          {/* Watermark Chữ mờ 4 góc */}
           <span className="absolute top-3 left-4 text-[9px] font-bold text-slate-600/30 select-none pointer-events-none tracking-tight z-0">
             Bảng điều khiển Học viên - Kinetic Academy
           </span>
@@ -207,17 +247,15 @@ export default function UserHome() {
             Bảng điều khiển Học viên - Kinetic Academy
           </span>
 
-          {/* Tiêu đề Banner */}
           <div className="relative z-10 flex items-center space-x-2 text-[#0a2540] font-black text-xl mb-5">
             <Sparkles className="w-5 h-5 text-amber-500 fill-amber-400 shrink-0" />
             <span className="tracking-tight">Lộ trình AI đề xuất</span>
           </div>
 
-          {/* 3 Thẻ chức năng bên trong */}
           <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
             
-            {/* Card 1: Bài học tiếp theo */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm flex flex-col justify-between border border-white/60">
+            {/* Card 1 */}
+            <div className="bg-white p-5 rounded-2xl shadow-xs flex flex-col justify-between border border-white/60">
               <div>
                 <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider block mb-2">
                   Bài học tiếp theo
@@ -229,13 +267,13 @@ export default function UserHome() {
                   Hoàn thành 65% - Module 4
                 </p>
               </div>
-              <button className="w-full py-2.5 bg-[#0062d2] hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer">
+              <button className="w-full py-2.5 bg-[#0062d2] hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer">
                 Tiếp tục học
               </button>
             </div>
 
-            {/* Card 2: Ôn tập đề xuất */}
-            <div className="bg-white/80 backdrop-blur-md p-5 rounded-2xl shadow-sm flex flex-col justify-between border border-white/40">
+            {/* Card 2 */}
+            <div className="bg-white/80 backdrop-blur-md p-5 rounded-2xl shadow-xs flex flex-col justify-between border border-white/40">
               <div>
                 <span className="text-[10px] font-extrabold text-[#8a5d28] uppercase tracking-wider block mb-2">
                   Ôn tập (Đề xuất)
@@ -247,13 +285,13 @@ export default function UserHome() {
                   Dựa trên kết quả bài kiểm tra Python
                 </p>
               </div>
-              <button className="w-full py-2.5 bg-white/90 border-2 border-[#0062d2] hover:bg-blue-50 text-[#0062d2] rounded-xl text-xs font-bold transition shadow-sm cursor-pointer">
+              <button className="w-full py-2.5 bg-white/90 border-2 border-[#0062d2] hover:bg-blue-50 text-[#0062d2] rounded-xl text-xs font-bold transition shadow-xs cursor-pointer">
                 Luyện tập ngay
               </button>
             </div>
 
-            {/* Card 3: Kỹ năng thiếu */}
-            <div className="bg-[#d5ceca]/60 backdrop-blur-md p-5 rounded-2xl shadow-sm flex flex-col justify-between border border-white/30">
+            {/* Card 3 */}
+            <div className="bg-[#d5ceca]/60 backdrop-blur-md p-5 rounded-2xl shadow-xs flex flex-col justify-between border border-white/30">
               <div>
                 <span className="text-[10px] font-extrabold text-[#703b0d] uppercase tracking-wider block mb-2">
                   Kỹ năng thiếu
@@ -265,7 +303,7 @@ export default function UserHome() {
                   Lấp đầy khoảng trống kiến thức
                 </p>
               </div>
-              <button className="w-full py-2.5 bg-[#ff8c00] hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer">
+              <button className="w-full py-2.5 bg-[#ff8c00] hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer">
                 Bắt đầu
               </button>
             </div>
@@ -273,9 +311,9 @@ export default function UserHome() {
           </div>
         </div>
 
-        {/* Cột Widgets bên phải */}
+        {/* Widgets bên phải */}
         <div className="space-y-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
             <div className="flex items-center space-x-2 text-slate-800 font-bold text-sm">
               <span className="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xs">
                 🌐
@@ -296,7 +334,7 @@ export default function UserHome() {
             </p>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 text-slate-800 font-bold text-sm">
                 <span className="text-base">🔥</span>
@@ -333,18 +371,18 @@ export default function UserHome() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             
-            {/* Card Môn 1: Toán */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col justify-between">
+            {/* Card Môn 1 */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
               <div className="relative h-40 bg-slate-100">
                 <img 
                   src="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&auto=format&fit=crop&q=80" 
                   alt="Giai tich" 
                   className="w-full h-full object-cover"
                 />
-                <span className="absolute top-2.5 left-2.5 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+                <span className="absolute top-2.5 left-2.5 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
                   Bắt buộc
                 </span>
-                <span className="absolute top-2.5 right-2.5 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center space-x-1 shadow-sm">
+                <span className="absolute top-2.5 right-2.5 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center space-x-1 shadow-xs">
                   <Video className="w-3 h-3" />
                   <span>Lớp học Meet</span>
                 </span>
@@ -390,15 +428,15 @@ export default function UserHome() {
               </div>
             </div>
 
-            {/* Card Môn 2: Vật lý */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col justify-between">
+            {/* Card Môn 2 */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
               <div className="relative h-40 bg-slate-100">
                 <img 
                   src="https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=500&auto=format&fit=crop&q=80" 
                   alt="Vat ly" 
                   className="w-full h-full object-cover"
                 />
-                <span className="absolute top-2.5 right-2.5 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center space-x-1 shadow-sm">
+                <span className="absolute top-2.5 right-2.5 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center space-x-1 shadow-xs">
                   <Video className="w-3 h-3" />
                   <span>Lớp học Meet</span>
                 </span>
@@ -447,8 +485,8 @@ export default function UserHome() {
           </div>
         </div>
 
-        {/* Cột Bộ lọc học liệu */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 h-fit">
+        {/* Cột Bộ lọc */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4 h-fit">
           <div className="flex items-center space-x-2 text-slate-800 font-bold text-sm border-b border-slate-100 pb-3">
             <Filter className="w-4 h-4 text-blue-600" />
             <span>Bộ lọc học liệu</span>
@@ -506,9 +544,9 @@ export default function UserHome() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col justify-between space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex flex-col justify-between space-y-4">
             <div className="relative bg-slate-100 rounded-xl h-36 flex items-center justify-center">
-              <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+              <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-xs">
                 -20%
               </span>
               <FileText className="w-10 h-10 text-slate-400" />
@@ -532,7 +570,7 @@ export default function UserHome() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 flex flex-col justify-between space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex flex-col justify-between space-y-4">
             <div className="bg-slate-100 rounded-xl h-36 flex items-center justify-center">
               <PlayCircle className="w-10 h-10 text-slate-400" />
             </div>
@@ -561,13 +599,13 @@ export default function UserHome() {
         <div className="flex justify-between items-center">
           <h3 className="font-bold text-base text-slate-800">Thư viện số (Đang nghiên cứu)</h3>
           <div className="flex space-x-1 bg-slate-200/60 p-0.5 rounded-lg text-xs font-bold text-slate-600">
-            <button className="px-3 py-1 bg-white rounded-md shadow-sm">PDF</button>
+            <button className="px-3 py-1 bg-white rounded-md shadow-xs">PDF</button>
             <button className="px-3 py-1 hover:text-slate-900 transition">Video</button>
           </div>
         </div>
 
         <div className="space-y-3">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-start space-x-3">
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-red-500 shrink-0 mt-1 sm:mt-0">
                 <FileText className="w-5 h-5" />
@@ -601,7 +639,7 @@ export default function UserHome() {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-start space-x-3">
               <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-500 shrink-0 mt-1 sm:mt-0">
                 <PlayCircle className="w-5 h-5" />
