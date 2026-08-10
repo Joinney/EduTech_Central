@@ -59,6 +59,7 @@ model School {
 model StudentProfile {
   id              Int      @id @default(autoincrement()) @map("id_student_profile")
   userId          Int      @unique @map("user_id")
+  studentCode      String?  @map("student_code")
   educationLevel  String?  @map("education_level") @db.VarChar(50)
   schoolId        Int?     @map("school_id")
   schoolName      String?  @map("school_name") @db.VarChar(255)
@@ -78,6 +79,7 @@ model StudentProfile {
 model TeacherProfile {
   id                Int      @id @default(autoincrement()) @map("id_teacher_profile")
   userId            Int      @unique @map("user_id")
+  teacherCode       String?  @map("teacher_code")
   degree            String?  @db.VarChar(255)
   workplace         String?  @db.VarChar(255)
   specialization    String?  @db.VarChar(255)

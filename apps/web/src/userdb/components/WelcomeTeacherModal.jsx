@@ -1,5 +1,18 @@
-import React, { useState } from "react"
-import { Sparkles, Award, Building2, BookOpen, Clock, FileText, Loader2 } from "lucide-react"
+import React, { useState, useEffect, useRef } from "react"
+import ReactDOM from "react-dom"
+import { 
+  Sparkles, 
+  Award, 
+  Building2, 
+  BookOpen, 
+  Clock, 
+  FileText, 
+  Loader2, 
+  Search, 
+  MapPin, 
+  ChevronRight, 
+  X 
+} from "lucide-react"
 
 const API_AUTH_URL = import.meta.env.VITE_API_AUTH_URL || "http://localhost:8001/api/v1"
 
@@ -19,10 +32,75 @@ export default function WelcomeTeacherModal({ isOpen, user, onComplete }) {
   const [yearsOfExperience, setYearsOfExperience] = useState(1)
   const [bio, setBio] = useState("")
   
+  const [selectedSchool, setSelectedSchool] = useState(null)
+  const [schoolList, setSchoolList] = useState([])
+  const [loadingSchools, setLoadingSchools] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
 
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    const getSchoolName = (school) => school?.schoolName || school?.school_name || school?.name
+
+    if (!workplace.trim() || getSchoolName(selectedSchool) === workplace) {
+      setSchoolList([])
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setLoadingSchools(true)
+      try {
+        const res = await fetch(
+          `${API_AUTH_URL}/schools/search?query=${encodeURIComponent(workplace)}&level=university`
+        )
+
+        const contentType = res.headers.get("content-type")
+        if (res.ok && contentType && contentType.includes("application/json")) {
+          const data = await res.json()
+          if (data.success && Array.isArray(data.data)) {
+            setSchoolList(data.data)
+            setShowDropdown(true)
+          }
+        } else {
+          setSchoolList([])
+        }
+      } catch (err) {
+        console.error("Lỗi kết nối API trường học:", err)
+      } finally {
+        setLoadingSchools(false)
+      }
+    }, 350)
+
+    return () => clearTimeout(timer)
+  }, [workplace, selectedSchool])
+
   if (!isOpen) return null
+
+  const handleSelectSchool = (school) => {
+    setSelectedSchool(school)
+    const name = school.schoolName || school.school_name || school.name || ""
+    setWorkplace(name)
+    setShowDropdown(false)
+  }
+
+  const handleClearSchoolInput = () => {
+    setWorkplace("")
+    setSelectedSchool(null)
+    setSchoolList([])
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -46,8 +124,9 @@ export default function WelcomeTeacherModal({ isOpen, user, onComplete }) {
           Authorization: `Bearer ${localStorage.getItem("token")}`
         },
         body: JSON.stringify({
-          userId: user.id_users || user.id,
+          userId: user?.id || user?.id_users,
           degree,
+          schoolId: selectedSchool?.id || selectedSchool?.id_school || null,
           workplace: workplace.trim(),
           specialization: specialization.trim(),
           yearsOfExperience: Number(yearsOfExperience),
@@ -61,9 +140,15 @@ export default function WelcomeTeacherModal({ isOpen, user, onComplete }) {
         throw new Error(result.message || "Cập nhật hồ sơ giảng viên thất bại!")
       }
 
-      const updatedUser = { ...user, ...result.data, is_onboarded: true }
-      localStorage.setItem("user", JSON.stringify(updatedUser))
+      const updatedUserFromBackend = result.data?.user || result.data
+      const updatedUser = { 
+        ...user, 
+        ...updatedUserFromBackend, 
+        isOnboarded: true, 
+        is_onboarded: true 
+      }
 
+      localStorage.setItem("user", JSON.stringify(updatedUser))
       onComplete(updatedUser)
     } catch (err) {
       setErrorMsg(err.message)
@@ -72,8 +157,8 @@ export default function WelcomeTeacherModal({ isOpen, user, onComplete }) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
       <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden relative max-h-[90vh] flex flex-col">
         
         {/* Header Màu Cam Chuyên Biệt Cho Teacher */}
@@ -114,19 +199,76 @@ export default function WelcomeTeacherModal({ isOpen, user, onComplete }) {
           </div>
 
           {/* 2. Nơi công tác */}
-          <div className="space-y-1">
+          <div className="space-y-1 relative" ref={dropdownRef}>
             <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5">
               <Building2 className="w-3.5 h-3.5 text-orange-600" />
               <span>Nơi công tác / Trường giảng dạy <span className="text-red-500">*</span></span>
             </label>
-            <input
-              type="text"
-              value={workplace}
-              onChange={(e) => setWorkplace(e.target.value)}
-              placeholder="VD: Trường THPT Chuyên Lê Hồng Phong, Đại học Bách Khoa..."
-              className="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-              required
-            />
+            
+            <div className="relative group">
+              <input
+                type="text"
+                value={workplace}
+                onChange={(e) => {
+                  setWorkplace(e.target.value)
+                  setSelectedSchool(null)
+                }}
+                onFocus={() => schoolList.length > 0 && setShowDropdown(true)}
+                placeholder="Gõ tên trường / nơi công tác của Thầy/Cô..."
+                className="block w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                required
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+
+              {loadingSchools ? (
+                <Loader2 className="w-4 h-4 text-orange-500 animate-spin absolute right-3 top-3" />
+              ) : workplace && (
+                <button
+                  type="button"
+                  onClick={handleClearSchoolInput}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {showDropdown && schoolList.length > 0 && (
+              <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-52 overflow-y-auto divide-y divide-slate-100">
+                {schoolList.map((item) => {
+                  const schoolName = item.schoolName || item.school_name || item.name
+                  const provinceName = item.provinceName || item.province_name || item.province
+                  const schoolId = item.id || item.id_school
+
+                  return (
+                    <button
+                      key={schoolId || schoolName}
+                      type="button"
+                      onClick={() => handleSelectSchool(item)}
+                      className="w-full text-left p-2.5 hover:bg-orange-50/70 transition-colors flex items-center justify-between cursor-pointer group"
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-orange-100 group-hover:text-orange-600">
+                          <Building2 className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-800 group-hover:text-orange-700">
+                            {schoolName}
+                          </div>
+                          {provinceName && (
+                            <div className="text-[10px] text-slate-400 flex items-center mt-0.5">
+                              <MapPin className="w-3 h-3 mr-1" />
+                              <span>{provinceName}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-orange-600 group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* 3. Chuyên môn chính */}
@@ -194,6 +336,7 @@ export default function WelcomeTeacherModal({ isOpen, user, onComplete }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

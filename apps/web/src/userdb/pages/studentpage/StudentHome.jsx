@@ -117,7 +117,7 @@ export default function UserHome() {
       if (!token) return
 
       try {
-        const res = await fetch(`${API_AUTH_URL}/me`, {
+        const res = await fetch(`${API_AUTH_URL}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         const result = await res.json()

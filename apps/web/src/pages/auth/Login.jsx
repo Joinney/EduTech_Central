@@ -67,17 +67,24 @@ export default function Login() {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + posters.length) % posters.length)
   }
 
-  // 🟢 Hàm điều hướng chuẩn theo quy định: Lần đầu Đăng nhập (isOnboarded == true) -> sang /welcome
-  const getRedirectPath = (role, isOnboarded) => {
-    if (isOnboarded === true || isOnboarded === "true") {
-      return "/welcome" // Đăng nhập lần đầu
-    }
+ // 🟢 Điều hướng chuẩn:
+// - Lần đầu đăng nhập (isOnboarded == false hoặc chưa onboard): Đưa vào trang /welcome
+// - Đã onboard trước đó (isOnboarded == true): Đưa thẳng vào Dashboard tương ứng
+const getRedirectPath = (role, isOnboarded) => {
+  const normalizedRole = role ? role.toLowerCase() : "student"
 
-    const normalizedRole = role ? role.toLowerCase() : "student"
-    return normalizedRole === "teacher" || normalizedRole === "instructor"
-      ? "/teacher/dashboard"
-      : "/student/dashboard"
+  // Kiểm tra trạng thái đã onboard chưa (Lưu ý: false hoặc "false" nghĩa là chưa onboard)
+  const isAlreadyOnboarded = isOnboarded === true || isOnboarded === "true"
+
+  if (!isAlreadyOnboarded) {
+    return "/welcome" // Đăng nhập lần đầu -> Qua trang Onboarding Welcome Modal
   }
+
+  // Đã onboard rồi -> Đưa thẳng vào Dashboard theo Role
+  return normalizedRole === "teacher" || normalizedRole === "instructor"
+    ? "/teacher/dashboard"
+    : "/student/dashboard"
+}
 
   const handleLogin = async (e) => {
     e.preventDefault()

@@ -110,28 +110,31 @@ export default function TeacherHome() {
 
   // Kiểm tra cờ is_onboarded khi Giảng viên vào Dashboard
   useEffect(() => {
-    const loadUserData = () => {
-      const storedUser = localStorage.getItem("user")
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser)
-          setUser(parsedUser)
+  const loadUserData = () => {
+    const storedUser = localStorage.getItem("user")
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser)
+        setUser(parsedUser)
 
-          // Nếu chưa thực hiện onboarding (is_onboarded = false hoặc undefined)
-          if (!parsedUser.is_onboarded) {
-            setShowTeacherModal(true)
-          }
-        } catch (e) {
-          console.error("Lỗi đọc dữ liệu người dùng:", e)
+        // Đọc cả 2 kiểu tên cờ isOnboarded và is_onboarded
+        const isOnboarded = parsedUser.isOnboarded ?? parsedUser.is_onboarded ?? false
+
+        // Nếu CHƯA onboard -> Bật Modal Giảng viên
+        if (!isOnboarded) {
+          setShowTeacherModal(true)
         }
+      } catch (e) {
+        console.error("Lỗi đọc dữ liệu người dùng:", e)
       }
     }
+  }
 
-    loadUserData()
+  loadUserData()
 
-    window.addEventListener("storage", loadUserData)
-    return () => window.removeEventListener("storage", loadUserData)
-  }, [])
+  window.addEventListener("storage", loadUserData)
+  return () => window.removeEventListener("storage", loadUserData)
+}, [])
 
   const handleOnboardingComplete = (updatedUser) => {
     setUser(updatedUser)

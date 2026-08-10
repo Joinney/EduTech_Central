@@ -6,8 +6,9 @@ const { connectDB } = require('./configs/db.config');
 
 // Import các Routes
 const authRoutes = require('./routes/auth.routes');
-const schoolRoutes = require('./routes/school.routes');   // Endpoint: /api/v1/schools/search
-const studentRoutes = require('./routes/student.routes'); // Endpoint: /api/v1/student/onboarding
+const schoolRoutes = require('./routes/school.routes');   // Endpoint: /api/v1/schools
+const studentRoutes = require('./routes/student.routes'); // Endpoint: /api/v1/student
+const teacherRoutes = require('./routes/teacher.routes'); // Endpoint: /api/v1/teacher
 
 const app = express();
 
@@ -25,6 +26,7 @@ connectDB();
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/schools', schoolRoutes);
 app.use('/api/v1/student', studentRoutes);
+app.use('/api/v1/teacher', teacherRoutes);
 
 // 5. Health Check Endpoint
 app.get('/health', (req, res) => {
@@ -35,7 +37,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 6. Middleware xử lý 404 - Bắt các Endpoint không tồn tại (tránh trả về trang HTML mặc định của Express)
+// 6. Middleware xử lý 404 - Bắt các Endpoint không tồn tại
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -43,7 +45,7 @@ app.use((req, res) => {
   });
 });
 
-// 7. Global Error Handler Middleware - Bắt tất cả lỗi 500 không lường trước
+// 7. Global Error Handler Middleware - Bắt tất cả lỗi 500
 app.use((err, req, res, next) => {
   console.error('[SERVER ERROR]:', err.stack || err.message);
   res.status(err.status || 500).json({

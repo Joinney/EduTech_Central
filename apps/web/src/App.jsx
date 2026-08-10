@@ -5,17 +5,19 @@ import Login from "./pages/auth/Login.jsx"
 import Register from "./pages/auth/Register.jsx"
 
 import UserLayout from "./userdb/layouts/UserLayout.jsx"
-import UserHome from "./userdb/pages/studentpage/UserHome.jsx"
+import StudentHome from "./userdb/pages/studentpage/StudentHome.jsx"
+import TeacherHome from "./userdb/pages/teacherpage/TeacherHome.jsx"
+
 import Programs from "./userdb/pages/studentpage/Chuongtrinhkhoilop/Programs.jsx"
 import Library from "./userdb/pages/studentpage/Khohoclieu/Library.jsx"
 import Courses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx"
 import Videos from "./userdb/pages/studentpage/VideoEdu/Videos.jsx"
-import Profile from "./userdb/pages/studentpage/Profile.jsx"
 
-// Import ProtectedRoute từ đúng thư mục src/userdb/components/ProtectedRoute.jsx
+// 🟢 Đường dẫn trỏ tới Profile.jsx đã được di chuyển ra ngoài
+import Profile from "./userdb/pages/Profile.jsx"
+
 import ProtectedRoute from "./userdb/components/ProtectedRoute.jsx"
 
-// Component hỗ trợ điều hướng mặc định theo vai trò khi vào trang / hoặc đường dẫn không tồn tại
 const DashboardRedirect = () => {
   const role = (localStorage.getItem("role") || "student").toLowerCase()
 
@@ -37,13 +39,13 @@ export default function App() {
       <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
         <Route path="/student" element={<UserLayout />}>
           <Route index element={<Navigate to="/student/dashboard" replace />} />
-          <Route path="dashboard" element={<UserHome />} />
+          <Route path="dashboard" element={<StudentHome />} />
           <Route path="programs" element={<Programs />} />
           <Route path="library" element={<Library />} />
           <Route path="courses" element={<Courses />} />
           <Route path="videos" element={<Videos />} />
           <Route path="profile" element={<Profile />} />
-          <Route path="bookshelf" element={<UserHome />} />
+          <Route path="bookshelf" element={<StudentHome />} />
         </Route>
       </Route>
 
@@ -51,17 +53,16 @@ export default function App() {
       <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
         <Route path="/teacher" element={<UserLayout />}>
           <Route index element={<Navigate to="/teacher/dashboard" replace />} />
-          <Route path="dashboard" element={<UserHome />} /> {/* Tùy chỉnh component riêng từ folder teacherpage sau này */}
+          <Route path="dashboard" element={<TeacherHome />} />
           <Route path="programs" element={<Programs />} />
           <Route path="library" element={<Library />} />
           <Route path="courses" element={<Courses />} />
           <Route path="videos" element={<Videos />} />
           <Route path="profile" element={<Profile />} />
-          <Route path="bookshelf" element={<UserHome />} />
+          <Route path="bookshelf" element={<TeacherHome />} />
         </Route>
       </Route>
 
-      {/* Điều hướng mặc định dựa trên vai trò người dùng */}
       <Route path="*" element={<DashboardRedirect />} />
     </Routes>
   )

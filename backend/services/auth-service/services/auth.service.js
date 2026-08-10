@@ -21,7 +21,6 @@ const generateRefreshToken = (user) => {
   );
 };
 
-// 🟢 ĐĂNG KÝ (Lưu User + Phone + Role, isOnboarded mặc định là true)
 exports.registerUser = async (data) => {
   const email = data.email ? data.email.toLowerCase().trim() : '';
   const fullName = data.fullName || data.full_name || '';
@@ -42,7 +41,6 @@ exports.registerUser = async (data) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  // Tạo User mới trong DB (isOnboarded nhận giá trị default true từ Prisma schema)
   const newUser = await prisma.user.create({
     data: {
       fullName,
@@ -53,6 +51,26 @@ exports.registerUser = async (data) => {
       role
     }
   });
+
+  // Tự động khởi tạo Profile + Mã định danh ngay khi Đăng ký
+  const formattedId = String(newUser.id).padStart(4, '0');
+  
+  if (role === 'teacher' || role === 'instructor') {
+    await prisma.teacherProfile.create({
+      data: {
+        userId: newUser.id,
+        teacherCode: `GV-2026-${formattedId}`
+      }
+    });
+  } else {
+    await prisma.studentProfile.create({
+      data: {
+        userId: newUser.id,
+        studentCode: `ETC-2026-${formattedId}`,
+        educationLevel: 'high_school' // Giá trị tạm thời
+      }
+    });
+  }
 
   const token = generateAccessToken(newUser);
 
@@ -70,7 +88,7 @@ exports.registerUser = async (data) => {
   };
 };
 
-// 🟢 ĐĂNG NHẬP (Lưu Refresh Token đã mã hóa vào DB)
+// 🟢 ĐĂNG NHẬP
 exports.loginUser = async ({ email, password }) => {
   if (!email || !password) {
     throw new Error('Vui lòng nhập đầy đủ email và mật khẩu');
@@ -92,7 +110,6 @@ exports.loginUser = async ({ email, password }) => {
   const token = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
-  // Hash và lưu Refresh Token mới vào DB
   const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
   await prisma.user.update({
     where: { id: user.id },
@@ -114,7 +131,7 @@ exports.loginUser = async ({ email, password }) => {
   };
 };
 
-// 🟢 ĐĂNG XUẤT (Set refreshToken = null trong DB)
+// 🟢 ĐĂNG XUẤT
 exports.logoutUser = async (userId) => {
   const id = Number(userId);
 
@@ -162,7 +179,7 @@ exports.refreshAccessToken = async (refreshToken) => {
   return { token: newAccessToken };
 };
 
-// 🟢 LẤY PROFILE
+// 🟢 LẤY PROFILE ĐỘNG TỪ CSDL
 exports.getUserProfile = async (userId) => {
   const id = Number(userId);
   if (isNaN(id)) {
@@ -181,14 +198,29 @@ exports.getUserProfile = async (userId) => {
     throw new Error('Không tìm thấy người dùng');
   }
 
+  // Tự động định dạng mã định danh theo ID thực tế nếu chưa có trong DB
+  const formattedId = String(user.id).padStart(4, '0');
+  const studentCode = user.studentProfile?.studentCode || `ETC-2026-${formattedId}`;
+  const teacherCode = user.teacherProfile?.teacherCode || `GV-2026-${formattedId}`;
+
   return {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
-    phone: user.phone,
+    phone: user.phone || 'Chưa cập nhật',
     avatar: user.avatar,
     role: user.role,
     isOnboarded: user.isOnboarded,
+    // Thông tin Học sinh động
+    studentCode,
+    gradeLevel: user.studentProfile?.gradeLevel || 'Chưa cập nhật',
+    schoolName: user.studentProfile?.schoolName || 'Chưa cập nhật',
+    // Thông tin Giảng viên động
+    teacherCode,
+    workplace: user.teacherProfile?.workplace || 'Chưa cập nhật',
+    specialization: user.teacherProfile?.specialization || 'Chưa cập nhật',
+    degree: user.teacherProfile?.degree || 'Chưa cập nhật',
+    bio: user.teacherProfile?.bio || '',
     studentProfile: user.studentProfile,
     teacherProfile: user.teacherProfile,
     createdAt: user.createdAt,
@@ -243,8 +275,7 @@ exports.updateUserProfile = async (userId, data) => {
   return updatedUser;
 };
 
-// auth.service.js
-
+// 🟢 CẬP NHẬT ONBOARDING HỌC SINH
 exports.updateStudentOnboarding = async (userId, data) => {
   const id = Number(userId);
   if (!id || isNaN(id)) {
@@ -280,7 +311,7 @@ exports.updateStudentOnboarding = async (userId, data) => {
       }),
       prisma.user.update({
         where: { id },
-        data: { isOnboarded: true }, // 🟢 Đổi thành true khi hoàn tất
+        data: { isOnboarded: true },
         select: {
           id: true,
           fullName: true,
@@ -298,12 +329,152 @@ exports.updateStudentOnboarding = async (userId, data) => {
     return {
       user: {
         ...updatedUser,
-        studentProfile // 🟢 Kèm studentProfile vào user
+        studentProfile
       },
       studentProfile
     };
   } catch (error) {
-    console.error("❌ Lỗi Prisma Transaction Onboarding:", error);
+    console.error("❌ Lỗi Prisma Transaction Onboarding Student:", error);
+    throw new Error("Lỗi cơ sở dữ liệu khi lưu thông tin học sinh: " + error.message);
+  }
+};
+
+// 🟢 1. CẬP NHẬT ONBOARDING GIẢNG VIÊN (Tự động sinh teacherCode vào CSDL)
+exports.saveTeacherOnboarding = async (data) => {
+  const { userId, degree, workplace, specialization, yearsOfExperience, bio } = data;
+
+  const id = Number(userId);
+  if (!id || isNaN(id)) {
+    throw new Error(`ID người dùng không hợp lệ (Nhận được: ${userId})`);
+  }
+
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) {
+    throw new Error(`Không tìm thấy người dùng với ID: ${id}`);
+  }
+
+  // Tạo mã Giảng viên chuẩn dạng GV-2026-0013
+  const formattedId = String(id).padStart(4, '0');
+  const generatedTeacherCode = `GV-2026-${formattedId}`;
+
+  try {
+    const [teacherProfile, updatedUser] = await prisma.$transaction([
+      prisma.teacherProfile.upsert({
+        where: { userId: id },
+        update: {
+          teacherCode: generatedTeacherCode,
+          degree,
+          workplace,
+          specialization,
+          yearsOfExperience: Number(yearsOfExperience) || 0,
+          bio
+        },
+        create: {
+          userId: id,
+          teacherCode: generatedTeacherCode,
+          degree,
+          workplace,
+          specialization,
+          yearsOfExperience: Number(yearsOfExperience) || 0,
+          bio
+        }
+      }),
+      prisma.user.update({
+        where: { id },
+        data: { isOnboarded: true },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          avatar: true,
+          role: true,
+          isOnboarded: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      })
+    ]);
+
+    return {
+      user: {
+        ...updatedUser,
+        teacherProfile
+      },
+      teacherProfile
+    };
+  } catch (error) {
+    console.error("❌ Lỗi Prisma Transaction Onboarding Teacher:", error);
+    throw new Error("Lỗi cơ sở dữ liệu khi lưu thông tin giảng viên: " + error.message);
+  }
+};
+
+// 🟢 2. CẬP NHẬT ONBOARDING HỌC SINH (Tự động sinh studentCode vào CSDL)
+exports.updateStudentOnboarding = async (userId, data) => {
+  const id = Number(userId);
+  if (!id || isNaN(id)) {
+    throw new Error(`ID người dùng không hợp lệ (Nhận được: ${userId})`);
+  }
+
+  const { educationLevel, schoolId, schoolName, gradeLevel, fieldOfInterest } = data;
+
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) {
+    throw new Error(`Không tìm thấy người dùng với ID: ${id}`);
+  }
+
+  // Tạo mã Học viên chuẩn dạng ETC-2026-0013
+  const formattedId = String(id).padStart(4, '0');
+  const generatedStudentCode = `ETC-2026-${formattedId}`;
+
+  try {
+    const [studentProfile, updatedUser] = await prisma.$transaction([
+      prisma.studentProfile.upsert({
+        where: { userId: id },
+        update: {
+          studentCode: generatedStudentCode,
+          educationLevel,
+          schoolId: schoolId ? Number(schoolId) : null,
+          schoolName,
+          gradeLevel,
+          fieldOfInterest
+        },
+        create: {
+          userId: id,
+          studentCode: generatedStudentCode,
+          educationLevel,
+          schoolId: schoolId ? Number(schoolId) : null,
+          schoolName,
+          gradeLevel,
+          fieldOfInterest: fieldOfInterest || 'Chưa xác định'
+        }
+      }),
+      prisma.user.update({
+        where: { id },
+        data: { isOnboarded: true },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          avatar: true,
+          role: true,
+          isOnboarded: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      })
+    ]);
+
+    return {
+      user: {
+        ...updatedUser,
+        studentProfile
+      },
+      studentProfile
+    };
+  } catch (error) {
+    console.error("❌ Lỗi Prisma Transaction Onboarding Student:", error);
     throw new Error("Lỗi cơ sở dữ liệu khi lưu thông tin học sinh: " + error.message);
   }
 };

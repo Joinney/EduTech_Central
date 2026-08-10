@@ -407,15 +407,18 @@ const updatedUserFromBackend = result.data?.user || result.data;
                       const isSelected = educationLevel === lvl.id
                       return (
                         <button
-                          key={lvl.id}
-                          type="button"
-                          onClick={() => setEducationLevel(lvl.id)}
-                          className={`p-3 rounded-2xl text-center border transition-all cursor-pointer flex flex-col items-center justify-center space-y-1.5 ${
-                            isSelected
-                              ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20 scale-[1.02]"
-                              : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                          }`}
-                        >
+  key={lvl.id}
+  type="button"
+  onClick={() => {
+    setEducationLevel(lvl.id)
+    handleClearSchoolInput() // Reset tìm kiếm trường khi đổi Cấp học
+  }}
+  className={`p-3 rounded-2xl text-center border transition-all cursor-pointer flex flex-col items-center justify-center space-y-1.5 ${
+    isSelected
+      ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20 scale-[1.02]"
+      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+  }`}
+>
                           <div className={`p-2 rounded-xl ${isSelected ? "bg-white/20 text-white" : "bg-white text-blue-600 shadow-2xs"}`}>
                             <Icon className="w-5 h-5" />
                           </div>
