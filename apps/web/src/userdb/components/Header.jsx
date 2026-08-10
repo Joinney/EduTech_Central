@@ -35,7 +35,6 @@ export default function Header() {
     }
 
     loadUserData()
-
     window.addEventListener("storage", loadUserData)
     window.addEventListener("user-profile-updated", loadUserData)
 
@@ -53,27 +52,21 @@ export default function Header() {
     }
   }, [])
 
-  // 🟢 Xử lý Đăng xuất hoàn chỉnh (Có gọi Backend xóa DB)
-const handleLogout = async () => {
-  try {
-    // 1. Gọi API Logout (Axios instance 'api' tự động đính kèm Bearer Token)
-    await api.post("/auth/logout")
-  } catch (err) {
-    console.warn("Lỗi gọi API đăng xuất phía server:", err)
-  } finally {
-    // 2. Xóa sạch token và dữ liệu ở LocalStorage client
-    localStorage.removeItem("token")
-    localStorage.removeItem("refreshToken")
-    localStorage.removeItem("user")
-    localStorage.removeItem("role")
-    localStorage.setItem("isJustRegistered", "false")
-
-    // 3. Cập nhật UI
-    window.dispatchEvent(new Event("user-profile-updated"))
-    setShowDropdown(false)
-    navigate("/login")
+  const handleLogout = async () => {
+    try {
+      await api.post("/auth/logout")
+    } catch (err) {
+      console.warn("Lỗi gọi API đăng xuất:", err)
+    } finally {
+      localStorage.removeItem("token")
+      localStorage.removeItem("refreshToken")
+      localStorage.removeItem("user")
+      localStorage.removeItem("role")
+      window.dispatchEvent(new Event("user-profile-updated"))
+      setShowDropdown(false)
+      navigate("/login")
+    }
   }
-}
 
   const role = (user?.role || localStorage.getItem("role") || "student").toLowerCase()
   const isTeacher = role === "teacher" || role === "instructor"
@@ -86,10 +79,19 @@ const handleLogout = async () => {
   const avatarUrl = user?.avatar || ""
 
   const getInitials = (name) => {
-    if (!name) return "EC"
+    if (!name) return isTeacher ? "GV" : "EC"
     const parts = name.trim().split(" ")
     if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
     return parts.map(p => p[0]).join("").substring(0, 3).toUpperCase()
+  }
+
+  // Định nghĩa màu sắc theo vai trò
+  const theme = {
+    primary: isTeacher ? "orange" : "blue",
+    bgLight: isTeacher ? "bg-orange-50" : "bg-blue-50",
+    textPrimary: isTeacher ? "text-orange-600" : "text-blue-600",
+    hoverBg: isTeacher ? "hover:bg-orange-100" : "hover:bg-blue-100",
+    gradient: isTeacher ? "from-orange-500 to-amber-500" : "from-blue-600 to-cyan-500"
   }
 
   return (
@@ -99,18 +101,6 @@ const handleLogout = async () => {
           src="/edutechcentral.png"
           alt="EduTech Central Logo"
           className="h-10 sm:h-11 w-auto object-contain transition-transform group-hover:scale-105"
-          onError={(e) => {
-            const target = e.target
-            target.style.display = "none"
-            const parent = target.parentElement
-            if (parent && !parent.querySelector(".fallback-logo")) {
-              const fallback = document.createElement("div")
-              fallback.className =
-                "fallback-logo w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xs shadow-md"
-              fallback.innerText = "EC"
-              parent.appendChild(fallback)
-            }
-          }}
         />
       </Link>
 
@@ -120,25 +110,25 @@ const handleLogout = async () => {
           <input
             type="text"
             placeholder="Tìm bài giảng, PDF, video, SCORM..."
-            className="w-full pl-11 pr-4 py-2 bg-slate-100/80 border border-transparent rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition"
+            className="w-full pl-11 pr-4 py-2 bg-slate-100/80 border border-transparent rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:bg-white transition"
           />
         </div>
       </div>
 
       <div className="flex items-center space-x-3 shrink-0">
-        <button 
-          type="button"
-          className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-full text-xs font-bold transition cursor-pointer"
-        >
+        {/* Nút Trợ lý AI - Đổi màu theo role */}
+        <button type="button" className={`flex items-center space-x-1.5 px-3 py-1.5 ${theme.bgLight} ${theme.hoverBg} ${theme.textPrimary} rounded-full text-xs font-bold transition cursor-pointer`}>
           <Bot className="w-4 h-4" />
           <span>Trợ lý AI</span>
         </button>
 
+        {/* Badge Cấp học / Vai trò */}
         <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full text-xs font-bold">
           <GraduationCap className="w-4 h-4 text-slate-600" />
           <span>{isTeacher ? "Giảng viên" : "Lớp 12A1"}</span>
         </div>
 
+        {/* Điểm (Chỉ hiển thị cho Student) */}
         {!isTeacher && (
           <div className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-amber-50 border border-amber-200/80 text-amber-600 rounded-full text-xs font-extrabold">
             <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
@@ -146,23 +136,9 @@ const handleLogout = async () => {
           </div>
         )}
 
-        <button 
-          type="button"
-          className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition relative cursor-pointer"
-        >
-          <Bell className="w-4 h-4" />
-          <span className="w-2 h-2 bg-red-500 rounded-full absolute top-1.5 right-1.5 border border-white" />
-        </button>
-
-        <button 
-          type="button"
-          className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition cursor-pointer"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
-
         <div className="h-5 w-[1px] bg-slate-200 my-auto mx-1" />
 
+        {/* Dropdown Avatar */}
         <div className="relative pl-1" ref={dropdownRef}>
           <button
             type="button"
@@ -173,23 +149,13 @@ const handleLogout = async () => {
               <img
                 src={avatarUrl}
                 alt={fullName}
-                title={fullName}
-                className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm hover:ring-2 hover:ring-blue-500 transition"
-                onError={(e) => {
-                  e.target.style.display = "none"
-                  if (e.target.nextSibling) e.target.nextSibling.style.display = "flex"
-                }}
+                className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm hover:ring-2 hover:ring-orange-500 transition"
               />
-            ) : null}
-
-            <div
-              title={fullName}
-              className={`w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-black text-[10px] items-center justify-center border border-slate-200 shadow-sm hover:ring-2 hover:ring-blue-500 transition ${
-                avatarUrl ? "hidden" : "flex"
-              }`}
-            >
-              {getInitials(fullName)}
-            </div>
+            ) : (
+              <div className={`w-8 h-8 rounded-full bg-gradient-to-r ${theme.gradient} text-white font-black text-[10px] flex items-center justify-center border border-slate-200 shadow-sm hover:ring-2 hover:ring-orange-500 transition`}>
+                {getInitials(fullName)}
+              </div>
+            )}
           </button>
 
           {showDropdown && (
@@ -197,41 +163,21 @@ const handleLogout = async () => {
               <div className="px-4 py-2.5 border-b border-slate-100">
                 <p className="text-xs font-extrabold text-slate-900 truncate">{fullName}</p>
                 {email && <p className="text-[10px] font-medium text-slate-400 truncate mt-0.5">{email}</p>}
-                <span className="inline-block mt-1 text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-md">
+                <span className={`inline-block mt-1 text-[10px] ${isTeacher ? "bg-orange-50 text-orange-600" : "bg-blue-50 text-blue-600"} font-bold px-2 py-0.5 rounded-md`}>
                   {isTeacher ? "Tài khoản Giảng viên" : "Tài khoản Học viên"}
                 </span>
               </div>
 
               <div className="py-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDropdown(false)
-                    navigate(dashboardPath)
-                  }}
-                  className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition cursor-pointer"
-                >
+                <button onClick={() => { setShowDropdown(false); navigate(dashboardPath) }} className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer">
                   <LayoutDashboard className="w-4 h-4 text-slate-400" />
                   <span>Bảng điều khiển</span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDropdown(false)
-                    navigate(profilePath)
-                  }}
-                  className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition cursor-pointer"
-                >
+                <button onClick={() => { setShowDropdown(false); navigate(profilePath) }} className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer">
                   <UserIcon className="w-4 h-4 text-slate-400" />
                   <span>Trang cá nhân</span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 border-t border-slate-100 mt-1 transition cursor-pointer"
-                >
+                <button onClick={handleLogout} className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 border-t border-slate-100 mt-1 transition cursor-pointer">
                   <LogOut className="w-4 h-4 text-red-500" />
                   <span>Đăng xuất tài khoản</span>
                 </button>
