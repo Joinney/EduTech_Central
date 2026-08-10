@@ -13,7 +13,10 @@ import {
   Users,
   FolderPlus,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  FileCheck2,
+  HelpCircle,
+  CalendarDays
 } from "lucide-react"
 
 export default function Sidebar() {
@@ -32,7 +35,6 @@ export default function Sidebar() {
         try {
           const parsedUser = JSON.parse(storedUser)
           setUser(parsedUser)
-          // Ưu tiên đọc role từ user object nếu có, không thì đọc từ key role
           const currentRole = parsedUser.role || storedRole || "student"
           setRole(currentRole.toLowerCase())
         } catch (e) {
@@ -45,16 +47,13 @@ export default function Sidebar() {
 
     loadUserData()
 
-    // Lắng nghe thay đổi khi Profile hoặc Login cập nhật localStorage
     window.addEventListener("storage", loadUserData)
     return () => window.removeEventListener("storage", loadUserData)
   }, [])
 
-  // Tên hiển thị mặc định
   const fullName = user?.fullName || user?.full_name || (role === "teacher" ? "Giảng viên EduTech" : "Học viên EduTech")
   const avatarUrl = user?.avatar || ""
 
-  // Tạo chữ viết tắt từ tên người dùng
   const getInitials = (name) => {
     if (!name) return "EC"
     const parts = name.trim().split(" ")
@@ -62,27 +61,27 @@ export default function Sidebar() {
     return parts.map(p => p[0]).join("").substring(0, 3).toUpperCase()
   }
 
-  // Danh sách menu cho Học viên
+  // 1. Danh sách menu cho Học viên
   const studentNavItems = [
     { name: "Bảng điều khiển", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Chương trình & Khối lớp", path: `/${role}/programs`, icon: GraduationCap },
-    { name: "Kho Học liệu & Thư viện số", path: `/${role}/library`, icon: Library },
+    { name: "Kho Học liệu & Thư viện", path: `/${role}/library`, icon: Library },
     { name: "Môn học của tôi", path: `/${role}/courses`, icon: BookOpen },
     { name: "Video Edu & Bài giảng", path: `/${role}/videos`, icon: Video },
     { name: "Tủ sách & Bộ sưu tập", path: `/${role}/bookshelf`, icon: Bookmark },
   ]
 
-  // Danh sách menu cho Giảng viên
+  // 2. Danh sách menu đầy đủ cho Giảng viên (Chuẩn LMS)
   const teacherNavItems = [
     { name: "Bảng quản lý Giảng viên", path: `/${role}/dashboard`, icon: LayoutDashboard },
-    { name: "Quản lý Khóa học & Bài giảng", path: `/${role}/courses`, icon: FolderPlus },
-    { name: "Kho Học liệu dùng chung", path: `/${role}/library`, icon: Library },
+    { name: "Quản lý Lớp & Khóa học", path: `/${role}/courses`, icon: FolderPlus },
+    { name: "Ngân hàng Đề & Bài kiểm tra", path: `/${role}/quizzes`, icon: HelpCircle },
+    { name: "Chấm điểm & Đánh giá", path: `/${role}/grading`, icon: FileCheck2 },
     { name: "Danh sách Học viên", path: `/${role}/students`, icon: Users },
-    { name: "Video Đào tạo & Khóa học", path: `/${role}/videos`, icon: Video },
-    { name: "Tài liệu & Giáo trình", path: `/${role}/bookshelf`, icon: Bookmark },
+    { name: "Lịch dạy & Tương tác", path: `/${role}/schedule`, icon: CalendarDays },
+    { name: "Kho Học liệu & Slide", path: `/${role}/library`, icon: Library },
   ]
 
-  // Lựa chọn danh sách hiển thị
   const navItems = role === "teacher" ? teacherNavItems : studentNavItems
 
   const handleLogout = () => {
@@ -96,9 +95,9 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between text-slate-700 select-none shrink-0 p-4 transition-all">
-      <div className="space-y-5">
+      <div className="space-y-4">
         
-        {/* Profile Info - Link sang Trang cá nhân tương ứng với role */}
+        {/* Profile Header */}
         <Link
           to={`/${role}/profile`}
           className={`relative group p-3 rounded-2xl border shadow-sm flex items-center space-x-3 transition-all cursor-pointer block ${
@@ -120,7 +119,6 @@ export default function Sidebar() {
               />
             ) : null}
 
-            {/* Avatar viết tắt khi không có ảnh */}
             <div
               className={`w-10 h-10 rounded-full text-white font-black text-xs items-center justify-center shadow-md border-2 border-white ${
                 avatarUrl ? "hidden" : "flex"
@@ -133,7 +131,6 @@ export default function Sidebar() {
               {getInitials(fullName)}
             </div>
 
-            {/* Chấm online */}
             <span className="w-3 h-3 bg-emerald-500 border-2 border-white rounded-full absolute bottom-0 right-0 shadow-sm" />
           </div>
 
@@ -154,10 +151,10 @@ export default function Sidebar() {
           </div>
         </Link>
 
-        {/* Dynamic Navigation Section */}
-        <div className="space-y-2">
-          <div className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center justify-between">
-            <span>{isTeacher ? "Menu Giảng Viên" : "Menu Học Viên"}</span>
+        {/* Dynamic Navigation */}
+        <div className="space-y-1.5">
+          <div className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center justify-between pb-1">
+            <span>{isTeacher ? "Menu Quản Lý" : "Menu Học Tập"}</span>
             {isTeacher ? (
               <ShieldCheck className="w-3.5 h-3.5 text-orange-500" />
             ) : (
@@ -165,7 +162,7 @@ export default function Sidebar() {
             )}
           </div>
 
-          <nav className="space-y-1.5">
+          <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = location.pathname === item.path || (item.path === `/${role}/dashboard` && location.pathname === "/")
@@ -174,7 +171,7 @@ export default function Sidebar() {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`group relative flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                  className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
                     isActive
                       ? isTeacher
                         ? "bg-orange-500 text-white shadow-md shadow-orange-500/25"
@@ -182,7 +179,7 @@ export default function Sidebar() {
                       : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                   }`}
                 >
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2.5">
                     <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                       isActive 
                         ? "text-white" 
@@ -203,7 +200,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Widget AI & Nút Đăng Xuất ở góc dưới */}
+      {/* Widget AI & Logout */}
       <div className="pt-3 border-t border-slate-100 space-y-2">
         <div className={`p-3 rounded-2xl border space-y-1.5 ${
           isTeacher 
@@ -214,16 +211,15 @@ export default function Sidebar() {
             isTeacher ? "text-orange-700" : "text-blue-700"
           }`}>
             <Sparkles className="w-4 h-4 text-amber-500 fill-amber-400 shrink-0" />
-            <span>{isTeacher ? "Trợ lý Giảng dạy AI" : "Trợ lý Học tập AI"}</span>
+            <span>{isTeacher ? "Trợ lý Trợ giảng AI" : "Trợ lý Học tập AI"}</span>
           </div>
           <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
             {isTeacher 
-              ? `Chào ${fullName.split(" ").pop()}, AI hỗ trợ soạn đề thi và gợi ý giáo án 24/7.` 
-              : `Chào ${fullName.split(" ").pop()}, AI luôn sẵn sàng hỗ trợ bạn giải bài tập 24/7.`}
+              ? `Hỗ trợ Thầy/Cô tạo ngân hàng đề thi & gợi ý giáo án.` 
+              : `Sẵn sàng hỗ trợ bạn giải bài tập 24/7.`}
           </p>
         </div>
 
-        {/* Nút Đăng xuất */}
         <button
           type="button"
           onClick={handleLogout}
