@@ -1,27 +1,20 @@
 ﻿const express = require('express');
 const router = express.Router();
-const { 
-  register, 
-  login, 
-  logout, 
-  refreshToken, 
-  getMe, 
-  updateProfile,
-  studentOnboarding // 🟢 Import thêm hàm onboarding từ controller
-} = require('../controllers/auth.controller');
-const { protect } = require('../middlewares/auth.middleware');
+const authController = require('../controllers/auth.controller');
+const { verifyToken } = require('../middlewares/auth.middleware');
 
-// Public routes
-router.post('/register', register);
-router.post('/login', login);
-router.post('/refresh-token', refreshToken);
+// Public Authentication Endpoints
+router.post('/register', authController.register);
+router.post('/login', authController.login);
+router.post('/logout', verifyToken, authController.logout);
+router.post('/refresh-token', authController.refreshToken);
 
-// Protected routes (Cần Access Token)
-router.post('/logout', protect, logout);
-router.get('/me', protect, getMe);
-router.put('/profile/:userId', protect, updateProfile);
+// Protected User Endpoints
+router.get('/me', verifyToken, authController.getMe);
+router.put('/profile', verifyToken, authController.updateProfile);
 
-// 🟢 Route cập nhật thông tin và chuyển isOnboarded thành false
-router.put('/student/onboarding', protect, studentOnboarding);
+// Protected Onboarding Endpoints
+router.post('/onboarding/student', verifyToken, authController.studentOnboarding);
+router.post('/onboarding/teacher', verifyToken, authController.teacherOnboarding);
 
 module.exports = router;

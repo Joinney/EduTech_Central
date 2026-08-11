@@ -5,9 +5,11 @@ import { Routes, Route, Navigate } from "react-router-dom"
 import Home from "./pages/Home.jsx"
 import Login from "./pages/auth/Login.jsx"
 import Register from "./pages/auth/Register.jsx"
+import AdminLogin from "./admindb/pages/AdminLogin.jsx" // 👈 Thêm AdminLogin
 
-// ================= LAYOUT =================
+// ================= LAYOUTS & AUTH GUARD =================
 import UserLayout from "./userdb/layouts/UserLayout.jsx"
+import AdminLayout from "./admindb/layouts/AdminLayout.jsx"
 import ProtectedRoute from "./userdb/components/ProtectedRoute.jsx"
 
 // ================= STUDENT PAGES =================
@@ -25,14 +27,19 @@ import Grading from "./userdb/pages/teacherpage/chamdiemdiemso/Grading.jsx"
 import StudentList from "./userdb/pages/teacherpage/danhsachhocvien/StudentList.jsx"
 import Schedule from "./userdb/pages/teacherpage/lichdaymeet/Schedule.jsx"
 
+// ================= ADMIN PAGES =================
+import AdminHome from "./admindb/pages/AdminHome.jsx"
+
 // ================= SHARED PAGES =================
-// Dùng chung trang Profile cho cả Student và Teacher
 import Profile from "./userdb/pages/Profile.jsx"
 
 // ================= ĐIỀU HƯỚNG MẶC ĐỊNH =================
 const DashboardRedirect = () => {
   const role = (localStorage.getItem("role") || "student").toLowerCase()
 
+  if (role === "admin") {
+    return <Navigate to="/admin/dashboard" replace />
+  }
   if (role === "teacher") {
     return <Navigate to="/teacher/dashboard" replace />
   }
@@ -42,26 +49,26 @@ const DashboardRedirect = () => {
 export default function App() {
   return (
     <Routes>
-      {/* 🟢 CÁC TRANG CÔNG KHAI */}
+      {/* 🟢 1. CÁC TRANG CÔNG KHAI */}
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/admin/login" element={<AdminLogin />} /> {/* 👈 Trang Đăng nhập Admin */}
 
-      {/* 🟢 ROUTE DÀNH CHO HỌC VIÊN (STUDENT) */}
-      <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
-        <Route path="/student" element={<UserLayout />}>
-          <Route index element={<Navigate to="/student/dashboard" replace />} />
-          <Route path="dashboard" element={<StudentHome />} />
-          <Route path="programs" element={<Programs />} />
-          <Route path="library" element={<Library />} />
-          <Route path="courses" element={<StudentCourses />} />
-          <Route path="videos" element={<Videos />} />
+      {/* 🟢 2. ROUTE DÀNH CHO ADMIN (Chuyển vào AdminHome) */}
+      <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<AdminHome />} /> {/* 👈 Trang AdminHome chính */}
+          <Route path="users" element={<AdminHome />} />
+          <Route path="courses" element={<AdminHome />} />
+          <Route path="reports" element={<AdminHome />} />
+          <Route path="settings" element={<AdminHome />} />
           <Route path="profile" element={<Profile />} />
-          <Route path="bookshelf" element={<StudentHome />} />
         </Route>
       </Route>
 
-      {/* 🟢 ROUTE DÀNH CHO GIẢNG VIÊN (TEACHER) */}
+      {/* 🟢 3. ROUTE DÀNH CHO TEACHER */}
       <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
         <Route path="/teacher" element={<UserLayout />}>
           <Route index element={<Navigate to="/teacher/dashboard" replace />} />
@@ -76,7 +83,21 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* 🟢 ĐIỀU HƯỚNG KHI NHẬP SAI ĐƯỜNG DẪN */}
+      {/* 🟢 4. ROUTE DÀNH CHO STUDENT */}
+      <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
+        <Route path="/student" element={<UserLayout />}>
+          <Route index element={<Navigate to="/student/dashboard" replace />} />
+          <Route path="dashboard" element={<StudentHome />} />
+          <Route path="programs" element={<Programs />} />
+          <Route path="library" element={<Library />} />
+          <Route path="courses" element={<StudentCourses />} />
+          <Route path="videos" element={<Videos />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="bookshelf" element={<StudentHome />} />
+        </Route>
+      </Route>
+
+      {/* 🟢 5. ĐIỀU HƯỚNG MẶC ĐỊNH KHI SAI ĐƯỜNG DẪN */}
       <Route path="*" element={<DashboardRedirect />} />
     </Routes>
   )

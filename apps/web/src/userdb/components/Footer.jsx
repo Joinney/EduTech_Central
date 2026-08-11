@@ -1,7 +1,6 @@
 ﻿import React from "react"
 import { Link } from "react-router-dom"
 import { 
-  GraduationCap, 
   Globe, 
   Mail, 
   Share2, 
@@ -12,19 +11,20 @@ import {
 
 export default function Footer() {
   return (
-    <footer className="relative bg-[#f3f4f6] text-slate-600 text-xs border-t border-slate-200/80 pt-10 pb-6 px-6 lg:px-12 mt-auto">
+    <footer className="relative bg-[#f3f4f6] text-slate-600 text-xs border-t border-slate-200/80 pt-10 pb-6 px-6 lg:px-12 mt-auto select-none">
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* ================= PHẦN TRÊN: 4 CỘT THÔNG TIN ================= */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pb-8 border-b border-slate-200/80">
           
-          {/* Cột 1: Thương hiệu Kinetic Academy */}
+          {/* Cột 1: Logo & Giới thiệu */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <GraduationCap className="w-7 h-7 text-blue-600 fill-blue-600" />
-              <span className="font-extrabold text-base text-blue-600 tracking-tight">
-                Kinetic Academy
-              </span>
+            <div className="flex items-center">
+              <img 
+                src="/edutechcentral.png" 
+                alt="EduTech Central Logo" 
+                className="h-12 w-auto object-contain" 
+              />
             </div>
             <p className="text-slate-500 leading-relaxed font-medium">
               Empowering next-gen learners with AI-driven personalized education and modern learning tools.
@@ -49,10 +49,10 @@ export default function Footer() {
               Truy cập nhanh
             </h4>
             <ul className="space-y-2 font-medium text-slate-500">
-              <li><Link to="/user/dashboard" className="hover:text-blue-600 transition">Bảng điều khiển</Link></li>
-              <li><Link to="/user/courses" className="hover:text-blue-600 transition">Khóa học</Link></li>
-              <li><Link to="/user/programs" className="hover:text-blue-600 transition">Khối lớp</Link></li>
-              <li><Link to="/user/library" className="hover:text-blue-600 transition">Thư viện</Link></li>
+              <li><Link to="/student/dashboard" className="hover:text-blue-600 transition">Bảng điều khiển</Link></li>
+              <li><Link to="/student/courses" className="hover:text-blue-600 transition">Khóa học</Link></li>
+              <li><Link to="/student/programs" className="hover:text-blue-600 transition">Khối lớp</Link></li>
+              <li><Link to="/student/library" className="hover:text-blue-600 transition">Thư viện</Link></li>
             </ul>
           </div>
 
@@ -85,7 +85,7 @@ export default function Footer() {
               </li>
               <li className="flex items-center space-x-2">
                 <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                <span>contact@kinetic.edu.vn</span>
+                <span>contact@edutechcentral.vn</span>
               </li>
             </ul>
           </div>
@@ -95,7 +95,7 @@ export default function Footer() {
         {/* ================= PHẦN DƯỚI: COPYRIGHT + NGÔN NGỮ ================= */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] font-medium text-slate-500">
           <div>
-            © 2026 Kinetic Academy. All rights reserved.
+            © 2026 EduTech Central. All rights reserved.
           </div>
           
           <div className="flex items-center space-x-4">
@@ -109,7 +109,7 @@ export default function Footer() {
 
       {/* ================= NÚT TRỢ LÝ HỌC TẬP AI NỔI GÓC PHẢI ================= */}
       <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end space-y-2">
-        <div className="bg-amber-500 text-slate-900 font-extrabold text-[11px] px-3 py-1 rounded-md shadow-md">
+        <div className="bg-amber-500 text-slate-900 font-extrabold text-[11px] px-3 py-1 rounded-md shadow-md animate-bounce">
           Trợ lý học tập AI
         </div>
         <button className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 transition-all hover:scale-105 cursor-pointer">

@@ -25,8 +25,8 @@ model User {
   status       String?  @default("active") @db.VarChar(50)
   provider     String?  @default("local") @db.VarChar(50)
   
-  // 🟢 ĐẶT MẶC ĐỊNH LÀ TRUE KHI ĐĂNG KÝ MỚI
-isOnboarded  Boolean  @default(false) @map("is_onboarded")
+  // Cờ đánh dấu đã hoàn tất các bước khai báo hồ sơ đầu tiên
+  isOnboarded  Boolean  @default(false) @map("is_onboarded")
   
   // Trường lưu Refresh Token mã hóa (Hỗ trợ Auth/Logout)
   refreshToken String?  @map("refresh_token") @db.Text
@@ -59,8 +59,8 @@ model School {
 model StudentProfile {
   id              Int      @id @default(autoincrement()) @map("id_student_profile")
   userId          Int      @unique @map("user_id")
-  studentCode      String?  @map("student_code")
-  educationLevel  String?  @map("education_level") @db.VarChar(50)
+  studentCode     String?  @map("student_code")
+  educationLevel String?  @map("education_level") @db.VarChar(50)
   schoolId        Int?     @map("school_id")
   schoolName      String?  @map("school_name") @db.VarChar(255)
   gradeLevel      String?  @map("grade_level") @db.VarChar(50)
@@ -69,7 +69,7 @@ model StudentProfile {
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   // Quan hệ với User và School
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   school School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
 
   @@map("student_profiles")

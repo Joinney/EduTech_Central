@@ -9,11 +9,17 @@ const authRoutes = require('./routes/auth.routes');
 const schoolRoutes = require('./routes/school.routes');   // Endpoint: /api/v1/schools
 const studentRoutes = require('./routes/student.routes'); // Endpoint: /api/v1/student
 const teacherRoutes = require('./routes/teacher.routes'); // Endpoint: /api/v1/teacher
+const adminRoutes = require('./routes/admin.routes');     // 🟢 BỔ SUNG: Endpoint: /api/v1/admin
 
 const app = express();
 
-// 1. Cross-Origin Resource Sharing (CORS)
-app.use(cors());
+// 1. Cross-Origin Resource Sharing (CORS) - Cho phép Frontend gọi API
+app.use(cors({
+  origin: true, // Tự động cho phép mọi Domain/Origin (bao gồm http://localhost:5173 và http://localhost:3000)
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
 // 2. Body Parser (Tăng giới hạn dung lượng payload nhận dữ liệu Base64/Image từ Client)
 app.use(express.json({ limit: '50mb' }));
@@ -27,6 +33,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/schools', schoolRoutes);
 app.use('/api/v1/student', studentRoutes);
 app.use('/api/v1/teacher', teacherRoutes);
+app.use('/api/v1/admin', adminRoutes); // 🟢 BỔ SUNG: Đăng ký đường dẫn Admin Routes
 
 // 5. Health Check Endpoint
 app.get('/health', (req, res) => {

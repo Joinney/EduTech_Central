@@ -29,7 +29,7 @@ exports.logout = async (req, res) => {
       await authService.logoutUser(userId);
     }
 
-    res.status(200).json({ success: true, message: 'Đăng xuất thành công và đã xóa Refresh Token' });
+    res.status(200).json({ success: true, message: 'Đăng xuất thành công' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -68,11 +68,22 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// 🟢 Hoàn tất Onboarding học sinh (Lưu trường, lớp, sở thích & set isOnboarded thành false)
+// Onboarding Học sinh
 exports.studentOnboarding = async (req, res) => {
   try {
     const userId = req.body.userId || req.user?.id || req.user?.id_users;
     const data = await authService.updateStudentOnboarding(userId, req.body);
+    res.status(200).json({ success: true, data });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+// Onboarding Giảng viên
+exports.teacherOnboarding = async (req, res) => {
+  try {
+    const userId = req.body.userId || req.user?.id || req.user?.id_users;
+    const data = await authService.saveTeacherOnboarding({ ...req.body, userId });
     res.status(200).json({ success: true, data });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
