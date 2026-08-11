@@ -25,6 +25,7 @@ const onRefreshFailed = (error) => {
 const createInstance = (baseURL) => {
   const instance = axios.create({
     baseURL,
+    // Lưu ý: Nếu server không gửi/nhận cookie, hãy cân nhắc cẩn thận với withCredentials
     withCredentials: true,
   });
 
@@ -54,12 +55,16 @@ const createInstance = (baseURL) => {
       const originalRequest = error.config;
       const currentPath = window.location.pathname;
 
-      // 1. Không kích hoạt Refresh Token nếu đang truy cập các trang Đăng nhập
-      if (currentPath.includes("/login") || currentPath.includes("/signin")) {
+      // 🟢 1. NẾU ĐÃ Ở TRANG DANG NHẬP -> KHÔNG THỰC HIỆN REFRESH TOKEN VÀ KHÔNG REDIRECT LẠI
+      if (
+        currentPath === "/admin/login" || 
+        currentPath === "/login" || 
+        currentPath.includes("/signin")
+      ) {
         return Promise.reject(error);
       }
 
-      // 2. Xử lý khi nhận mã lỗi 401 (Unauthorized)
+      // 🟢 2. Xử lý khi nhận mã lỗi 401 (Unauthorized)
       if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
         const localRefreshToken = localStorage.getItem("refreshToken");
@@ -73,8 +78,8 @@ const createInstance = (baseURL) => {
               window.location.hostname === "127.0.0.1";
 
             const authUrl = isLocalHost
-              ? import.meta.env.VITE_API_AUTH_URL || "http://localhost:5000/api/v1"
-              : "https://api-gateway-vuyo.onrender.com/api/v1";
+              ? import.meta.env.VITE_API_AUTH_URL || "http://localhost:8001/api/v1"
+              : "https://auth-service-m6zz.onrender.com/api/v1";
 
             axios
               .post(`${authUrl}/auth/refresh-token`, { refreshToken: localRefreshToken })
@@ -99,16 +104,12 @@ const createInstance = (baseURL) => {
                 onRefreshFailed(refreshError);
 
                 // Xóa dữ liệu phiên làm việc khi Refresh Token cũng bị hết hạn
-                localStorage.removeItem("adminToken");
-                localStorage.removeItem("token");
-                localStorage.removeItem("refreshToken");
-                localStorage.removeItem("user");
-                localStorage.removeItem("role");
+                localStorage.clear();
 
-                // Điều hướng về trang Login tương ứng theo Route hiện tại
-                if (currentPath.startsWith("/admin")) {
+                // Điều hướng an toàn về trang Login
+                if (currentPath.startsWith("/admin") && currentPath !== "/admin/login") {
                   window.location.href = "/admin/login";
-                } else {
+                } else if (!currentPath.startsWith("/admin") && currentPath !== "/login") {
                   window.location.href = "/login";
                 }
               });
@@ -127,9 +128,9 @@ const createInstance = (baseURL) => {
         } else {
           // Không có Refresh Token -> Đăng xuất lập tức
           localStorage.clear();
-          if (currentPath.startsWith("/admin")) {
+          if (currentPath.startsWith("/admin") && currentPath !== "/admin/login") {
             window.location.href = "/admin/login";
-          } else {
+          } else if (!currentPath.startsWith("/admin") && currentPath !== "/login") {
             window.location.href = "/login";
           }
         }
@@ -162,5 +163,4 @@ export const studentApi = createInstance(gateway);
 export const teacherApi = createInstance(gateway);
 export const notificationApi = createInstance(gateway);
 
-// Export mặc định cho toàn bộ ứng dụng
 export default authApi;
