@@ -5,7 +5,7 @@ import { Routes, Route, Navigate } from "react-router-dom"
 import Home from "./pages/Home.jsx"
 import Login from "./pages/auth/Login.jsx"
 import Register from "./pages/auth/Register.jsx"
-import AdminLogin from "./admindb/pages/AdminLogin.jsx" // 👈 Thêm AdminLogin
+import AdminLogin from "./admindb/pages/AdminLogin.jsx"
 
 // ================= LAYOUTS & AUTH GUARD =================
 import UserLayout from "./userdb/layouts/UserLayout.jsx"
@@ -33,10 +33,17 @@ import AdminHome from "./admindb/pages/AdminHome.jsx"
 // ================= SHARED PAGES =================
 import Profile from "./userdb/pages/Profile.jsx"
 
-// ================= ĐIỀU HƯỚNG MẶC ĐỊNH =================
+// ================= 🟢 ĐIỀU HƯỚNG MẶC ĐỊNH ĐÃ FIX LỖI =================
 const DashboardRedirect = () => {
-  const role = (localStorage.getItem("role") || "student").toLowerCase()
+  const token = localStorage.getItem("adminToken") || localStorage.getItem("token")
+  const role = localStorage.getItem("role")?.toLowerCase()
 
+  // Nếu CHƯA ĐĂNG NHẬP -> Trả về trang chủ hoặc trang đăng nhập
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+
+  // Nếu ĐÃ ĐĂNG NHẬP -> Chuyển về đúng Dashboard theo Role
   if (role === "admin") {
     return <Navigate to="/admin/dashboard" replace />
   }
@@ -49,17 +56,17 @@ const DashboardRedirect = () => {
 export default function App() {
   return (
     <Routes>
-      {/* 🟢 1. CÁC TRANG CÔNG KHAI */}
+      {/* 🟢 1. CÁC TRANG CÔNG KHAI (Không bị khóa bởi Auth) */}
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/admin/login" element={<AdminLogin />} /> {/* 👈 Trang Đăng nhập Admin */}
+      <Route path="/admin/login" element={<AdminLogin />} />
 
-      {/* 🟢 2. ROUTE DÀNH CHO ADMIN (Chuyển vào AdminHome) */}
+      {/* 🟢 2. ROUTE DÀNH CHO ADMIN */}
       <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="dashboard" element={<AdminHome />} /> {/* 👈 Trang AdminHome chính */}
+          <Route path="dashboard" element={<AdminHome />} />
           <Route path="users" element={<AdminHome />} />
           <Route path="courses" element={<AdminHome />} />
           <Route path="reports" element={<AdminHome />} />
@@ -97,7 +104,7 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* 🟢 5. ĐIỀU HƯỚNG MẶC ĐỊNH KHI SAI ĐƯỜNG DẪN */}
+      {/* 🟢 5. BẮT ROUTE KHÔNG TỒN TẠI */}
       <Route path="*" element={<DashboardRedirect />} />
     </Routes>
   )
