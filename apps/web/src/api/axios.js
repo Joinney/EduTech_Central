@@ -151,7 +151,7 @@ const isLocal =
 
 const gateway = isLocal
   ? import.meta.env.VITE_API_GATEWAY_URL || "http://localhost:8001/api/v1"
-  : "https://api-gateway-vuyo.onrender.com/api/v1";
+  : "https://auth-service-m6zz.onrender.com/api/v1";
 
 // 🟢 EXPORT CÁC INSTANCE THEO PHÂN HỆ
 export const authApi = createInstance(gateway);
