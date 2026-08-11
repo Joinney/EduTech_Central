@@ -1,5 +1,5 @@
 ﻿import React from "react"
-import { Routes, Route, Navigate } from "react-router-dom"
+import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 
 // ================= PUBLIC PAGES =================
 import Home from "./pages/Home.jsx"
@@ -33,21 +33,25 @@ import AdminHome from "./admindb/pages/AdminHome.jsx"
 // ================= SHARED PAGES =================
 import Profile from "./userdb/pages/Profile.jsx"
 
-// ================= 🟢 ĐIỀU HƯỚNG MẶC ĐỊNH ĐÃ FIX LỖI =================
+// ================= 🟢 ĐIỀU HƯỚNG MẶC ĐỊNH ĐÃ SỬA TỐI ƯU =================
 const DashboardRedirect = () => {
+  const location = useLocation()
   const token = localStorage.getItem("adminToken") || localStorage.getItem("token")
   const role = localStorage.getItem("role")?.toLowerCase()
 
-  // Nếu CHƯA ĐĂNG NHẬP -> Trả về trang chủ hoặc trang đăng nhập
+  // 1. Chưa đăng nhập
   if (!token) {
+    if (location.pathname.startsWith("/admin")) {
+      return <Navigate to="/admin/login" replace />
+    }
     return <Navigate to="/login" replace />
   }
 
-  // Nếu ĐÃ ĐĂNG NHẬP -> Chuyển về đúng Dashboard theo Role
+  // 2. Đã đăng nhập -> Chuyển về đúng Dashboard theo Role
   if (role === "admin") {
     return <Navigate to="/admin/dashboard" replace />
   }
-  if (role === "teacher") {
+  if (role === "teacher" || role === "instructor") {
     return <Navigate to="/teacher/dashboard" replace />
   }
   return <Navigate to="/student/dashboard" replace />
@@ -56,7 +60,7 @@ const DashboardRedirect = () => {
 export default function App() {
   return (
     <Routes>
-      {/* 🟢 1. CÁC TRANG CÔNG KHAI (Không bị khóa bởi Auth) */}
+      {/* 🟢 1. CÁC TRANG CÔNG KHAI */}
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
