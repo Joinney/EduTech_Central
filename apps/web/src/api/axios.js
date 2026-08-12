@@ -154,13 +154,20 @@ const gateway = isLocal
   ? import.meta.env.VITE_API_GATEWAY_URL || "http://localhost:8001/api/v1"
   : "https://auth-service-m6zz.onrender.com/api/v1";
 
+// Tách riêng URL cho Course Service (Port 8002)
+const courseServiceUrl = isLocal
+  ? import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
+  : "https://course-service-production.onrender.com/api/v1"; // Thay link deploy thực tế sau
+
 // 🟢 EXPORT CÁC INSTANCE THEO PHÂN HỆ
 export const authApi = createInstance(gateway);
 export const adminApi = createInstance(gateway);
-export const courseApi = createInstance(gateway);
 export const quizApi = createInstance(gateway);
 export const studentApi = createInstance(gateway);
 export const teacherApi = createInstance(gateway);
 export const notificationApi = createInstance(gateway);
+
+// Trỏ riêng courseApi về port 8002
+export const courseApi = createInstance(courseServiceUrl); 
 
 export default authApi;

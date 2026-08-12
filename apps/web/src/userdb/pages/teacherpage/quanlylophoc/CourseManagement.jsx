@@ -1,5 +1,7 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import CourseDetail from "./CourseDetail.jsx"
+// Đảm bảo đường dẫn này khớp với vị trí thực tế của file course.api.js so với file hiện tại
+import { courseService } from "../../../../api/course.api" 
 import { 
   Plus, 
   Search, 
@@ -12,7 +14,8 @@ import {
   Sparkles,
   School,
   Globe,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Loader2
 } from "lucide-react"
 
 // Danh sách ảnh mẫu gợi ý sẵn theo chủ đề
@@ -23,49 +26,15 @@ const PRESET_IMAGES = [
   { name: "Khoa Học / Vật Lý", url: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=600&auto=format&fit=crop" }
 ]
 
-const initialCourses = [
-  // Lớp theo trường
-  {
-    id: 1,
-    type: "school", // school | external
-    title: "Toán Học Lớp 12A1 - Chuẩn Bị Thi THPT",
-    code: "TOAN-12A1",
-    subject: "Toán Học",
-    schoolName: "THPT Chuyên Lê Hồng Phong",
-    grade: "Lớp 12",
-    studentsCount: 42,
-    maxStudents: 45,
-    schedule: "Thứ 2 - Thứ 4 - Thứ 6 (07:30 - 09:10)",
-    description: "Lớp chính quy thuộc trường THPT Chuyên Lê Hồng Phong.",
-    thumbnail: "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=600&auto=format&fit=crop",
-    lessons: [{ id: 101, title: "Bài 1: Khảo sát hàm số", duration: "90 phút" }]
-  },
-  // Khóa học ngoài
-  {
-    id: 2,
-    type: "external",
-    title: "Lập trình ReactJS & Frontend Thực Chiến K15",
-    code: "REACT-K15",
-    subject: "Công nghệ thông tin",
-    schoolName: "Trung tâm EduTech Online",
-    grade: "Đại học / Đi làm",
-    studentsCount: 28,
-    maxStudents: 35,
-    schedule: "Thứ 3 - Thứ 5 (19:30 - 21:30)",
-    description: "Khóa học kỹ năng mềm / công nghệ mở rộng ngoài trường.",
-    thumbnail: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=600&auto=format&fit=crop",
-    lessons: [{ id: 201, title: "Bài 1: React State & Props", duration: "120 phút" }]
-  }
-]
-
 export default function CourseManagement() {
-  const [courses, setCourses] = useState(initialCourses)
+  const [courses, setCourses] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [activeTypeTab, setActiveTypeTab] = useState("school") // "school" | "external"
   const [searchTerm, setSearchTerm] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Form state có thêm thumbnail
+  // Form state
   const [formData, setFormData] = useState({
     type: "school",
     title: "",
@@ -79,6 +48,23 @@ export default function CourseManagement() {
     description: ""
   })
 
+  // Gọi API lấy dữ liệu khi Component được mount
+  useEffect(() => {
+    fetchCourses()
+  }, [])
+
+  const fetchCourses = async () => {
+    try {
+      setIsLoading(true)
+      const data = await courseService.getAllCourses()
+      setCourses(data || [])
+    } catch (error) {
+      console.error("Lỗi khi tải danh sách lớp học:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Lọc theo Loại lớp và Từ khóa tìm kiếm
   const filteredCourses = courses.filter(c => {
     const matchesType = c.type === activeTypeTab
@@ -88,42 +74,52 @@ export default function CourseManagement() {
     return matchesType && matchesSearch
   })
 
-  // Thêm lớp mới
-  const handleCreateCourse = (e) => {
+  // Thêm lớp mới (Bắn API POST)
+  const handleCreateCourse = async (e) => {
     e.preventDefault()
     if (!formData.title || !formData.schoolName) return
 
-    // Nơi xử lý ảnh mặc định nếu để trống
     const defaultImg = formData.type === "school" 
       ? "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=600&auto=format&fit=crop"
       : "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600&auto=format&fit=crop"
 
-    const newCourse = {
-      id: Date.now(),
+    const payload = {
+      teacher_id: 1, 
       type: formData.type,
       title: formData.title,
-      code: formData.code || `CLASS-${Math.floor(1000 + Math.random() * 9000)}`,
+      // Tự động sinh mã lớp ngẫu nhiên 6 ký tự
+      code: `CLASS-${Math.random().toString(36).substring(2, 6).toUpperCase()}`, 
       subject: formData.subject,
       schoolName: formData.schoolName,
       grade: formData.grade,
-      studentsCount: 0,
       maxStudents: Number(formData.maxStudents) || 30,
       schedule: formData.schedule || "Chưa xếp lịch",
       thumbnail: formData.thumbnail.trim() || defaultImg,
-      description: formData.description || "Chưa có mô tả.",
-      lessons: []
+      description: formData.description || "Chưa có mô tả."
     }
 
-    setCourses([newCourse, ...courses])
-    setIsModalOpen(false)
-    setFormData({ type: "school", title: "", code: "", subject: "", schoolName: "", grade: "Lớp 12", maxStudents: 30, schedule: "", thumbnail: "", description: "" })
+    try {
+      const newCourse = await courseService.createCourse(payload)
+      setCourses([newCourse, ...courses])
+      setIsModalOpen(false)
+      setFormData({ type: "school", title: "", code: "", subject: "", schoolName: "", grade: "Lớp 12", maxStudents: 30, schedule: "", thumbnail: "", description: "" })
+    } catch (error) {
+      console.error("Lỗi khi tạo lớp học:", error)
+      alert("Có lỗi xảy ra khi tạo lớp học!")
+    }
   }
 
-  // Xóa lớp học
-  const handleDeleteCourse = (id, e) => {
+  // Xóa lớp học (Bắn API DELETE)
+  const handleDeleteCourse = async (id, e) => {
     e.stopPropagation()
     if (window.confirm("Thầy/Cô có chắc chắn muốn xóa lớp học này?")) {
-      setCourses(courses.filter(c => c.id !== id))
+      try {
+        await courseService.deleteCourse(id)
+        setCourses(courses.filter(c => c.id !== id))
+      } catch (error) {
+        console.error("Lỗi khi xóa lớp học:", error)
+        alert("Không thể xóa lớp học lúc này.")
+      }
     }
   }
 
@@ -199,7 +195,12 @@ export default function CourseManagement() {
       </div>
 
       {/* DANH SÁCH LỚP HỌC (CARDS CÓ HÌNH ẢNH) */}
-      {filteredCourses.length === 0 ? (
+      {isLoading ? (
+        <div className="p-12 flex flex-col items-center justify-center text-slate-400 space-y-3">
+          <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+          <span className="text-xs font-medium">Đang tải dữ liệu khóa học...</span>
+        </div>
+      ) : filteredCourses.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-3xl border border-dashed text-slate-400 text-xs">
           Chưa có lớp học nào thuộc mục này.
         </div>
@@ -251,7 +252,9 @@ export default function CourseManagement() {
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
                   <div className="flex items-center space-x-1">
                     <Users className="w-3.5 h-3.5 text-orange-500" />
-                    <span className="font-bold">{course.studentsCount}/{course.maxStudents} HS</span>
+                    <span className="font-bold">
+                      {course.studentsCount || 0}/{course.maxStudents} HS
+                    </span>
                   </div>
 
                   <div className="flex items-center space-x-1">
@@ -275,7 +278,7 @@ export default function CourseManagement() {
         </div>
       )}
 
-      {/* MODAL TẠO LỚP HỌC (CÓ ĐIỀN HÌNH CỦA LỚP) */}
+      {/* MODAL TẠO LỚP HỌC */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border overflow-hidden relative max-h-[90vh] flex flex-col">

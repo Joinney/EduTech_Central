@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { 
   ArrowLeft, 
   BookOpen, 
@@ -38,23 +38,49 @@ export default function CourseDetail({ course, onBack }) {
   })
 
   // 2. Quản lý Bài giảng
-  const [lessons, setLessons] = useState(course.lessons || [
-    { id: 101, title: "Bài 1: Tổng quan Component & JSX trong React", duration: "45 phút", content: "Giới thiệu về JSX, Virtual DOM và cách render Component trong React 18.", isVisible: true },
-    { id: 102, title: "Bài 2: React Hooks (useState & useEffect)", duration: "90 phút", content: "Tìm hiểu lifecycle của Functional Component thông qua các Hooks cơ bản.", isVisible: true },
-    { id: 103, title: "Bài 3: Quản lý State nâng cao với Redux Toolkit", duration: "60 phút", content: "Cấu hình Store, Slice và AsyncThunk cho dự án thực tế.", isVisible: false }
-  ])
+  const [lessons, setLessons] = useState(course.lessons || [])
 
   // 3. Quản lý Bài tập về nhà
-  const [assignments, setAssignments] = useState([
-    { id: 1, title: "Bài tập 1: Xây dựng TodoList với React", dueDate: "2026-08-20", maxScore: 10, description: "Viết ứng dụng quản lý công việc có tính năng Thêm, Sửa, Xóa và lưu LocalStorage.", submittedCount: 28, totalStudents: 32, isVisible: true },
-    { id: 2, title: "Bài tập 2: Tích hợp API Weather App", dueDate: "2026-08-25", maxScore: 10, description: "Sử dụng Axios để gọi OpenWeatherMap API và hiển thị thời tiết theo thành phố.", submittedCount: 15, totalStudents: 32, isVisible: false }
-  ])
+  const [assignments, setAssignments] = useState(course.assignments || [])
 
   // 4. Quản lý Bài kiểm tra
-  const [quizzes, setQuizzes] = useState([
-    { id: 1, title: "Kiểm tra Giữa kỳ: Kiến thức ReactJS Cơ bản", duration: "45 phút", totalQuestions: 30, passScore: 5, description: "Bài trắc nghiệm 30 câu bao gồm Component, Props, State và Hooks.", isVisible: true },
-    { id: 2, title: "Đề Thi Cuối Kỳ: Lập Trình Frontend Nâng Cao", duration: "90 phút", totalQuestions: 50, passScore: 6, description: "Đề tổng hợp cả lý thuyết lẫn đọc hiểu đoạn code React & Redux.", isVisible: false }
-  ])
+  const [quizzes, setQuizzes] = useState(course.quizzes || [])
+
+  // --- GỌI API KÉO DỮ LIỆU TỪ BACKEND LÊN KHI MỞ CHI TIẾT LỚP ---
+  useEffect(() => {
+    const fetchCourseDetails = async () => {
+      const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
+      
+      try {
+        // 1. Kéo danh sách Bài giảng
+        const resLessons = await fetch(`${baseUrl}/courses/${course.id}/lessons`);
+        if (resLessons.ok) {
+          const dataLessons = await resLessons.json();
+          setLessons(dataLessons.data || dataLessons || []);
+        }
+
+        // 2. Kéo danh sách Bài tập
+        const resAssignments = await fetch(`${baseUrl}/courses/${course.id}/assignments`);
+        if (resAssignments.ok) {
+          const dataAssignments = await resAssignments.json();
+          setAssignments(dataAssignments.data || dataAssignments || []);
+        }
+
+        // 3. Kéo danh sách Bài kiểm tra
+        const resQuizzes = await fetch(`${baseUrl}/courses/${course.id}/quizzes`);
+        if (resQuizzes.ok) {
+          const dataQuizzes = await resQuizzes.json();
+          setQuizzes(dataQuizzes.data || dataQuizzes || []);
+        }
+      } catch (error) {
+        console.error("Lỗi khi tải chi tiết lớp học:", error);
+      }
+    };
+
+    if (course?.id) {
+      fetchCourseDetails();
+    }
+  }, [course?.id]);
 
   // --- STATE DÀNH CHO MODAL ---
   const [modalType, setModalType] = useState(null) // "create" | "edit" | "view" | "meet" | null
@@ -129,34 +155,91 @@ export default function CourseDetail({ course, onBack }) {
     setModalType("view")
   }
 
-  // --- SUBMIT FORM TẠO / SỬA ---
-  const handleSubmitForm = (e) => {
-    e.preventDefault()
+  // --- SUBMIT FORM TẠO / SỬA (Đã tích hợp API gọi Backend Golang) ---
+  const handleSubmitForm = async (e) => {
+    e.preventDefault();
+    
+    // Lấy URL Backend từ biến môi trường (cổng 8002)
+    const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
 
-    if (formCategory === "lesson") {
-      if (modalType === "create") {
-        const newItem = { id: Date.now(), title: formData.title, duration: formData.duration, content: formData.description, isVisible: true }
-        setLessons([...lessons, newItem])
-      } else if (modalType === "edit") {
-        setLessons(lessons.map(l => l.id === selectedItem.id ? { ...l, title: formData.title, duration: formData.duration, content: formData.description } : l))
+    try {
+      if (formCategory === "lesson") {
+        if (modalType === "create") {
+          // Bắn API tạo Bài giảng
+          const response = await fetch(`${baseUrl}/courses/${course.id}/lessons`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: formData.title,
+              duration: formData.duration,
+              content: formData.description,
+            }),
+          });
+          
+          if (response.ok) {
+            const newLesson = await response.json();
+            // Lấy data thực từ DB đẩy lên UI
+            setLessons([...lessons, newLesson.data || newLesson]); 
+          }
+        } else if (modalType === "edit") {
+          // Ghi chú: Cần bổ sung API PUT/PATCH trên Golang sau
+          setLessons(lessons.map(l => l.id === selectedItem.id ? { ...l, title: formData.title, duration: formData.duration, content: formData.description } : l));
+        }
+      } 
+      
+      else if (formCategory === "assignment") {
+        if (modalType === "create") {
+          // Bắn API tạo Bài tập
+          const response = await fetch(`${baseUrl}/courses/${course.id}/assignments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: formData.title,
+              due_date: formData.dueDate, // Backend Go thường dùng snake_case
+              max_score: Number(formData.maxScore),
+              description: formData.description,
+            }),
+          });
+
+          if (response.ok) {
+            const newAssignment = await response.json();
+            setAssignments([...assignments, newAssignment.data || newAssignment]);
+          }
+        } else if (modalType === "edit") {
+          setAssignments(assignments.map(a => a.id === selectedItem.id ? { ...a, title: formData.title, dueDate: formData.dueDate, maxScore: formData.maxScore, description: formData.description } : a));
+        }
+      } 
+      
+      else if (formCategory === "quiz") {
+        if (modalType === "create") {
+          // Bắn API tạo Quiz
+          const response = await fetch(`${baseUrl}/courses/${course.id}/quizzes`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: formData.title,
+              duration: formData.duration,
+              total_questions: Number(formData.totalQuestions),
+              pass_score: Number(formData.passScore),
+              description: formData.description,
+            }),
+          });
+
+          if (response.ok) {
+            const newQuiz = await response.json();
+            setQuizzes([...quizzes, newQuiz.data || newQuiz]);
+          }
+        } else if (modalType === "edit") {
+          setQuizzes(quizzes.map(q => q.id === selectedItem.id ? { ...q, title: formData.title, duration: formData.duration, totalQuestions: formData.totalQuestions, description: formData.description } : q));
+        }
       }
-    } else if (formCategory === "assignment") {
-      if (modalType === "create") {
-        const newItem = { id: Date.now(), title: formData.title, dueDate: formData.dueDate, maxScore: formData.maxScore, description: formData.description, submittedCount: 0, totalStudents: course.studentsCount || 30, isVisible: true }
-        setAssignments([...assignments, newItem])
-      } else if (modalType === "edit") {
-        setAssignments(assignments.map(a => a.id === selectedItem.id ? { ...a, title: formData.title, dueDate: formData.dueDate, maxScore: formData.maxScore, description: formData.description } : a))
-      }
-    } else if (formCategory === "quiz") {
-      if (modalType === "create") {
-        const newItem = { id: Date.now(), title: formData.title, duration: formData.duration, totalQuestions: formData.totalQuestions, passScore: formData.passScore, description: formData.description, isVisible: true }
-        setQuizzes([...quizzes, newItem])
-      } else if (modalType === "edit") {
-        setQuizzes(quizzes.map(q => q.id === selectedItem.id ? { ...q, title: formData.title, duration: formData.duration, totalQuestions: formData.totalQuestions, description: formData.description } : q))
-      }
+
+      setModalType(null);
+
+    } catch (error) {
+      console.error("Lỗi khi lưu dữ liệu vào Backend:", error);
+      alert("Lỗi kết nối máy chủ! Hãy mở Console F12 để kiểm tra.");
     }
-
-    setModalType(null)
   }
 
   // --- THAO TÁC XOÁ & ẨN/HIỆN ---
@@ -304,7 +387,7 @@ export default function CourseDetail({ course, onBack }) {
               <div 
                 key={lesson.id} 
                 className={`p-4 rounded-2xl border shadow-sm flex items-center justify-between transition-all ${
-                  lesson.isVisible ? "bg-white border-slate-200/80" : "bg-slate-50/80 border-slate-200 opacity-75"
+                  lesson.isVisible !== false ? "bg-white border-slate-200/80" : "bg-slate-50/80 border-slate-200 opacity-75"
                 }`}
               >
                 <div className="flex items-center space-x-3">
@@ -314,7 +397,7 @@ export default function CourseDetail({ course, onBack }) {
                   <div>
                     <div className="flex items-center space-x-2">
                       <h4 className="text-xs font-bold text-slate-900">{lesson.title}</h4>
-                      {!lesson.isVisible && (
+                      {lesson.isVisible === false && (
                         <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-[10px] font-bold rounded">
                           Đã ẩn
                         </span>
@@ -328,8 +411,8 @@ export default function CourseDetail({ course, onBack }) {
                   <button onClick={() => handleOpenView("lesson", lesson)} className="p-2 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-xl cursor-pointer" title="Xem chi tiết">
                     <Eye className="w-4 h-4" />
                   </button>
-                  <button onClick={() => toggleVisibility("lesson", lesson.id)} className={`p-2 rounded-xl text-xs font-bold cursor-pointer ${lesson.isVisible ? "bg-emerald-50 text-emerald-600" : "bg-slate-200 text-slate-600"}`} title={lesson.isVisible ? "Ẩn bài" : "Hiện bài"}>
-                    {lesson.isVisible ? <CheckCircle2 className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  <button onClick={() => toggleVisibility("lesson", lesson.id)} className={`p-2 rounded-xl text-xs font-bold cursor-pointer ${lesson.isVisible !== false ? "bg-emerald-50 text-emerald-600" : "bg-slate-200 text-slate-600"}`} title={lesson.isVisible !== false ? "Ẩn bài" : "Hiện bài"}>
+                    {lesson.isVisible !== false ? <CheckCircle2 className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   </button>
                   <button onClick={() => handleOpenEdit("lesson", lesson)} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl cursor-pointer" title="Chỉnh sửa"><Edit3 className="w-4 h-4" /></button>
                   <button onClick={() => handleDelete("lesson", lesson.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl cursor-pointer" title="Xóa"><Trash2 className="w-4 h-4" /></button>
@@ -353,22 +436,22 @@ export default function CourseDetail({ course, onBack }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {assignments.map(item => (
-              <div key={item.id} className={`p-4 rounded-2xl border shadow-sm space-y-3 ${item.isVisible ? "bg-white border-slate-200" : "bg-slate-50 opacity-75"}`}>
+              <div key={item.id} className={`p-4 rounded-2xl border shadow-sm space-y-3 ${item.isVisible !== false ? "bg-white border-slate-200" : "bg-slate-50 opacity-75"}`}>
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="text-xs font-bold text-slate-900">{item.title}</h4>
-                    <span className="text-[10px] text-slate-500 mt-0.5 block">Hạn nộp: {item.dueDate}</span>
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">Hạn nộp: {item.dueDate || item.due_date}</span>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.isVisible ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
-                    {item.isVisible ? "Đang mở" : "Đã ẩn"}
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.isVisible !== false ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+                    {item.isVisible !== false ? "Đang mở" : "Đã ẩn"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center text-xs text-slate-500 pt-3 border-t border-slate-100">
-                  <span>Đã nộp bài: <strong className="text-slate-800">{item.submittedCount}/{item.totalStudents}</strong></span>
+                  <span>Đã nộp bài: <strong className="text-slate-800">{item.submittedCount || 0}/{item.totalStudents || 0}</strong></span>
                   <div className="flex items-center space-x-1">
                     <button onClick={() => handleOpenView("assignment", item)} className="p-1.5 text-slate-500 hover:text-orange-600 rounded-lg"><Eye className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => toggleVisibility("assignment", item.id)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">{item.isVisible ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <EyeOff className="w-3.5 h-3.5" />}</button>
+                    <button onClick={() => toggleVisibility("assignment", item.id)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">{item.isVisible !== false ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <EyeOff className="w-3.5 h-3.5" />}</button>
                     <button onClick={() => handleOpenEdit("assignment", item)} className="p-1.5 text-slate-500 hover:text-blue-600 rounded-lg"><Edit3 className="w-3.5 h-3.5" /></button>
                     <button onClick={() => handleDelete("assignment", item.id)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
@@ -392,20 +475,20 @@ export default function CourseDetail({ course, onBack }) {
 
           <div className="space-y-3">
             {quizzes.map(quiz => (
-              <div key={quiz.id} className={`p-4 rounded-2xl border shadow-sm flex justify-between items-center ${quiz.isVisible ? "bg-white border-slate-200" : "bg-slate-50 opacity-75"}`}>
+              <div key={quiz.id} className={`p-4 rounded-2xl border shadow-sm flex justify-between items-center ${quiz.isVisible !== false ? "bg-white border-slate-200" : "bg-slate-50 opacity-75"}`}>
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
                     <h4 className="text-xs font-bold text-slate-900">{quiz.title}</h4>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${quiz.isVisible ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
-                      {quiz.isVisible ? "Công khai" : "Đã ẩn"}
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${quiz.isVisible !== false ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+                      {quiz.isVisible !== false ? "Công khai" : "Đã ẩn"}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500">Thời gian: {quiz.duration} • Số câu: {quiz.totalQuestions} câu</p>
+                  <p className="text-[11px] text-slate-500">Thời gian: {quiz.duration} • Số câu: {quiz.totalQuestions || quiz.total_questions} câu</p>
                 </div>
 
                 <div className="flex items-center space-x-1">
                   <button onClick={() => handleOpenView("quiz", quiz)} className="p-1.5 text-slate-500 hover:text-orange-600 rounded-lg"><Eye className="w-4 h-4" /></button>
-                  <button onClick={() => toggleVisibility("quiz", quiz.id)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">{quiz.isVisible ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <EyeOff className="w-4 h-4 text-slate-400" />}
+                  <button onClick={() => toggleVisibility("quiz", quiz.id)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">{quiz.isVisible !== false ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <EyeOff className="w-4 h-4 text-slate-400" />}
                   </button>
                   <button onClick={() => handleOpenEdit("quiz", quiz)} className="p-1.5 text-slate-500 hover:text-blue-600 rounded-lg"><Edit3 className="w-4 h-4" /></button>
                   <button onClick={() => handleDelete("quiz", quiz.id)} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg"><Trash2 className="w-4 h-4" /></button>
@@ -479,7 +562,7 @@ export default function CourseDetail({ course, onBack }) {
         </div>
       )}
 
-      {/* ================= MODAL DÙNG CHUNG (TẠO / SỬA / XEM CHI TIẾT BÀI HỌC/BÀI TẬP) ================= */}
+      {/* ================= MODAL DÙNG CHUNG ================= */}
       {modalType && modalType !== "meet" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border overflow-hidden relative max-h-[90vh] flex flex-col">
@@ -508,15 +591,15 @@ export default function CourseDetail({ course, onBack }) {
 
                 {formCategory === "assignment" && (
                   <div className="p-3 bg-slate-50 border rounded-xl flex justify-between text-slate-600 font-bold">
-                    <span>Hạn nộp bài: {selectedItem?.dueDate}</span>
-                    <span>Thang điểm: {selectedItem?.maxScore} điểm</span>
+                    <span>Hạn nộp bài: {selectedItem?.dueDate || selectedItem?.due_date}</span>
+                    <span>Thang điểm: {selectedItem?.maxScore || selectedItem?.max_score} điểm</span>
                   </div>
                 )}
 
                 {formCategory === "quiz" && (
                   <div className="p-3 bg-slate-50 border rounded-xl flex justify-between text-slate-600 font-bold">
                     <span>Thời gian làm: {selectedItem?.duration}</span>
-                    <span>Số câu hỏi: {selectedItem?.totalQuestions} câu</span>
+                    <span>Số câu hỏi: {selectedItem?.totalQuestions || selectedItem?.total_questions} câu</span>
                   </div>
                 )}
 

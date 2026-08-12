@@ -10,6 +10,23 @@ services:
     env_file:
       - backend/services/auth-service/.env
 
+  course-service:
+    build:
+      context: ./backend/services/course-service
+      dockerfile: Dockerfile
+    container_name: edutech-course-service
+    restart: always
+    ports:
+      - '8002:8002'
+    environment:
+      - PORT=8002
+      # Đưa chính xác thông tin Supabase vào đây:
+      - DB_HOST=aws-0-ap-southeast-1.pooler.supabase.com
+      - DB_PORT=5432
+      - DB_USER=postgres.ieqfabmuxoigwpiwvwmw
+      - DB_PASSWORD=edutech@2026
+      - DB_NAME=course_service
+
   web:
     build:
       context: .
