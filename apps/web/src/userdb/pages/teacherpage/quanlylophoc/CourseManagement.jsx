@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react"
 import CourseDetail from "./CourseDetail.jsx"
-// Đảm bảo đường dẫn này khớp với vị trí thực tế của file course.api.js so với file hiện tại
 import { courseService } from "../../../../api/course.api" 
 import { 
   Plus, 
@@ -18,7 +17,6 @@ import {
   Loader2
 } from "lucide-react"
 
-// Danh sách ảnh mẫu gợi ý sẵn theo chủ đề
 const PRESET_IMAGES = [
   { name: "Công nghệ / CNTT", url: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=600&auto=format&fit=crop" },
   { name: "Toán Học", url: "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=600&auto=format&fit=crop" },
@@ -30,11 +28,10 @@ export default function CourseManagement() {
   const [courses, setCourses] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCourse, setSelectedCourse] = useState(null)
-  const [activeTypeTab, setActiveTypeTab] = useState("school") // "school" | "external"
+  const [activeTypeTab, setActiveTypeTab] = useState("school") 
   const [searchTerm, setSearchTerm] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Form state
   const [formData, setFormData] = useState({
     type: "school",
     title: "",
@@ -48,7 +45,6 @@ export default function CourseManagement() {
     description: ""
   })
 
-  // Gọi API lấy dữ liệu khi Component được mount
   useEffect(() => {
     fetchCourses()
   }, [])
@@ -65,7 +61,6 @@ export default function CourseManagement() {
     }
   }
 
-  // Lọc theo Loại lớp và Từ khóa tìm kiếm
   const filteredCourses = courses.filter(c => {
     const matchesType = c.type === activeTypeTab
     const matchesSearch = c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -74,7 +69,6 @@ export default function CourseManagement() {
     return matchesType && matchesSearch
   })
 
-  // Thêm lớp mới (Bắn API POST)
   const handleCreateCourse = async (e) => {
     e.preventDefault()
     if (!formData.title || !formData.schoolName) return
@@ -87,7 +81,6 @@ export default function CourseManagement() {
       teacher_id: 1, 
       type: formData.type,
       title: formData.title,
-      // Tự động sinh mã lớp ngẫu nhiên 6 ký tự
       code: `CLASS-${Math.random().toString(36).substring(2, 6).toUpperCase()}`, 
       subject: formData.subject,
       schoolName: formData.schoolName,
@@ -109,7 +102,6 @@ export default function CourseManagement() {
     }
   }
 
-  // Xóa lớp học (Bắn API DELETE)
   const handleDeleteCourse = async (id, e) => {
     e.stopPropagation()
     if (window.confirm("Thầy/Cô có chắc chắn muốn xóa lớp học này?")) {
@@ -124,13 +116,15 @@ export default function CourseManagement() {
   }
 
   if (selectedCourse) {
-    return <CourseDetail course={selectedCourse} onBack={() => setSelectedCourse(null)} />
+    return <CourseDetail course={selectedCourse} onBack={() => {
+      setSelectedCourse(null);
+      fetchCourses(); // Cập nhật lại số lượng học viên khi quay lại danh sách
+    }} />
   }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       
-      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -153,7 +147,6 @@ export default function CourseManagement() {
         </button>
       </div>
 
-      {/* TABS PHÂN LOẠI CƠ BẢN */}
       <div className="flex items-center justify-between gap-4 flex-wrap bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200">
         <div className="flex items-center space-x-1 w-full sm:w-auto">
           <button
@@ -181,7 +174,6 @@ export default function CourseManagement() {
           </button>
         </div>
 
-        {/* Tìm kiếm */}
         <div className="relative w-full sm:w-64">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -194,7 +186,6 @@ export default function CourseManagement() {
         </div>
       </div>
 
-      {/* DANH SÁCH LỚP HỌC (CARDS CÓ HÌNH ẢNH) */}
       {isLoading ? (
         <div className="p-12 flex flex-col items-center justify-center text-slate-400 space-y-3">
           <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
@@ -212,7 +203,6 @@ export default function CourseManagement() {
               onClick={() => setSelectedCourse(course)}
               className="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col group cursor-pointer"
             >
-              {/* Ảnh bìa lớp học */}
               <div className="relative h-40 overflow-hidden bg-slate-100">
                 <img 
                   src={course.thumbnail} 
@@ -240,7 +230,6 @@ export default function CourseManagement() {
                 </div>
               </div>
 
-              {/* Nội dung chi tiết ngắn */}
               <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                 <div className="space-y-1.5 text-xs text-slate-600">
                   <div className="flex items-center space-x-1.5 text-slate-500 font-medium">
@@ -278,12 +267,10 @@ export default function CourseManagement() {
         </div>
       )}
 
-      {/* MODAL TẠO LỚP HỌC */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border overflow-hidden relative max-h-[90vh] flex flex-col">
             
-            {/* Modal Header */}
             <div className="bg-gradient-to-r from-orange-600 to-amber-600 p-4 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center space-x-2">
                 <Sparkles className="w-5 h-5 text-amber-200" />
@@ -294,10 +281,8 @@ export default function CourseManagement() {
               </button>
             </div>
 
-            {/* Modal Form */}
             <form onSubmit={handleCreateCourse} className="p-5 space-y-3.5 overflow-y-auto flex-1 text-xs">
               
-              {/* 1. Chọn loại lớp */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Loại hình giảng dạy *</label>
                 <select
@@ -310,7 +295,6 @@ export default function CourseManagement() {
                 </select>
               </div>
 
-              {/* 2. Tên Lớp */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Tên Lớp / Khóa Học *</label>
                 <input
@@ -323,7 +307,6 @@ export default function CourseManagement() {
                 />
               </div>
 
-              {/* 3. Trường học & Môn học */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
@@ -352,7 +335,6 @@ export default function CourseManagement() {
                 </div>
               </div>
 
-              {/* 4. Nhập Link Ảnh Bìa (URL) & Preview */}
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
                   <span className="flex items-center space-x-1">
@@ -370,7 +352,6 @@ export default function CourseManagement() {
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-orange-500/20"
                 />
 
-                {/* Chọn nhanh mẫu ảnh có sẵn */}
                 <div>
                   <p className="text-[10px] text-slate-500 font-semibold mb-1">Hoặc chọn nhanh ảnh mẫu có sẵn:</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -391,7 +372,6 @@ export default function CourseManagement() {
                   </div>
                 </div>
 
-                {/* Live Preview ảnh */}
                 {formData.thumbnail && (
                   <div className="mt-2 relative h-28 rounded-xl overflow-hidden border border-slate-200">
                     <img 
@@ -407,7 +387,6 @@ export default function CourseManagement() {
                 )}
               </div>
 
-              {/* 5. Lịch học & Mô tả */}
               <div className="space-y-1">
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Lịch học dự kiến</label>
                 <input
@@ -419,7 +398,6 @@ export default function CourseManagement() {
                 />
               </div>
 
-              {/* Submit Buttons */}
               <div className="pt-3 flex items-center justify-end space-x-2 shrink-0">
                 <button 
                   type="button" 

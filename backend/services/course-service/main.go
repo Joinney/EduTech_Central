@@ -23,6 +23,7 @@ type Course struct {
 	SchoolName    string       `gorm:"size:255;not null" json:"schoolName"`
 	Grade         string       `gorm:"size:50" json:"grade"`
 	MaxStudents   int          `gorm:"default:30" json:"maxStudents"`
+	StudentsCount int          `gorm:"default:0" json:"studentsCount"`
 	Schedule      string       `gorm:"size:255" json:"schedule"`
 	Thumbnail     string       `gorm:"type:text" json:"thumbnail"`
 	Description   string       `gorm:"type:text" json:"description"`
@@ -71,6 +72,18 @@ type Quiz struct {
 	CreatedAt      time.Time `json:"createdAt"`
 }
 
+// Model lưu trữ Học viên tham gia Lớp (Many-to-Many Bridge Table)
+// Bạn tìm struct CourseStudent và sửa lại thế này:
+type CourseStudent struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	CourseID     uint      `json:"course_id"`
+	StudentID    uint      `json:"student_id"`
+	StudentName  string    `json:"student_name"`  // Thêm Tên thật
+	StudentEmail string    `json:"student_email"` // Thêm Email thật
+	AvatarURL    string    `json:"avatar_url"`    // Thêm Avatar
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 var db *gorm.DB
 
 func initDB() {
@@ -94,7 +107,6 @@ func initDB() {
 
 	var err error
 	
-	// THÊM CƠ CHẾ RETRY: Thử kết nối tối đa 10 lần, mỗi lần cách nhau 3 giây
 	for i := 1; i <= 10; i++ {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
@@ -109,8 +121,8 @@ func initDB() {
 		log.Fatalf("❌ KHÔNG THỂ kết nối đến Postgres DB sau 10 lần thử: %v", err)
 	}
 
-	// Auto Migrate
-	db.AutoMigrate(&Course{}, &Lesson{}, &Assignment{}, &Quiz{})
+	// Đưa CourseStudent vào danh sách AutoMigrate để DB tự tạo bảng
+	db.AutoMigrate(&Course{}, &Lesson{}, &Assignment{}, &Quiz{}, &CourseStudent{})
 	log.Println("✅ AutoMigrate các bảng thành công!")
 }
 
@@ -119,10 +131,9 @@ func main() {
 
 	r := gin.Default()
 
-	// 🚀 MIDDLEWARE CORS THỦ CÔNG (CHỐNG LỖI 100%)
+	// MIDDLEWARE CORS
 	r.Use(func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
-		// Luôn cho phép Origin đang gọi tới (linh hoạt hơn việc fix cứng localhost)
 		if origin != "" {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		} else {
@@ -132,7 +143,6 @@ func main() {
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH, DELETE")
 
-		// Bắt trực tiếp request OPTIONS (Preflight) và trả về 204 ngay lập tức
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
@@ -157,6 +167,10 @@ func main() {
 
 		api.GET("/courses/:id/quizzes", getQuizzes)
 		api.POST("/courses/:id/quizzes", createQuiz)
+
+		// Ráp nối 2 API Mới Cho Luồng Học Viên
+		api.POST("/courses/:id/join", joinCourse)
+		api.GET("/courses/:id/students", getCourseStudents)
 	}
 
 	port := os.Getenv("PORT")
@@ -166,6 +180,10 @@ func main() {
 
 	r.Run(":" + port)
 }
+
+// ==========================================
+// CÁC HANDLER QUẢN LÝ LỚP HỌC & TÀI NGUYÊN
+// ==========================================
 
 func getCourses(c *gin.Context) {
 	var courses []Course
@@ -280,4 +298,87 @@ func createQuiz(c *gin.Context) {
 	quiz.CourseID = uint(courseID)
 	db.Create(&quiz)
 	c.JSON(http.StatusCreated, quiz)
+}
+
+// ==========================================
+// CÁC HANDLER QUẢN LÝ HỌC VIÊN
+// ==========================================
+
+// 1. Logic Sinh Viên tham gia lớp
+func joinCourse(c *gin.Context) {
+	courseID := c.Param("id")
+	
+	// Khai báo struct để nhận data THẬT từ React gửi lên
+	var req struct {
+		StudentID    uint   `json:"student_id"`
+		StudentName  string `json:"student_name"`
+		StudentEmail string `json:"student_email"`
+		AvatarURL    string `json:"avatar_url"`
+	}
+	
+	// Đọc dữ liệu từ React
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu tham gia không hợp lệ"})
+		return
+	}
+
+	var course Course
+	if err := db.First(&course, courseID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy lớp học"})
+		return
+	}
+
+	// Check trùng (Dùng ID thật của sinh viên)
+	var existing CourseStudent
+	if err := db.Where("course_id = ? AND student_id = ?", course.ID, req.StudentID).First(&existing).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Bạn đã tham gia lớp học này rồi!"})
+		return
+	}
+
+	// LƯU DATA THẬT VÀO DATABASE
+	enrollment := CourseStudent{
+		CourseID:     course.ID, 
+		StudentID:    req.StudentID,
+		StudentName:  req.StudentName,
+		StudentEmail: req.StudentEmail,
+		AvatarURL:    req.AvatarURL,
+	}
+	
+	if err := db.Create(&enrollment).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu dữ liệu tham gia"})
+		return
+	}
+
+	// Thay vì cộng 1 mù quáng, ta đếm số lượng THỰC TẾ trong bảng CourseStudent
+	var actualCount int64
+	db.Model(&CourseStudent{}).Where("course_id = ?", course.ID).Count(&actualCount)
+	
+	// Cập nhật con số chính xác tuyệt đối vào bảng Course
+	db.Model(&course).UpdateColumn("students_count", actualCount)
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Đăng ký tham gia lớp thành công!", "data": enrollment})
+}
+// 2. Logic Trả về danh sách sinh viên cho màn hình của Giáo viên
+func getCourseStudents(c *gin.Context) {
+	courseID := c.Param("id")
+	var enrollments []CourseStudent
+
+	if err := db.Where("course_id = ?", courseID).Find(&enrollments).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi lấy dữ liệu danh sách học viên"})
+		return
+	}
+
+	// Trả về DỮ LIỆU THẬT đã lưu trong Database
+	realStudents := []map[string]interface{}{}
+	for _, e := range enrollments {
+		realStudents = append(realStudents, map[string]interface{}{
+			"id":         e.StudentID,
+			"name":       e.StudentName,  // <--- Data thật
+			"email":      e.StudentEmail, // <--- Data thật
+			"joined_at":  e.CreatedAt,
+			"avatar_url": e.AvatarURL,    // <--- Data thật
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": realStudents})
 }

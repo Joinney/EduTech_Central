@@ -46,6 +46,9 @@ export default function CourseDetail({ course, onBack }) {
   // 4. Quản lý Bài kiểm tra
   const [quizzes, setQuizzes] = useState(course.quizzes || [])
 
+  // 5. Quản lý Học viên
+  const [students, setStudents] = useState([])
+
   // --- GỌI API KÉO DỮ LIỆU TỪ BACKEND LÊN KHI MỞ CHI TIẾT LỚP ---
   useEffect(() => {
     const fetchCourseDetails = async () => {
@@ -72,9 +75,17 @@ export default function CourseDetail({ course, onBack }) {
           const dataQuizzes = await resQuizzes.json();
           setQuizzes(dataQuizzes.data || dataQuizzes || []);
         }
+
+        // 4. Kéo danh sách Học viên
+        const resStudents = await fetch(`${baseUrl}/courses/${course.id}/students`);
+        if (resStudents.ok) {
+          const dataStudents = await resStudents.json();
+          setStudents(dataStudents.data || dataStudents || []);
+        }
       } catch (error) {
         console.error("Lỗi khi tải chi tiết lớp học:", error);
       }
+      
     };
 
     if (course?.id) {
@@ -304,7 +315,7 @@ export default function CourseDetail({ course, onBack }) {
 
             <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-xs font-bold flex items-center space-x-1.5">
               <Users className="w-4 h-4 text-orange-500" />
-              <span>Sĩ số: {course.studentsCount}/{course.maxStudents}</span>
+              <span>Sĩ số: {students.length}/{course.maxStudents}</span>
             </div>
           </div>
         </div>
@@ -348,7 +359,7 @@ export default function CourseDetail({ course, onBack }) {
           { id: "lessons", label: `Nội dung Bài giảng (${lessons.length})`, icon: BookOpen },
           { id: "assignments", label: `Bài tập về nhà (${assignments.length})`, icon: FileText },
           { id: "quizzes", label: `Bài kiểm tra / Thi (${quizzes.length})`, icon: HelpCircle },
-          { id: "students", label: "Danh sách Học viên", icon: Users },
+          { id: "students", label: `Danh sách Học viên (${students.length})`, icon: Users },
         ].map(tab => {
           const Icon = tab.icon
           return (
@@ -448,7 +459,7 @@ export default function CourseDetail({ course, onBack }) {
                 </div>
 
                 <div className="flex justify-between items-center text-xs text-slate-500 pt-3 border-t border-slate-100">
-                  <span>Đã nộp bài: <strong className="text-slate-800">{item.submittedCount || 0}/{item.totalStudents || 0}</strong></span>
+                  <span>Đã nộp bài: <strong className="text-slate-800">{item.submittedCount || 0}/{students.length || 0}</strong></span>
                   <div className="flex items-center space-x-1">
                     <button onClick={() => handleOpenView("assignment", item)} className="p-1.5 text-slate-500 hover:text-orange-600 rounded-lg"><Eye className="w-3.5 h-3.5" /></button>
                     <button onClick={() => toggleVisibility("assignment", item.id)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">{item.isVisible !== false ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <EyeOff className="w-3.5 h-3.5" />}</button>
@@ -495,6 +506,50 @@ export default function CourseDetail({ course, onBack }) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ================= TAB 4: DANH SÁCH HỌC VIÊN ================= */}
+      {activeTab === "students" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-bold text-slate-800">Học viên đang tham gia lớp</h3>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="grid grid-cols-1 divide-y divide-slate-100">
+              {students.map((student, idx) => (
+                <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <img 
+                      src={student.avatar_url || `https://ui-avatars.com/api/?name=${student.name}&background=random`} 
+                      alt="Avatar" 
+                      className="w-10 h-10 rounded-full border border-slate-200"
+                    />
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">{student.name || student.email?.split('@')[0] || "Chưa cập nhật tên"}</h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">{student.email}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <span className="text-[11px] font-medium text-slate-400">
+                      Tham gia: {new Date(student.joined_at).toLocaleDateString("vi-VN")}
+                    </span>
+                    <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer" title="Mời khỏi lớp">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              
+              {students.length === 0 && (
+                <div className="p-8 text-center text-xs text-slate-500 font-medium">
+                  Chưa có học viên nào tham gia lớp học này.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
