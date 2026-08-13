@@ -18,6 +18,8 @@ import Programs from "./userdb/pages/studentpage/Chuongtrinhkhoilop/Programs.jsx
 import Library from "./userdb/pages/studentpage/Khohoclieu/Library.jsx"
 import StudentCourses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx"
 import Videos from "./userdb/pages/studentpage/VideoEdu/Videos.jsx"
+// 🟢 ĐÃ THÊM IMPORT TRANG TỦ SÁCH TẠI ĐÂY
+import Bookshelf from "./userdb/pages/studentpage/Tusach/Bookshelf.jsx"
 
 // ================= TEACHER PAGES =================
 import TeacherHome from "./userdb/pages/teacherpage/TeacherHome.jsx"
@@ -104,7 +106,9 @@ export default function App() {
           <Route path="courses" element={<StudentCourses />} />
           <Route path="videos" element={<Videos />} />
           <Route path="profile" element={<Profile />} />
-          <Route path="bookshelf" element={<StudentHome />} />
+          
+          {/* 🟢 ĐÃ CẬP NHẬT ROUTE BOOKSHELF */}
+          <Route path="bookshelf" element={<Bookshelf />} />
         </Route>
       </Route>
 
