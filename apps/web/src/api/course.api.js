@@ -4,8 +4,9 @@ export const courseService = {
   // ==========================================
   // 1. QUẢN LÝ LỚP HỌC / KHÓA HỌC CHUNG
   // ==========================================
-  getAllCourses: async () => {
-    const response = await courseApi.get('/courses');
+  getAllCourses: async (teacherId) => {
+    const params = teacherId ? { teacher_id: teacherId } : {};
+    const response = await courseApi.get('/courses', { params });
     return response.data;
   },
 
@@ -66,15 +67,20 @@ export const courseService = {
   // 3. API DÀNH CHO HỌC VIÊN (STUDENT)
   // ==========================================
   
-  // Kéo danh sách các lớp học mà Student đang tham gia
+  // Kéo danh sách toàn bộ các lớp học
   getStudentCourses: async () => {
     const response = await courseApi.get('/courses');
     return response.data;
   },
 
-  // Tham gia lớp học bằng mã Code (VD: CLASS-9A2B)
+  // Lấy danh sách các lớp học mà sinh viên đã tham gia từ DB
+  getStudentJoinedCourses: async (studentId) => {
+    const response = await courseApi.get(`/students/${studentId}/courses`);
+    return response.data;
+  },
+
+  // Tìm lớp học bằng mã Code (VD: CLASS-9A2B)
   joinCourseByCode: async (code) => {
-    // Bước 1: Tìm lớp học có mã code tương ứng
     const response = await courseApi.get('/courses');
     const matchedCourse = response.data.find(c => c.code.toUpperCase() === code.toUpperCase());
     
@@ -82,14 +88,17 @@ export const courseService = {
       throw new Error("Mã lớp không hợp lệ hoặc không tồn tại!");
     }
 
-    // Bước 2: Bắn API xuống Golang để lưu sinh viên vào bảng course_students
-    await courseApi.post(`/courses/${matchedCourse.id}/join`, {});
-
     return matchedCourse;
   },
 
+  // Học sinh nộp bài tập (Word/PDF)
+  submitAssignment: async (assignmentId, submissionData) => {
+    const response = await courseApi.post(`/assignments/${assignmentId}/submit`, submissionData);
+    return response.data;
+  },
+
   // ==========================================
-  // 4. QUẢN LÝ HỌC VIÊN TRONG LỚP (GIÁO VIÊN)
+  // 4. QUẢN LÝ HỌC VIÊN & BÀI NỘP (GIÁO VIÊN)
   // ==========================================
   
   getStudentsByCourse: async (courseId) => {
@@ -99,6 +108,11 @@ export const courseService = {
 
   joinCourse: async (courseId, studentData) => {
     const response = await courseApi.post(`/courses/${courseId}/join`, studentData);
+    return response.data;
+  },
+
+  getSubmissionsByAssignment: async (assignmentId) => {
+    const response = await courseApi.get(`/assignments/${assignmentId}/submissions`);
     return response.data;
   }
 };

@@ -11,31 +11,26 @@ export default function Courses() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCourse, setSelectedCourse] = useState(null)
   
-  // State quản lý danh sách ID các lớp ĐÃ THAM GIA (lưu trong LocalStorage)
-  const [joinedIds, setJoinedIds] = useState(() => {
-    const saved = localStorage.getItem("student_joined_courses")
-    return saved ? JSON.parse(saved) : []
-  })
-
-  // State cho Modal Tham gia lớp
+  // Modal State
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false)
   const [joinCode, setJoinCode] = useState("")
   const [joinError, setJoinError] = useState("")
 
+  // Lấy thông tin sinh viên thật đang đăng nhập
+  const storedUser = localStorage.getItem("user")
+  const currentUser = storedUser ? JSON.parse(storedUser) : { id: 999, name: "Học viên" }
+  const studentId = currentUser.id || 999
+
   useEffect(() => {
     fetchMyCourses()
-  }, [joinedIds]) 
+  }, [])
 
   const fetchMyCourses = async () => {
     try {
       setIsLoading(true)
-      const allCourses = await courseService.getAllCourses()
-      
-      // FIX LỖI 1: Ép tất cả ID về dạng Chuỗi (String) để so sánh luôn luôn đúng
-      const joinedIdsString = joinedIds.map(String)
-      const myJoinedCourses = (allCourses.data || allCourses || []).filter(c => joinedIdsString.includes(String(c.id)))
-      
-      setCourses(myJoinedCourses)
+      // 🚀 KÉO TRỰC TIẾP DANH SÁCH LỚP ĐÃ JOIN TỪ POSTGRES DB
+      const data = await courseService.getStudentJoinedCourses(studentId)
+      setCourses(data || [])
     } catch (error) {
       console.error("Lỗi khi tải môn học:", error)
     } finally {
@@ -49,50 +44,27 @@ export default function Courses() {
     if (!joinCode.trim()) return
 
     try {
-      // 1. Kéo danh sách lớp về để check mã Code
-      const allCoursesRes = await courseService.getAllCourses()
-      const allCourses = allCoursesRes.data || allCoursesRes || []
-      
-      const matchedCourse = allCourses.find(c => c.code.toUpperCase() === joinCode.trim().toUpperCase())
-      if (!matchedCourse) throw new Error("Mã lớp không hợp lệ hoặc không tồn tại!")
-      
-      // ==========================================
-      // LẤY THÔNG TIN USER THẬT ĐANG ĐĂNG NHẬP
-      const storedUser = localStorage.getItem("user");
-      const currentUser = storedUser ? JSON.parse(storedUser) : {
-        id: Math.floor(Math.random() * 1000) + 1, 
-        email: "hocvienthat@gmail.com"
-      };
+      // 1. Tìm lớp khớp với mã Code
+      const matchedCourse = await courseService.joinCourseByCode(joinCode.trim().toUpperCase())
 
-      // 💡 Quét mọi trường hợp tên có thể xảy ra, bí quá thì cắt email làm tên
-      const fallbackName = currentUser.displayName || currentUser.fullName || currentUser.name || currentUser.username || currentUser.email?.split('@')[0] || "Học viên Ẩn danh";
-
-      // 2. GỬI DATA THẬT XUỐNG CHO GOLANG
+      // 2. Gửi thông tin sinh viên thật xuống Golang
+      const fallbackName = currentUser.displayName || currentUser.fullName || currentUser.name || currentUser.username || currentUser.email?.split('@')[0] || "Học viên";
+      
       await courseService.joinCourse(matchedCourse.id, {
-        student_id: currentUser.id,
-        student_name: fallbackName, // Dùng fallbackName ở đây
-        student_email: currentUser.email,
-        avatar_url: currentUser.avatar || currentUser.photoURL || `https://ui-avatars.com/api/?name=${fallbackName}&background=random`
+        student_id: studentId,
+        student_name: fallbackName,
+        student_email: currentUser.email || "student@gmail.com",
+        avatar_url: currentUser.avatar || `https://ui-avatars.com/api/?name=${fallbackName}&background=random`
       });
-      // ==========================================
 
-      const courseIdStr = String(matchedCourse.id)
-      const joinedIdsString = joinedIds.map(String)
-
-      if (joinedIdsString.includes(courseIdStr)) {
-        throw new Error("Bạn đã tham gia lớp này rồi!")
-      }
-
-      const newJoinedIds = [...joinedIdsString, courseIdStr]
-      setJoinedIds(newJoinedIds)
-      localStorage.setItem("student_joined_courses", JSON.stringify(newJoinedIds))
-      
       alert(`Đăng ký thành công lớp: ${matchedCourse.title}!`)
       setIsJoinModalOpen(false)
       setJoinCode("")
+      
+      // 3. Tải lại danh sách lớp trực tiếp từ DB
+      fetchMyCourses()
     } catch (error) {
-      // Hiển thị lỗi từ Backend trả về (nếu có), hoặc lỗi mặc định
-      const errorMsg = error.response?.data?.error || error.message || "Không thể tham gia lớp học. Vui lòng kiểm tra lại mã."
+      const errorMsg = error.response?.data?.error || error.message || "Không thể tham gia lớp học. Vui lòng thử lại."
       setJoinError(errorMsg)
     }
   }
@@ -104,7 +76,7 @@ export default function Courses() {
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-10">
       
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Môn học của tôi</h1>
@@ -112,7 +84,7 @@ export default function Courses() {
         </div>
       </div>
 
-      {/* ================= LƯỚI DANH SÁCH MÔN HỌC ================= */}
+      {/* LƯỚI DANH SÁCH MÔN HỌC */}
       {isLoading ? (
         <div className="p-12 flex flex-col items-center justify-center text-slate-400 space-y-3">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -164,7 +136,7 @@ export default function Courses() {
             </div>
           ))}
 
-          {/* ------------ THẺ ĐĂNG KÝ MÔN MỚI ------------ */}
+          {/* THẺ ĐĂNG KÝ MÔN MỚI */}
           <div 
             onClick={() => setIsJoinModalOpen(true)}
             className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl p-8 bg-slate-50/50 hover:bg-blue-50/20 transition flex flex-col items-center justify-center text-center space-y-3 min-h-[300px] cursor-pointer group"
@@ -182,7 +154,7 @@ export default function Courses() {
         </div>
       )}
 
-      {/* ================= MODAL JOIN LỚP ================= */}
+      {/* MODAL JOIN LỚP */}
       {isJoinModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
           <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border overflow-hidden">

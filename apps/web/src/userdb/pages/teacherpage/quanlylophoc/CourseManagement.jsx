@@ -52,7 +52,14 @@ export default function CourseManagement() {
   const fetchCourses = async () => {
     try {
       setIsLoading(true)
-      const data = await courseService.getAllCourses()
+      
+      // Lấy thông tin Giáo viên đang đăng nhập từ LocalStorage
+      const storedUser = localStorage.getItem("user")
+      const currentUser = storedUser ? JSON.parse(storedUser) : null
+      const teacherId = currentUser?.id || null
+
+      // Chỉ kéo các lớp do chính Giáo viên này tạo
+      const data = await courseService.getAllCourses(teacherId)
       setCourses(data || [])
     } catch (error) {
       console.error("Lỗi khi tải danh sách lớp học:", error)
@@ -73,12 +80,19 @@ export default function CourseManagement() {
     e.preventDefault()
     if (!formData.title || !formData.schoolName) return
 
+    // Lấy thông tin Giáo viên thật đang đăng nhập
+    const storedUser = localStorage.getItem("user")
+    const currentUser = storedUser ? JSON.parse(storedUser) : { id: 1, name: "Giáo viên" }
+    
+    const teacherName = currentUser.displayName || currentUser.fullName || currentUser.name || currentUser.username || currentUser.email?.split('@')[0] || "Giáo viên"
+
     const defaultImg = formData.type === "school" 
       ? "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=600&auto=format&fit=crop"
       : "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600&auto=format&fit=crop"
 
     const payload = {
-      teacher_id: 1, 
+      teacher_id: currentUser.id || 1,         // 👈 ID thật của Giáo viên
+      teacher_name: teacherName,               // 👈 Tên thật của Giáo viên
       type: formData.type,
       title: formData.title,
       code: `CLASS-${Math.random().toString(36).substring(2, 6).toUpperCase()}`, 
