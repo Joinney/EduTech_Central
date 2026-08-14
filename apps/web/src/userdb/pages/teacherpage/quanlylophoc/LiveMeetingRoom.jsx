@@ -1,11 +1,13 @@
 /* eslint-disable react/prop-types */
 import React, { useMemo, useState, useEffect, useRef } from "react"
 import { ArrowLeft, Copy, Check, ExternalLink } from "lucide-react"
+import { courseService } from "../../../../api/course.api" // 👈 ĐÃ IMPORT API
 
 export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
   const [isCopied, setIsCopied] = useState(false)
   const jitsiContainerRef = useRef(null)
   const apiRef = useRef(null)
+  const attendanceLogIdRef = useRef(null) // 👈 Lưu log_id điểm danh
 
   // 🎲 1. Sinh mã phòng họp ngẫu nhiên (VD: m7n-7xfg-erg)
   const randomMeetCode = useMemo(() => {
@@ -49,7 +51,7 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
 
   const userEmail = currentUser?.email || "user@edutech.com"
 
-  // 🖼️ Lấy Avatar thật của user (Hỗ trợ nhiều trường ảnh khác nhau)
+  // 🖼️ Lấy Avatar thật của user
   const userAvatar = useMemo(() => {
     const rawAvatar =
       currentUser?.avatar_url ||
@@ -62,7 +64,6 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
       return rawAvatar
     }
 
-    // Nếu chưa có ảnh, tự động sinh avatar chất lượng cao theo tên
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0284c7&color=ffffff&bold=true&rounded=true&size=256`
   }, [currentUser, displayName])
 
@@ -75,7 +76,31 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
 
   const publicShareLink = `https://meet.jit.si/${roomKey}`
 
-  // 🚀 5. KHỞI TẠO JITSI & ÉP ĐỒNG BỘ AVATAR 2 CHIỀU
+  // 🚀 5. TỰ ĐỘNG ĐIỂM DANH LIVE MEET (JOIN & LEAVE)
+  useEffect(() => {
+    if (course?.id && currentUser?.id) {
+      courseService.recordJoinAttendance({
+        course_id: Number(course.id),
+        student_id: Number(currentUser.id),
+        student_name: displayName,
+        room_name: roomKey,
+      }).then((res) => {
+        if (res?.log_id) {
+          attendanceLogIdRef.current = res.log_id
+        }
+      }).catch((err) => console.error("Lỗi ghi nhận điểm danh vào phòng:", err))
+    }
+
+    // Khi rời phòng -> Ghi nhận giờ ra & thời lượng
+    return () => {
+      if (attendanceLogIdRef.current) {
+        courseService.recordLeaveAttendance(attendanceLogIdRef.current)
+          .catch((err) => console.error("Lỗi ghi nhận rời phòng:", err))
+      }
+    }
+  }, [course?.id, currentUser?.id, displayName, roomKey])
+
+  // 🚀 6. KHỞI TẠO JITSI & ÉP ĐỒNG BỘ AVATAR 2 CHIỀU
   useEffect(() => {
     const loadJitsiScript = () => {
       return new Promise((resolve) => {
@@ -106,7 +131,7 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
         userInfo: {
           displayName: displayName,
           email: userEmail,
-          avatarUrl: userAvatar, // 👈 Gán trực tiếp khi tạo
+          avatarUrl: userAvatar,
         },
         configOverwrite: {
           prejoinPageEnabled: false,
@@ -123,21 +148,18 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
       const api = new JitsiMeetExternalAPI("meet.jit.si", options)
       apiRef.current = api
 
-      // Hàm ép gửi Avatar nhiều lần để Jitsi nhận diện chắc chắn
       const applyAvatar = () => {
         if (userAvatar) {
           api.executeCommand("avatarUrl", userAvatar)
         }
       }
 
-      // Gán khi vừa kết nối
       api.addEventListener("videoConferenceJoined", () => {
         applyAvatar()
         setTimeout(applyAvatar, 1000)
         setTimeout(applyAvatar, 3000)
       })
 
-      // Gán lại khi có thêm người mới vào phòng để cả 2 bên cùng thấy
       api.addEventListener("participantJoined", () => {
         applyAvatar()
       })
@@ -158,6 +180,13 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
     setTimeout(() => setIsCopied(false), 2000)
   }
 
+  const handleLeaveRoom = () => {
+    if (attendanceLogIdRef.current) {
+      courseService.recordLeaveAttendance(attendanceLogIdRef.current).catch(() => {})
+    }
+    onLeave()
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col animate-fadeIn">
       {/* Header điều hướng */}
@@ -167,7 +196,7 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
         <div className="flex items-center space-x-3 truncate">
           <button
             type="button"
-            onClick={onLeave}
+            onClick={handleLeaveRoom}
             className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold rounded-xl border border-slate-700 transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -216,7 +245,7 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
 
-          {/* Hiển thị Avatar & Tên tài khoản trên Header */}
+          {/* Hiển thị Avatar & Tên tài khoản */}
           <div className="flex items-center space-x-2 pl-2 border-l border-slate-800">
             <img
               src={userAvatar}
