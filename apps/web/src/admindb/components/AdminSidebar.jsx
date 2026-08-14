@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { 
   LayoutDashboard, 
@@ -6,22 +6,25 @@ import {
   BookOpenCheck, 
   ShieldAlert, 
   Settings, 
-  LogOut, 
-  ChevronRight,
-  ShieldCheck
+  LogOut,
+  UserCircle,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 
 export default function AdminSidebar() {
   const location = useLocation()
   const navigate = useNavigate()
-  const user = JSON.parse(localStorage.getItem("user") || "{}")
+  
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   const adminNavItems = [
-    { name: "Bảng Điều Khiển Admin", path: "/admin/dashboard", icon: LayoutDashboard },
-    { name: "Quản Lý Người Dùng", path: "/admin/users", icon: Users },
-    { name: "Kiểm Duyệt Khóa Học", path: "/admin/courses", icon: BookOpenCheck },
-    { name: "Báo Cáo & Cảnh Báo", path: "/admin/reports", icon: ShieldAlert },
-    { name: "Cấu Hình Hệ Thống", path: "/admin/settings", icon: Settings },
+    { name: "Bảng điều khiển", path: "/admin/dashboard", icon: LayoutDashboard },
+    { name: "Quản lý người dùng", path: "/admin/users", icon: Users },
+    { name: "Kiểm duyệt khóa học", path: "/admin/courses", icon: BookOpenCheck },
+    { name: "Báo cáo & Cảnh báo", path: "/admin/reports", icon: ShieldAlert },
+    { name: "Cấu hình hệ thống", path: "/admin/settings", icon: Settings },
+    { name: "Hồ sơ cá nhân", path: "/admin/profile", icon: UserCircle }, 
   ]
 
   const handleLogout = () => {
@@ -30,30 +33,58 @@ export default function AdminSidebar() {
   }
 
   return (
-    <aside className="w-64 bg-slate-50 text-slate-700 flex flex-col justify-between shrink-0 p-4 select-none min-h-screen border-r border-slate-200">
-      <div className="space-y-6">
-        
-        {/* Profile Admin Header Sáng */}
-        <div className="p-3 bg-white rounded-2xl border border-slate-200/80 flex items-center space-x-3 shadow-xs">
-          <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-xs shadow-md shadow-blue-500/20 shrink-0">
-            AD
-          </div>
-          <div className="min-w-0 flex-1">
-            <h4 className="font-bold text-xs text-slate-800 truncate leading-tight">
-              {user.fullName || "Quản Trị Viên"}
-            </h4>
-            <p className="text-[10px] font-extrabold text-orange-500 truncate mt-0.5 flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-orange-500" />
-              Administrator
-            </p>
-          </div>
-        </div>
+    <aside 
+      className={`bg-[#38497C] text-white flex flex-col justify-between shrink-0 select-none min-h-screen relative overflow-visible transition-all duration-300 z-50 ${
+        isCollapsed ? "w-20 p-3" : "w-64 p-4"
+      }`}
+    >
+      {/* Nút Thu gọn/Mở rộng */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3 top-8 bg-orange-500 text-white rounded-full p-1 shadow-md z-50 hover:bg-orange-600 transition-all cursor-pointer"
+        title={isCollapsed ? "Mở rộng" : "Thu gọn"}
+      >
+        {isCollapsed ? <ChevronRight size={16} strokeWidth={3} /> : <ChevronLeft size={16} strokeWidth={3} />}
+      </button>
 
-        {/* Navigation Sáng */}
-        <div className="space-y-1.5">
-          <div className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-            Hệ Thống Quản Trị
-          </div>
+      {/* Hiệu ứng ánh sáng nền mờ */}
+      <div className="absolute top-0 left-0 w-full h-48 bg-white/10 blur-[80px] pointer-events-none"></div>
+
+      <div className="space-y-6 relative z-10">
+        
+        {/* KHU VỰC LOGO TRANG */}
+        <Link 
+          to="/admin/dashboard"
+          className={`flex items-center transition-all duration-300 ${
+            isCollapsed ? "justify-center py-2" : "px-2 py-2 space-x-3"
+          }`}
+        >
+          {/* Thay src="/logo.png" bằng ảnh logo của bạn */}
+          <img 
+            src="https://placehold.co/100x100/png?text=LOGO" 
+            alt="Logo" 
+            className="w-10 h-10 rounded-lg object-contain shrink-0"
+          />
+          
+          {/* Ẩn tên trang khi thu gọn */}
+          {!isCollapsed && (
+            <div className="min-w-0 flex-1 overflow-hidden transition-opacity duration-300">
+              <h4 className="font-extrabold text-lg text-white tracking-wider truncate">
+                TÊN TRANG
+              </h4>
+            </div>
+          )}
+        </Link>
+
+        {/* Khu vực Menu Điều Hướng */}
+        <div className="space-y-2 mt-4">
+          {!isCollapsed ? (
+            <div className="px-3 text-[11px] font-bold text-blue-200/60 uppercase tracking-wider mb-2">
+              Hệ Thống Quản Trị
+            </div>
+          ) : (
+            <div className="border-b border-blue-200/20 w-1/2 mx-auto mb-4"></div>
+          )}
 
           <nav className="space-y-1">
             {adminNavItems.map((item) => {
@@ -64,22 +95,19 @@ export default function AdminSidebar() {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                  title={isCollapsed ? item.name : ""} 
+                  className={`group flex items-center px-3 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
                     isActive
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-600/25"
-                      : "text-slate-600 hover:bg-slate-200/60 hover:text-blue-600"
-                  }`}
+                      ? "bg-orange-500 text-white shadow-md shadow-orange-500/30" 
+                      : "text-blue-100/70 hover:bg-orange-500/90 hover:text-white" 
+                  } ${isCollapsed ? "justify-center" : ""}`}
                 >
-                  <div className="flex items-center space-x-3">
-                    <Icon className={`w-4 h-4 shrink-0 transition-transform ${
-                      isActive ? "text-white" : "text-slate-400 group-hover:text-blue-600 group-hover:scale-110"
+                  <div className={`flex items-center ${isCollapsed ? "" : "space-x-3"}`}>
+                    <Icon className={`w-5 h-5 shrink-0 transition-transform ${
+                      isActive ? "text-white" : "text-blue-200/50 group-hover:text-white"
                     }`} />
-                    <span className="truncate">{item.name}</span>
+                    {!isCollapsed && <span className="truncate">{item.name}</span>}
                   </div>
-
-                  <ChevronRight className={`w-3.5 h-3.5 opacity-0 -translate-x-1 transition-all ${
-                    isActive ? "opacity-100 translate-x-0 text-white/80" : "group-hover:opacity-100 group-hover:translate-x-0 text-slate-400"
-                  }`} />
                 </Link>
               )
             })}
@@ -87,15 +115,18 @@ export default function AdminSidebar() {
         </div>
       </div>
 
-      {/* Logout Button Sáng */}
-      <div className="pt-3 border-t border-slate-200 space-y-2">
+      {/* Khu vực Nút Đăng Xuất (Màu đỏ) */}
+      <div className="pt-4 border-t border-white/10 space-y-2 relative z-10 mt-auto">
         <button
           type="button"
           onClick={handleLogout}
-          className="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-orange-600 hover:bg-orange-50 transition-colors cursor-pointer"
+          title={isCollapsed ? "Đăng xuất" : ""}
+          className={`w-full flex items-center rounded-xl text-sm font-bold text-red-500 hover:bg-red-500/10 hover:text-red-400 transition-colors cursor-pointer ${
+            isCollapsed ? "justify-center px-0 py-3" : "px-3 py-2.5 space-x-3"
+          }`}
         >
-          <LogOut className="w-4 h-4 shrink-0" />
-          <span>Đăng xuất Admin</span>
+          <LogOut className="w-5 h-5 shrink-0" />
+          {!isCollapsed && <span>Đăng xuất</span>}
         </button>
       </div>
     </aside>
