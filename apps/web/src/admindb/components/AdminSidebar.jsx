@@ -55,29 +55,22 @@ export default function AdminSidebar() {
         {/* KHU VỰC LOGO TRANG */}
         <Link 
           to="/admin/dashboard"
-          className={`flex items-center transition-all duration-300 ${
-            isCollapsed ? "justify-center py-2" : "px-2 py-2 space-x-3"
+          className={`group flex items-center justify-center transition-all duration-300 ${
+            isCollapsed ? "py-2 h-14" : "py-4 min-h-[80px]"
           }`}
         >
-          {/* Cập nhật đường dẫn logo thực tế vào src */}
-          <img 
-            src="https://placehold.co/100x100/png?text=LOGO" 
-            alt="Logo" 
-            className="w-10 h-10 rounded-lg object-contain shrink-0 bg-white/10 p-1"
+          {/* Tự động đổi Logo dựa trên trạng thái isCollapsed */}
+          <img
+            src={isCollapsed ? "/edutechcentralogo.png" : "/edutechcentral.png"}
+            alt="EduTech Central Logo"
+            className={`object-contain transition-all duration-300 group-hover:scale-105 shrink-0 ${
+              isCollapsed ? "w-10 h-10" : "h-14 sm:h-16 w-auto max-w-[220px]"
+            }`}
           />
-          
-          {/* Ẩn tên trang khi thu gọn */}
-          {!isCollapsed && (
-            <div className="min-w-0 flex-1 overflow-hidden transition-opacity duration-300">
-              <h4 className="font-extrabold text-lg text-white tracking-wider truncate">
-                TÊN TRANG
-              </h4>
-            </div>
-          )}
         </Link>
 
         {/* Khu vực Menu Điều Hướng */}
-        <div className="space-y-2 mt-4">
+        <div className="space-y-2 mt-2">
           {!isCollapsed ? (
             <div className="px-3 text-[11px] font-bold text-blue-200/60 uppercase tracking-wider mb-2">
               Hệ Thống Quản Trị
