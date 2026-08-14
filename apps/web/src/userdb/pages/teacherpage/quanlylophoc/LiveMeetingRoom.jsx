@@ -1,11 +1,13 @@
 /* eslint-disable react/prop-types */
-import React, { useMemo, useState, useEffect } from "react"
-import { ArrowLeft, ShieldCheck, Copy, Check, ExternalLink } from "lucide-react"
+import React, { useMemo, useState, useEffect, useRef } from "react"
+import { ArrowLeft, Copy, Check, ExternalLink } from "lucide-react"
 
 export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
   const [isCopied, setIsCopied] = useState(false)
+  const jitsiContainerRef = useRef(null)
+  const apiRef = useRef(null)
 
-  // 🎲 1. Sinh mã phòng họp ngẫu nhiên dạng chuẩn (VD: x89-qtwp-3mn)
+  // 🎲 1. Sinh mã phòng họp ngẫu nhiên (VD: m7n-7xfg-erg)
   const randomMeetCode = useMemo(() => {
     const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
     const generateSegment = (len) =>
@@ -14,16 +16,14 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
     return `${generateSegment(3)}-${generateSegment(4)}-${generateSegment(3)}`
   }, [])
 
-  // 🚀 2. TỰ ĐỘNG ĐỔI ĐƯỜNG DẪN URL TRÊN THANH TRÌNH DUYỆT (Kèm mã ngẫu nhiên)
+  // 🚀 2. Tự động đổi URL trên thanh trình duyệt
   useEffect(() => {
     const originalUrl = window.location.pathname
     const cleanCode = (course?.code || "meeting").replace(/[^a-zA-Z0-9]/g, "")
-    const roomPath = `/teacher/courses/EduTech/${cleanCode}/${randomMeetCode}`
+    const roomPath = `/teacher/courses/EduTech/${cleanCode}/live-room/${randomMeetCode}`
 
-    // Đổi URL trên thanh địa chỉ thành đường dẫn chi tiết của phòng
     window.history.pushState({ inMeeting: true }, "", roomPath)
 
-    // Khi rời phòng (component unmount) -> Trả lại URL ban đầu
     return () => {
       window.history.pushState(null, "", originalUrl)
     }
@@ -45,9 +45,28 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
     currentUser?.name ||
     currentUser?.username ||
     currentUser?.email?.split("@")[0] ||
-    "Thành viên lớp học"
+    "Học viên"
 
-  // 4. Tạo tên phòng cố định cho Jitsi theo ID & Code lớp học
+  const userEmail = currentUser?.email || "user@edutech.com"
+
+  // 🖼️ Lấy Avatar thật của user (Hỗ trợ nhiều trường ảnh khác nhau)
+  const userAvatar = useMemo(() => {
+    const rawAvatar =
+      currentUser?.avatar_url ||
+      currentUser?.avatar ||
+      currentUser?.avatarUrl ||
+      currentUser?.picture ||
+      currentUser?.photoURL
+
+    if (rawAvatar && rawAvatar.trim() !== "") {
+      return rawAvatar
+    }
+
+    // Nếu chưa có ảnh, tự động sinh avatar chất lượng cao theo tên
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0284c7&color=ffffff&bold=true&rounded=true&size=256`
+  }, [currentUser, displayName])
+
+  // 4. Tạo roomKey duy nhất cho lớp học
   const roomKey = useMemo(() => {
     const rawCode = (course?.code || "room").replace(/[^a-zA-Z0-9]/g, "").toLowerCase()
     const courseId = course?.id || "live"
@@ -56,18 +75,82 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
 
   const publicShareLink = `https://meet.jit.si/${roomKey}`
 
-  // 5. Cấu hình nhúng Iframe Jitsi Meet
-  const jitsiRoomUrl = useMemo(() => {
-    const params = [
-      `userInfo.displayName="${encodeURIComponent(displayName)}"`,
-      `config.prejoinPageEnabled=false`, // Vào thẳng phòng, bỏ qua chờ
-      `config.defaultLanguage="vi"`,      // Giao diện Tiếng Việt
-      `config.startWithAudioMuted=false`,
-      `config.startWithVideoMuted=false`
-    ].join("&")
+  // 🚀 5. KHỞI TẠO JITSI & ÉP ĐỒNG BỘ AVATAR 2 CHIỀU
+  useEffect(() => {
+    const loadJitsiScript = () => {
+      return new Promise((resolve) => {
+        if (window.JitsiMeetExternalAPI) {
+          resolve(window.JitsiMeetExternalAPI)
+          return
+        }
+        const script = document.createElement("script")
+        script.src = "https://meet.jit.si/external_api.js"
+        script.async = true
+        script.onload = () => resolve(window.JitsiMeetExternalAPI)
+        document.body.appendChild(script)
+      })
+    }
 
-    return `https://meet.jit.si/${roomKey}#${params}`
-  }, [roomKey, displayName])
+    let isMounted = true
+
+    loadJitsiScript().then((JitsiMeetExternalAPI) => {
+      if (!isMounted || !jitsiContainerRef.current) return
+
+      jitsiContainerRef.current.innerHTML = ""
+
+      const options = {
+        roomName: roomKey,
+        width: "100%",
+        height: "100%",
+        parentNode: jitsiContainerRef.current,
+        userInfo: {
+          displayName: displayName,
+          email: userEmail,
+          avatarUrl: userAvatar, // 👈 Gán trực tiếp khi tạo
+        },
+        configOverwrite: {
+          prejoinPageEnabled: false,
+          startWithAudioMuted: false,
+          startWithVideoMuted: false,
+          defaultLanguage: "vi",
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+        },
+      }
+
+      const api = new JitsiMeetExternalAPI("meet.jit.si", options)
+      apiRef.current = api
+
+      // Hàm ép gửi Avatar nhiều lần để Jitsi nhận diện chắc chắn
+      const applyAvatar = () => {
+        if (userAvatar) {
+          api.executeCommand("avatarUrl", userAvatar)
+        }
+      }
+
+      // Gán khi vừa kết nối
+      api.addEventListener("videoConferenceJoined", () => {
+        applyAvatar()
+        setTimeout(applyAvatar, 1000)
+        setTimeout(applyAvatar, 3000)
+      })
+
+      // Gán lại khi có thêm người mới vào phòng để cả 2 bên cùng thấy
+      api.addEventListener("participantJoined", () => {
+        applyAvatar()
+      })
+    })
+
+    return () => {
+      isMounted = false
+      if (apiRef.current) {
+        apiRef.current.dispose()
+        apiRef.current = null
+      }
+    }
+  }, [roomKey, displayName, userEmail, userAvatar])
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(publicShareLink)
@@ -107,8 +190,8 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
           </div>
         </div>
 
-        {/* Tiện ích Copy & Tên tài khoản */}
-        <div className="flex items-center space-x-2 text-xs">
+        {/* Tiện ích Copy & Avatar người dùng */}
+        <div className="flex items-center space-x-2.5 text-xs">
           <button
             type="button"
             onClick={handleCopyLink}
@@ -133,21 +216,23 @@ export default function LiveMeetingRoom({ course, meetInfo, onLeave }) {
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
 
-          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-xl text-slate-300 text-[11px] font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span><strong className="text-white">{displayName}</strong></span>
+          {/* Hiển thị Avatar & Tên tài khoản trên Header */}
+          <div className="flex items-center space-x-2 pl-2 border-l border-slate-800">
+            <img
+              src={userAvatar}
+              alt={displayName}
+              className="w-7 h-7 rounded-full object-cover border border-slate-700 shadow-sm"
+            />
+            <span className="hidden lg:inline text-xs font-bold text-white max-w-[120px] truncate">
+              {displayName}
+            </span>
           </div>
         </div>
       </header>
 
       {/* Frame nhúng Jitsi */}
       <main className="flex-1 w-full h-full bg-slate-950 relative">
-        <iframe
-          src={jitsiRoomUrl}
-          title="Phòng Học Trực Tuyến Live Meet"
-          allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
-          className="w-full h-full border-0"
-        />
+        <div ref={jitsiContainerRef} className="w-full h-full" />
       </main>
     </div>
   )
