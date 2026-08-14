@@ -59,11 +59,11 @@ export default function AdminSidebar() {
             isCollapsed ? "justify-center py-2" : "px-2 py-2 space-x-3"
           }`}
         >
-          {/* Thay src="/logo.png" bằng ảnh logo của bạn */}
+          {/* Cập nhật đường dẫn logo thực tế vào src */}
           <img 
             src="https://placehold.co/100x100/png?text=LOGO" 
             alt="Logo" 
-            className="w-10 h-10 rounded-lg object-contain shrink-0"
+            className="w-10 h-10 rounded-lg object-contain shrink-0 bg-white/10 p-1"
           />
           
           {/* Ẩn tên trang khi thu gọn */}

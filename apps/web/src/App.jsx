@@ -18,7 +18,6 @@ import Programs from "./userdb/pages/studentpage/Chuongtrinhkhoilop/Programs.jsx
 import Library from "./userdb/pages/studentpage/Khohoclieu/Library.jsx"
 import StudentCourses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx"
 import Videos from "./userdb/pages/studentpage/VideoEdu/Videos.jsx"
-// 🟢 ĐÃ THÊM IMPORT TRANG TỦ SÁCH TẠI ĐÂY
 import Bookshelf from "./userdb/pages/studentpage/Tusach/Bookshelf.jsx"
 
 // ================= TEACHER PAGES =================
@@ -31,11 +30,13 @@ import Schedule from "./userdb/pages/teacherpage/lichdaymeet/Schedule.jsx"
 
 // ================= ADMIN PAGES =================
 import AdminHome from "./admindb/pages/AdminHome.jsx"
+// 🟢 ĐÃ THÊM IMPORT TRANG QUẢN LÝ NGƯỜI DÙNG
+import AdminUsers from "./admindb/pages/AdminUsers.jsx" 
 
 // ================= SHARED PAGES =================
 import Profile from "./userdb/pages/Profile.jsx"
 
-// ================= 🟢 ĐIỀU HƯỚNG MẶC ĐỊNH ĐÃ SỬA TỐI ƯU =================
+// ================= 🟢 ĐIỀU HƯỚNG MẶC ĐỊNH =================
 const DashboardRedirect = () => {
   const location = useLocation()
   const token = localStorage.getItem("adminToken") || localStorage.getItem("token")
@@ -73,7 +74,10 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminHome />} />
-          <Route path="users" element={<AdminHome />} />
+          
+          {/* 🟢 ĐÃ CẬP NHẬT TRANG USERS TẠI ĐÂY */}
+          <Route path="users" element={<AdminUsers />} /> 
+          
           <Route path="courses" element={<AdminHome />} />
           <Route path="reports" element={<AdminHome />} />
           <Route path="settings" element={<AdminHome />} />
@@ -106,8 +110,6 @@ export default function App() {
           <Route path="courses" element={<StudentCourses />} />
           <Route path="videos" element={<Videos />} />
           <Route path="profile" element={<Profile />} />
-          
-          {/* 🟢 ĐÃ CẬP NHẬT ROUTE BOOKSHELF */}
           <Route path="bookshelf" element={<Bookshelf />} />
         </Route>
       </Route>
