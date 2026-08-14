@@ -31,8 +31,10 @@ import Schedule from "./userdb/pages/teacherpage/lichdaymeet/Schedule.jsx"
 // ================= ADMIN PAGES =================
 import AdminHome from "./admindb/pages/AdminHome.jsx"
 import AdminUsers from "./admindb/pages/AdminUsers.jsx" 
-// 🟢 ĐÃ THÊM IMPORT TRANG KIỂM DUYỆT KHÓA HỌC
 import AdminCourses from "./admindb/pages/AdminCourses.jsx" 
+import AdminReports from "./admindb/pages/AdminReports.jsx"
+// 🟢 ĐÃ THÊM IMPORT TRANG CẤU HÌNH HỆ THỐNG
+import AdminSettings from "./admindb/pages/AdminSettings.jsx"
 
 // ================= SHARED PAGES =================
 import Profile from "./userdb/pages/Profile.jsx"
@@ -76,12 +78,12 @@ export default function App() {
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminHome />} />
           <Route path="users" element={<AdminUsers />} /> 
-          
-          {/* 🟢 ĐÃ CẬP NHẬT TRANG COURSES TẠI ĐÂY */}
           <Route path="courses" element={<AdminCourses />} /> 
+          <Route path="reports" element={<AdminReports />} />
           
-          <Route path="reports" element={<AdminHome />} />
-          <Route path="settings" element={<AdminHome />} />
+          {/* 🟢 ĐÃ CẬP NHẬT TRANG SETTINGS TẠI ĐÂY */}
+          <Route path="settings" element={<AdminSettings />} />
+          
           <Route path="profile" element={<Profile />} />
         </Route>
       </Route>
