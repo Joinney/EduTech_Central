@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react"
+/* eslint-disable react/prop-types */
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect, useRef } from "react"
 import CourseDetail from "./CourseDetail.jsx"
 import { courseService } from "../../../../api/course.api" 
 import { 
@@ -14,7 +16,12 @@ import {
   School,
   Globe,
   Image as ImageIcon,
-  Loader2
+  Loader2,
+  Calendar,
+  Clock,
+  ShieldAlert,
+  ChevronDown,
+  Check
 } from "lucide-react"
 
 const PRESET_IMAGES = [
@@ -23,6 +30,179 @@ const PRESET_IMAGES = [
   { name: "Ngoại Ngữ / Tiếng Anh", url: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=600&auto=format&fit=crop" },
   { name: "Khoa Học / Vật Lý", url: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=600&auto=format&fit=crop" }
 ]
+
+// Danh sách gợi ý phong phú về Trường học / Đơn vị
+const EXTENDED_SCHOOLS = [
+  // THPT Top & Chuyên
+  "THPT Chuyên Lê Hồng Phong (TP.HCM)",
+  "THPT Chuyên Trần Đại Nghĩa (TP.HCM)",
+  "THPT Chuyên Hà Nội - Amsterdam",
+  "THPT Chuyên Khoa học Tự nhiên",
+  "THPT Nguyễn Thị Minh Khai",
+  "THPT Marie Curie (TP.HCM)",
+  "THPT Bùi Thị Xuân",
+  "THPT Gia Định",
+  "THPT Chu Văn An (Hà Nội)",
+  "THPT Kim Liên (Hà Nội)",
+  // Đại học & Học viện
+  "Đại học Bách Khoa TP.HCM (HCMUT)",
+  "Đại học Khoa học Tự nhiên (HCMUS)",
+  "Đại học Công nghệ Thông tin (UIT)",
+  "Đại học Bách Khoa Hà Nội (HUST)",
+  "Đại học Kinh tế TP.HCM (UEH)",
+  "Đại học Ngoại Thương (FTU)",
+  "Đại học Sư phạm Kỹ thuật (HCMUTE)",
+  "Đại học Văn Lang",
+  "Đại học FPT",
+  "Đại học Tôn Đức Thắng (TDTU)",
+  // Sở GD & Trung tâm
+  "Sở Giáo Dục & Đào Tạo TP.HCM",
+  "Sở Giáo Dục & Đào Tạo Hà Nội",
+  "Trung tâm Ngoại ngữ - Tin học Sư Phạm",
+  "Viện Đào tạo Quốc tế",
+  "Học viện Công nghệ & Đổi mới sáng tạo"
+]
+
+// Danh sách gợi ý phong phú về Môn học & Khóa học
+const EXTENDED_SUBJECTS = [
+  // Khối tự nhiên & K12
+  "Toán Học",
+  "Ngữ Văn",
+  "Tiếng Anh",
+  "Vật Lý",
+  "Hóa Học",
+  "Sinh Học",
+  "Lịch Sử",
+  "Địa Lý",
+  "Tin Học Phổ Thông",
+  "Giáo Dục Kinh Tế & Pháp Luật",
+  // Lập trình & CNTT
+  "Lập trình Web (React / Vue / Node.js)",
+  "Lập trình Python & Phân tích Dữ liệu",
+  "Lập trình Di động (Flutter / React Native)",
+  "Cơ sở dữ liệu & SQL Server",
+  "Trí Tuệ Nhân Tạo & Machine Learning",
+  "Khoa học Máy tính Cơ bản",
+  // Ngoại ngữ & Kỹ năng
+  "Tiếng Anh Giao Tiếp Thực Chiến",
+  "Luyện thi IELTS / TOEIC",
+  "Tiếng Nhật (N5 - N3)",
+  "Tiếng Trung Giao Tiếp",
+  "Kỹ năng Thuyết trình & Làm việc nhóm",
+  "Thiết Kế Đồ Họa (Photoshop / Figma)"
+]
+
+const DAYS_OF_WEEK = [
+  { id: "T2", label: "Thứ 2" },
+  { id: "T3", label: "Thứ 3" },
+  { id: "T4", label: "Thứ 4" },
+  { id: "T5", label: "Thứ 5" },
+  { id: "T6", label: "Thứ 6" },
+  { id: "T7", label: "Thứ 7" },
+  { id: "CN", label: "Chủ Nhật" }
+]
+
+// Component Dropdown Tìm Kiếm & Tự Nhập Mới
+function SearchableDropdown({ label, value, onChange, options, placeholder }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const dropdownRef = useRef(null)
+
+  const filteredOptions = options.filter(opt =>
+    opt.toLowerCase().includes(search.toLowerCase())
+  )
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const handleSelect = (val) => {
+    onChange(val)
+    setIsOpen(false)
+    setSearch("")
+  }
+
+  return (
+    <div className="relative space-y-1" ref={dropdownRef}>
+      <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+        {label} *
+      </label>
+
+      {/* Button kích hoạt mở dropdown */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 flex items-center justify-between hover:bg-slate-100/80 transition-colors focus:ring-2 focus:ring-orange-500/20 cursor-pointer"
+      >
+        <span className={value ? "text-slate-900 font-semibold truncate pr-2" : "text-slate-400"}>
+          {value || placeholder}
+        </span>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${isOpen ? "rotate-180 text-orange-500" : ""}`} />
+      </button>
+
+      {/* Menu dropdown có tìm kiếm */}
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-fadeIn text-xs">
+          {/* Ô tìm kiếm trong menu */}
+          <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center space-x-1.5">
+            <Search className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+            <input
+              type="text"
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm kiếm hoặc gõ để thêm..."
+              className="w-full bg-transparent text-xs font-medium text-slate-800 focus:outline-none placeholder:text-slate-400"
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch("")} className="text-slate-400 hover:text-slate-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Danh sách các mục gợi ý */}
+          <div className="max-h-48 overflow-y-auto divide-y divide-slate-50 p-1">
+            {/* Tùy chọn nhập mới nếu đang gõ chữ mà chưa có trong danh sách */}
+            {search.trim() !== "" && !options.some(opt => opt.toLowerCase() === search.trim().toLowerCase()) && (
+              <button
+                type="button"
+                onClick={() => handleSelect(search.trim())}
+                className="w-full text-left px-3 py-2 rounded-xl text-orange-600 font-bold bg-orange-50 hover:bg-orange-100 flex items-center justify-between cursor-pointer mb-1 transition-colors"
+              >
+                <span className="truncate">➕ Dùng tên mới: &quot;{search.trim()}&quot;</span>
+              </button>
+            )}
+
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => handleSelect(opt)}
+                  className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
+                    value === opt ? "bg-orange-50 text-orange-600 font-bold" : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="truncate pr-2">{opt}</span>
+                  {value === opt && <Check className="w-3.5 h-3.5 text-orange-600 shrink-0" />}
+                </button>
+              ))
+            ) : search.trim() === "" ? (
+              <div className="p-3 text-center text-slate-400 text-[11px]">Không có gợi ý.</div>
+            ) : null}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function CourseManagement() {
   const [courses, setCourses] = useState([])
@@ -40,10 +220,14 @@ export default function CourseManagement() {
     schoolName: "",
     grade: "Lớp 12",
     maxStudents: 30,
-    schedule: "",
     thumbnail: "",
     description: ""
   })
+
+  // State cấu hình Lịch học dành riêng cho Khóa Học Kỹ Năng / Tự Do
+  const [selectedDays, setSelectedDays] = useState(["Thứ 2", "Thứ 4", "Thứ 6"])
+  const [startTime, setStartTime] = useState("19:30")
+  const [endTime, setEndTime] = useState("21:00")
 
   useEffect(() => {
     fetchCourses()
@@ -52,19 +236,24 @@ export default function CourseManagement() {
   const fetchCourses = async () => {
     try {
       setIsLoading(true)
-      
-      // Lấy thông tin Giáo viên đang đăng nhập từ LocalStorage
       const storedUser = localStorage.getItem("user")
       const currentUser = storedUser ? JSON.parse(storedUser) : null
       const teacherId = currentUser?.id || null
 
-      // Chỉ kéo các lớp do chính Giáo viên này tạo
       const data = await courseService.getAllCourses(teacherId)
       setCourses(data || [])
     } catch (error) {
       console.error("Lỗi khi tải danh sách lớp học:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const toggleDay = (dayLabel) => {
+    if (selectedDays.includes(dayLabel)) {
+      setSelectedDays(selectedDays.filter(d => d !== dayLabel))
+    } else {
+      setSelectedDays([...selectedDays, dayLabel])
     }
   }
 
@@ -78,21 +267,32 @@ export default function CourseManagement() {
 
   const handleCreateCourse = async (e) => {
     e.preventDefault()
-    if (!formData.title || !formData.schoolName) return
+    if (!formData.title || !formData.schoolName || !formData.subject) {
+      alert("Vui lòng điền đầy đủ Tên lớp, Trường/Đơn vị và Môn học!")
+      return
+    }
 
-    // Lấy thông tin Giáo viên thật đang đăng nhập
     const storedUser = localStorage.getItem("user")
     const currentUser = storedUser ? JSON.parse(storedUser) : { id: 1, name: "Giáo viên" }
-    
     const teacherName = currentUser.displayName || currentUser.fullName || currentUser.name || currentUser.username || currentUser.email?.split('@')[0] || "Giáo viên"
 
     const defaultImg = formData.type === "school" 
       ? "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=600&auto=format&fit=crop"
       : "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=600&auto=format&fit=crop"
 
+    // 🚀 LOGIC PHÂN QUYỀN LỊCH HỌC:
+    let scheduleStr = ""
+    if (formData.type === "school") {
+      scheduleStr = "Theo TKB Nhà trường (Admin xếp)"
+    } else {
+      scheduleStr = selectedDays.length > 0 
+        ? `${selectedDays.join(", ")} (${startTime} - ${endTime})`
+        : "Chưa xếp lịch"
+    }
+
     const payload = {
-      teacher_id: currentUser.id || 1,         // 👈 ID thật của Giáo viên
-      teacher_name: teacherName,               // 👈 Tên thật của Giáo viên
+      teacher_id: currentUser.id || 1,
+      teacher_name: teacherName,
       type: formData.type,
       title: formData.title,
       code: `CLASS-${Math.random().toString(36).substring(2, 6).toUpperCase()}`, 
@@ -100,7 +300,7 @@ export default function CourseManagement() {
       schoolName: formData.schoolName,
       grade: formData.grade,
       maxStudents: Number(formData.maxStudents) || 30,
-      schedule: formData.schedule || "Chưa xếp lịch",
+      schedule: scheduleStr,
       thumbnail: formData.thumbnail.trim() || defaultImg,
       description: formData.description || "Chưa có mô tả."
     }
@@ -109,7 +309,10 @@ export default function CourseManagement() {
       const newCourse = await courseService.createCourse(payload)
       setCourses([newCourse, ...courses])
       setIsModalOpen(false)
-      setFormData({ type: "school", title: "", code: "", subject: "", schoolName: "", grade: "Lớp 12", maxStudents: 30, schedule: "", thumbnail: "", description: "" })
+      setFormData({ type: "school", title: "", code: "", subject: "", schoolName: "", grade: "Lớp 12", maxStudents: 30, thumbnail: "", description: "" })
+      setSelectedDays(["Thứ 2", "Thứ 4", "Thứ 6"])
+      setStartTime("19:30")
+      setEndTime("21:00")
     } catch (error) {
       console.error("Lỗi khi tạo lớp học:", error)
       alert("Có lỗi xảy ra khi tạo lớp học!")
@@ -132,13 +335,14 @@ export default function CourseManagement() {
   if (selectedCourse) {
     return <CourseDetail course={selectedCourse} onBack={() => {
       setSelectedCourse(null);
-      fetchCourses(); // Cập nhật lại số lượng học viên khi quay lại danh sách
+      fetchCourses();
     }} />
   }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -161,6 +365,7 @@ export default function CourseManagement() {
         </button>
       </div>
 
+      {/* TABS PHÂN LOẠI & TÌM KIẾM */}
       <div className="flex items-center justify-between gap-4 flex-wrap bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200">
         <div className="flex items-center space-x-1 w-full sm:w-auto">
           <button
@@ -200,6 +405,7 @@ export default function CourseManagement() {
         </div>
       </div>
 
+      {/* DANH SÁCH THẺ LỚP HỌC */}
       {isLoading ? (
         <div className="p-12 flex flex-col items-center justify-center text-slate-400 space-y-3">
           <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
@@ -213,7 +419,7 @@ export default function CourseManagement() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredCourses.map((course) => (
             <div 
-              key={course.id}
+              key={course.id} 
               onClick={() => setSelectedCourse(course)}
               className="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col group cursor-pointer"
             >
@@ -250,6 +456,11 @@ export default function CourseManagement() {
                     <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span className="truncate font-semibold text-slate-700">{course.schoolName}</span>
                   </div>
+
+                  <div className="flex items-center space-x-1.5 text-slate-500 font-medium">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate text-slate-600 font-medium">{course.schedule || "Chưa có lịch"}</span>
+                  </div>
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
@@ -261,14 +472,14 @@ export default function CourseManagement() {
                   </div>
 
                   <div className="flex items-center space-x-1">
-                    <button className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold rounded-xl text-xs flex items-center space-x-1 transition-colors">
+                    <button className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold rounded-xl text-xs flex items-center space-x-1 transition-colors cursor-pointer">
                       <Eye className="w-3.5 h-3.5" />
                       <span>Vào Lớp</span>
                     </button>
 
                     <button 
                       onClick={(e) => handleDeleteCourse(course.id, e)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                       title="Xóa lớp"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -281,10 +492,12 @@ export default function CourseManagement() {
         </div>
       )}
 
+      {/* MODAL TẠO LỚP HỌC MỚI */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border overflow-hidden relative max-h-[90vh] flex flex-col">
             
+            {/* Header Modal */}
             <div className="bg-gradient-to-r from-orange-600 to-amber-600 p-4 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center space-x-2">
                 <Sparkles className="w-5 h-5 text-amber-200" />
@@ -297,18 +510,20 @@ export default function CourseManagement() {
 
             <form onSubmit={handleCreateCourse} className="p-5 space-y-3.5 overflow-y-auto flex-1 text-xs">
               
+              {/* Loại hình giảng dạy */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Loại hình giảng dạy *</label>
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-orange-500/20"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-orange-500/20 cursor-pointer"
                 >
                   <option value="school">Lớp Theo Trường Học Chính Quy</option>
                   <option value="external">Khóa Học Mở Rộng / Kỹ Năng Tự Do</option>
                 </select>
               </div>
 
+              {/* Tên Lớp */}
               <div>
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Tên Lớp / Khóa Học *</label>
                 <input
@@ -316,39 +531,112 @@ export default function CourseManagement() {
                   required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="VD: Toán 12A1 / Lập trình ReactJS..."
+                  placeholder={formData.type === "school" ? "VD: Toán 12A1 / Hóa Học 10C2..." : "VD: Lập trình Web Fullstack / Luyện thi IELTS..."}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-orange-500/20"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                    {formData.type === "school" ? "Trường / Sở GD *" : "Trung tâm / Đơn vị *"}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.schoolName}
-                    onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
-                    placeholder="VD: THPT Chuyên Lê Hồng Phong..."
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-orange-500/20"
-                  />
-                </div>
+              {/* 🚀 2 DROPDOWN TÌM KIẾM & GỢI Ý MỞ RỘNG */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <SearchableDropdown
+                  label={formData.type === "school" ? "Trường / Sở GD" : "Trung tâm / Đơn vị"}
+                  value={formData.schoolName}
+                  onChange={(val) => setFormData({ ...formData, schoolName: val })}
+                  options={EXTENDED_SCHOOLS}
+                  placeholder="Chọn hoặc tìm trường..."
+                />
 
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Môn học *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.subject}
-                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    placeholder="VD: Toán, Tin học..."
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-orange-500/20"
-                  />
-                </div>
+                <SearchableDropdown
+                  label="Môn học / Lĩnh vực"
+                  value={formData.subject}
+                  onChange={(val) => setFormData({ ...formData, subject: val })}
+                  options={EXTENDED_SUBJECTS}
+                  placeholder="Chọn hoặc tìm môn học..."
+                />
               </div>
 
+              {/* 🚀 CẤU HÌNH LỊCH HỌC THEO PHÂN QUYỀN */}
+              {formData.type === "school" ? (
+                /* 🔒 Lớp chính quy: KHÓA LỊCH HỌC (CHỈ ADMIN QUẢN LÝ) */
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-start space-x-2.5">
+                  <ShieldAlert className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <h5 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">
+                      Thời khóa biểu chính quy
+                    </h5>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Lịch học cho Lớp trường học chính quy do <strong>Admin / Phòng Đào tạo</strong> xếp TKB. Giáo viên tạo lớp không cần cấu hình mục này.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                /* 🔓 Khóa học tự do / mở rộng: GIÁO VIÊN TỰ DO XẾP LỊCH */
+                <div className="p-3.5 bg-orange-50/50 border border-orange-200/70 rounded-2xl space-y-2.5">
+                  <label className="text-[11px] font-bold text-orange-950 uppercase tracking-wider flex items-center space-x-1.5">
+                    <Calendar className="w-4 h-4 text-orange-600" />
+                    <span>Lịch học dự kiến trong tuần (Khóa tự do) *</span>
+                  </label>
+
+                  {/* Chọn các ngày trong tuần */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {DAYS_OF_WEEK.map((d) => {
+                      const isSelected = selectedDays.includes(d.label)
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => toggleDay(d.label)}
+                          className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-orange-500 border-orange-600 text-white shadow-sm"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                          }`}
+                        >
+                          {d.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Chọn Khung giờ bắt đầu - kết thúc */}
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 uppercase flex items-center space-x-1 mb-1">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        <span>Giờ bắt đầu</span>
+                      </label>
+                      <input
+                        type="time"
+                        required
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-600 uppercase flex items-center space-x-1 mb-1">
+                        <Clock className="w-3 h-3 text-slate-400" />
+                        <span>Giờ kết thúc</span>
+                      </label>
+                      <input
+                        type="time"
+                        required
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Xem trước lịch học */}
+                  <div className="text-[11px] text-orange-800 font-semibold pt-1">
+                    👉 Lịch hiển thị: <strong className="text-orange-950">{selectedDays.length > 0 ? `${selectedDays.join(", ")} (${startTime} - ${endTime})` : "Chưa chọn ngày"}</strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Hình ảnh bìa */}
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
                   <span className="flex items-center space-x-1">
@@ -401,17 +689,19 @@ export default function CourseManagement() {
                 )}
               </div>
 
+              {/* Mô tả lớp */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Lịch học dự kiến</label>
-                <input
-                  type="text"
-                  value={formData.schedule}
-                  onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                  placeholder="VD: Thứ 2 - Thứ 6 (19:30 - 21:30)"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-orange-500/20"
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Mô tả tóm tắt</label>
+                <textarea
+                  rows="2"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Mô tả mục tiêu, yêu cầu lớp học..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 resize-none"
                 />
               </div>
 
+              {/* Nút Submit */}
               <div className="pt-3 flex items-center justify-end space-x-2 shrink-0">
                 <button 
                   type="button" 

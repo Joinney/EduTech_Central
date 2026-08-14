@@ -32,21 +32,11 @@ import {
 } from "lucide-react"
 
 import { courseService } from "../../../../api/course.api"
+import LiveMeetingRoom from "./LiveMeetingRoom.jsx"
 
 // Cấu hình Cloudinary MỚI dành riêng cho File Tệp (Word, PDF, Slide)
 const CLOUD_NAME = "j3iibkjc";
 const UPLOAD_PRESET = "ml_default"; 
-
-const getEmbedUrl = (fileUrl) => {
-  if (!fileUrl) return "";
-  
-  // Chuẩn hóa URL, xử lý các ký tự tiếng Việt hoặc khoảng trắng trên URL
-  const cleanUrl = encodeAxiosUrl(fileUrl);
-  
-  // Dùng Google Docs Viewer kèm timestamp chống cache cứng
-  // Đây là giải pháp nhúng iframe đọc PDF/Word chuẩn nhất cho localhost
-  return `https://docs.google.com/gview?url=${encodeURIComponent(cleanUrl)}&embedded=true`;
-};
 
 // Hàm hỗ trợ encode mã hóa ký tự tiếng Việt trong link file
 const encodeAxiosUrl = (url) => {
@@ -104,15 +94,29 @@ const formatDateTime = (val) => {
   return val;
 };
 
+// Chuẩn hóa thời gian sang định dạng YYYY-MM-DDTHH:mm cho input datetime-local
+const formatForDateTimeInput = (val) => {
+  if (!val) return "";
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) {
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  }
+  return val.slice(0, 16);
+};
+
 export default function CourseDetail({ course, onBack }) {
   const [activeTab, setActiveTab] = useState("lessons") // "lessons" | "assignments" | "quizzes" | "students"
+
+  // 🚀 ĐÃ ĐƯA STATE VÀO ĐÚNG BÊN TRONG COMPONENT
+  const [isInMeeting, setIsInMeeting] = useState(false)
 
   // State lưu file đang xem trực tiếp (Embedded Viewer)
   const [previewFile, setPreviewFile] = useState(null) // { url: "...", name: "..." }
 
   const [meetInfo, setMeetInfo] = useState({
-    title: "Buổi học Trực tuyến: Ôn tập & Giải đáp thắc mắc",
-    link: "https://meet.google.com/abc-defg-hij",
+    title: `Buổi học Trực tuyến: ${course?.title || "Ôn tập & Giải đáp thắc mắc"}`,
+    link: `https://meet.jit.si/EduTech-${course?.code || "Room"}-${course?.id || "Live"}`,
     startTime: "19:30 - 21:00",
     isActive: true
   })
@@ -156,17 +160,6 @@ export default function CourseDetail({ course, onBack }) {
     if (course?.id) fetchCourseDetails();
   }, [course?.id]);
 
-  // Chuẩn hóa thời gian sang định dạng YYYY-MM-DDTHH:mm cho input datetime-local
-const formatForDateTimeInput = (val) => {
-  if (!val) return "";
-  const d = new Date(val);
-  if (!isNaN(d.getTime())) {
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
-  }
-  return val.slice(0, 16);
-};
-
   // Kéo danh sách bài học sinh đã nộp cho Bài tập đang chọn
   const handleOpenSubmissions = async (assignment) => {
     setViewSubmissionsAssignment(assignment);
@@ -192,7 +185,7 @@ const formatForDateTimeInput = (val) => {
 
   const [formData, setFormData] = useState({
     title: "",
-    duration: "45 phút",
+    duration: "",
     content: "",
     dueDate: "",
     maxScore: 10,
@@ -234,7 +227,7 @@ const formatForDateTimeInput = (val) => {
       title: "",
       duration: currentDateTime,
       content: "",
-      dueDate: dueDateTime, // 👈 Mặc định chọn cả ngày & giờ
+      dueDate: dueDateTime,
       maxScore: 10,
       totalQuestions: 20,
       passScore: 5,
@@ -251,7 +244,7 @@ const formatForDateTimeInput = (val) => {
       title: item.title || "",
       duration: formatForDateTimeInput(item.duration),
       content: item.content || "",
-      dueDate: formatForDateTimeInput(item.dueDate || item.due_date), // 👈 Format chuẩn cho input
+      dueDate: formatForDateTimeInput(item.dueDate || item.due_date),
       maxScore: item.maxScore || item.max_score || 10,
       totalQuestions: item.totalQuestions || item.total_questions || 20,
       passScore: item.passScore || item.pass_score || 5,
@@ -444,6 +437,17 @@ const formatForDateTimeInput = (val) => {
     }
   };
 
+  // 🚀 NẾU ĐANG TRONG PHÒNG HỌP LIVE MEET -> HIỂN THỊ PHÒNG HỌP TOÀN MÀN HÌNH
+  if (isInMeeting) {
+    return (
+      <LiveMeetingRoom
+        course={course}
+        meetInfo={meetInfo}
+        onLeave={() => setIsInMeeting(false)}
+      />
+    )
+  }
+
   if (!course) return null
 
   return (
@@ -511,15 +515,14 @@ const formatForDateTimeInput = (val) => {
             </div>
 
             <div className="flex items-center space-x-2 shrink-0">
-              <a
-                href={meetInfo.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-sm transition-colors"
+              <button
+                type="button"
+                onClick={() => setIsInMeeting(true)}
+                className="px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shadow-sm transition-colors cursor-pointer active:scale-95"
               >
                 <span>Vào Phòng Học</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+                <Video className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         )}
@@ -657,7 +660,6 @@ const formatForDateTimeInput = (val) => {
                   <div>
                     <h4 className="text-xs font-bold text-slate-900">{item.title}</h4>
                     
-                    {/* 🚀 ĐÃ CHUẨN HÓA: Format ngày giờ hạn nộp */}
                     <p className="text-[10px] text-slate-500 mt-1 font-medium">
                       ⏰ Hạn nộp: <strong className="text-red-600">{formatDateTime(item.dueDate || item.due_date)}</strong>
                     </p>
@@ -727,7 +729,6 @@ const formatForDateTimeInput = (val) => {
                     </span>
                   </div>
                   
-                  {/* Hiển thị thời gian mở bài thi theo định dạng chuẩn */}
                   <p className="text-[11px] text-slate-500">
                     📅 Thời gian mở: {formatDateTime(quiz.duration)} • Số câu: {quiz.totalQuestions || quiz.total_questions} câu
                   </p>
@@ -847,6 +848,7 @@ const formatForDateTimeInput = (val) => {
                         href={sub.fileUrl || sub.file_url} 
                         target="_blank" 
                         rel="noreferrer" 
+                        download
                         className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[11px]"
                         title="Tải về máy"
                       >
@@ -1035,33 +1037,33 @@ const formatForDateTimeInput = (val) => {
                 )}
 
                 {(formCategory === "lesson" || formCategory === "quiz") && (
-  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-    <div>
-      <label className="font-bold text-slate-700 uppercase">
-        Thời gian diễn ra (Ngày & Giờ) *
-      </label>
-      <input
-        type="datetime-local"
-        required
-        value={formData.duration}
-        onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-        className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium focus:ring-2 focus:ring-orange-500/20 text-slate-700 cursor-pointer"
-      />
-    </div>
-    
-    {formCategory === "quiz" && (
-      <div>
-        <label className="font-bold text-slate-700 uppercase">Số lượng câu hỏi</label>
-        <input
-          type="number"
-          value={formData.totalQuestions}
-          onChange={(e) => setFormData({ ...formData, totalQuestions: e.target.value })}
-          className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium"
-        />
-      </div>
-    )}
-  </div>
-)}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700 uppercase">
+                        Thời gian diễn ra (Ngày & Giờ) *
+                      </label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={formData.duration}
+                        onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium focus:ring-2 focus:ring-orange-500/20 text-slate-700 cursor-pointer"
+                      />
+                    </div>
+                    
+                    {formCategory === "quiz" && (
+                      <div>
+                        <label className="font-bold text-slate-700 uppercase">Số lượng câu hỏi</label>
+                        <input
+                          type="number"
+                          value={formData.totalQuestions}
+                          onChange={(e) => setFormData({ ...formData, totalQuestions: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="font-bold text-slate-700 uppercase">Mô tả / Hướng dẫn chi tiết</label>
@@ -1134,7 +1136,6 @@ const formatForDateTimeInput = (val) => {
                 const isOffice = url.match(/\.(xlsx|xls|docx|doc|pptx|ppt)$/i);
 
                 if (isPdf) {
-                  /* 🚀 1. FILE PDF: Trình duyệt đọc trực tiếp */
                   return (
                     <iframe
                       src={previewFile.url}
@@ -1145,7 +1146,6 @@ const formatForDateTimeInput = (val) => {
                 }
 
                 if (isOffice) {
-                  /* 🚀 2. FILE EXCEL / WORD / PPT: Dùng Microsoft Office Web Viewer */
                   return (
                     <iframe
                       src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewFile.url)}`}
@@ -1156,7 +1156,6 @@ const formatForDateTimeInput = (val) => {
                   );
                 }
 
-                /* 🚀 3. DỰ PHÒNG: Google Docs Viewer cho các định dạng khác */
                 return (
                   <iframe
                     src={`https://docs.google.com/gview?url=${encodeURIComponent(previewFile.url)}&embedded=true`}
