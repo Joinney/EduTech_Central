@@ -31,19 +31,46 @@ import {
   FileCheck
 } from "lucide-react"
 
+import { courseService } from "../../../../api/course.api"
+
 // Cấu hình Cloudinary MỚI dành riêng cho File Tệp (Word, PDF, Slide)
 const CLOUD_NAME = "j3iibkjc";
 const UPLOAD_PRESET = "ml_default"; 
 
+const getEmbedUrl = (fileUrl) => {
+  if (!fileUrl) return "";
+  
+  // Chuẩn hóa URL, xử lý các ký tự tiếng Việt hoặc khoảng trắng trên URL
+  const cleanUrl = encodeAxiosUrl(fileUrl);
+  
+  // Dùng Google Docs Viewer kèm timestamp chống cache cứng
+  // Đây là giải pháp nhúng iframe đọc PDF/Word chuẩn nhất cho localhost
+  return `https://docs.google.com/gview?url=${encodeURIComponent(cleanUrl)}&embedded=true`;
+};
+
+// Hàm hỗ trợ encode mã hóa ký tự tiếng Việt trong link file
+const encodeAxiosUrl = (url) => {
+  try {
+    return new URL(url).href;
+  } catch {
+    return url;
+  }
+};
+
 const uploadDocumentFile = async (file) => {
   if (!file) return null;
+
+  // Tự động phân loại: File PDF/Word/PPTX sẽ đẩy vào 'raw', Ảnh thì đẩy vào 'image'
+  const isDoc = file.name.match(/\.(pdf|doc|docx|ppt|pptx|xls|xlsx)$/i);
+  const resourceType = isDoc ? "raw" : "image";
+
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", UPLOAD_PRESET);
 
   try {
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`,
       { method: "POST", body: formData }
     );
     const data = await response.json();
@@ -61,8 +88,27 @@ const uploadDocumentFile = async (file) => {
   }
 };
 
+// Hàm chuyển đổi format datetime-local thành dạng hiển thị tiếng Việt (VD: 09:30 - 14/08/2026)
+const formatDateTime = (val) => {
+  if (!val) return "Chưa đặt lịch";
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+  }
+  return val;
+};
+
 export default function CourseDetail({ course, onBack }) {
   const [activeTab, setActiveTab] = useState("lessons") // "lessons" | "assignments" | "quizzes" | "students"
+
+  // State lưu file đang xem trực tiếp (Embedded Viewer)
+  const [previewFile, setPreviewFile] = useState(null) // { url: "...", name: "..." }
 
   const [meetInfo, setMeetInfo] = useState({
     title: "Buổi học Trực tuyến: Ôn tập & Giải đáp thắc mắc",
@@ -109,6 +155,17 @@ export default function CourseDetail({ course, onBack }) {
 
     if (course?.id) fetchCourseDetails();
   }, [course?.id]);
+
+  // Chuẩn hóa thời gian sang định dạng YYYY-MM-DDTHH:mm cho input datetime-local
+const formatForDateTimeInput = (val) => {
+  if (!val) return "";
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) {
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  }
+  return val.slice(0, 16);
+};
 
   // Kéo danh sách bài học sinh đã nộp cho Bài tập đang chọn
   const handleOpenSubmissions = async (assignment) => {
@@ -160,11 +217,24 @@ export default function CourseDetail({ course, onBack }) {
   const handleOpenCreate = (category) => {
     setFormCategory(category)
     setSelectedFile(null)
+
+    // Lấy thời gian hiện tại
+    const now = new Date()
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
+    const currentDateTime = now.toISOString().slice(0, 16)
+
+    // Hạn nộp mặc định là 7 ngày sau vào lúc 23:59
+    const defaultDueDate = new Date()
+    defaultDueDate.setDate(defaultDueDate.getDate() + 7)
+    defaultDueDate.setHours(23, 59, 0, 0)
+    defaultDueDate.setMinutes(defaultDueDate.getMinutes() - defaultDueDate.getTimezoneOffset())
+    const dueDateTime = defaultDueDate.toISOString().slice(0, 16)
+
     setFormData({
       title: "",
-      duration: "45 phút",
+      duration: currentDateTime,
       content: "",
-      dueDate: "2026-08-30",
+      dueDate: dueDateTime, // 👈 Mặc định chọn cả ngày & giờ
       maxScore: 10,
       totalQuestions: 20,
       passScore: 5,
@@ -179,12 +249,12 @@ export default function CourseDetail({ course, onBack }) {
     setSelectedFile(null)
     setFormData({
       title: item.title || "",
-      duration: item.duration || "45 phút",
+      duration: formatForDateTimeInput(item.duration),
       content: item.content || "",
-      dueDate: item.dueDate || "",
-      maxScore: item.maxScore || 10,
-      totalQuestions: item.totalQuestions || 20,
-      passScore: item.passScore || 5,
+      dueDate: formatForDateTimeInput(item.dueDate || item.due_date), // 👈 Format chuẩn cho input
+      maxScore: item.maxScore || item.max_score || 10,
+      totalQuestions: item.totalQuestions || item.total_questions || 20,
+      passScore: item.passScore || item.pass_score || 5,
       description: item.description || ""
     })
     setModalType("edit")
@@ -203,8 +273,12 @@ export default function CourseDetail({ course, onBack }) {
 
     try {
       setIsUploading(true);
-      let uploadedFile = { url: selectedItem?.fileUrl || "", fileName: selectedItem?.fileName || "" };
+      let uploadedFile = { 
+        url: selectedItem?.fileUrl || selectedItem?.file_url || "", 
+        fileName: selectedItem?.fileName || selectedItem?.file_name || "" 
+      };
 
+      // 1. Upload file mới lên Cloudinary nếu có chọn file
       if (selectedFile) {
         const uploadRes = await uploadDocumentFile(selectedFile);
         if (uploadRes) {
@@ -212,6 +286,7 @@ export default function CourseDetail({ course, onBack }) {
         }
       }
 
+      // 2. Xử lý BÀI GIẢNG (LESSON)
       if (formCategory === "lesson") {
         if (modalType === "create") {
           const response = await fetch(`${baseUrl}/courses/${course.id}/lessons`, {
@@ -229,27 +304,71 @@ export default function CourseDetail({ course, onBack }) {
             const newLesson = await response.json();
             setLessons([...lessons, newLesson.data || newLesson]); 
           }
-        }
-      } else if (formCategory === "assignment") {
-        if (modalType === "create") {
-          const response = await fetch(`${baseUrl}/courses/${course.id}/assignments`, {
-            method: "POST",
+        } else if (modalType === "edit") {
+          const response = await fetch(`${baseUrl}/lessons/${selectedItem.id}`, {
+            method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               title: formData.title,
-              due_date: formData.dueDate,
-              max_score: Number(formData.maxScore),
-              description: formData.description,
+              duration: formData.duration,
+              content: formData.description,
               fileUrl: uploadedFile.url,
               fileName: uploadedFile.fileName,
             }),
           });
           if (response.ok) {
+            const updated = await response.json();
+            const updatedData = updated.data || updated;
+            setLessons(lessons.map(l => l.id === selectedItem.id ? { ...l, ...updatedData, title: formData.title, duration: formData.duration, content: formData.description, fileUrl: uploadedFile.url, fileName: uploadedFile.fileName } : l));
+          }
+        }
+      } 
+      // 3. Xử lý BÀI TẬP (ASSIGNMENT)
+      else if (formCategory === "assignment") {
+        const payload = {
+          title: formData.title,
+          dueDate: formData.dueDate,
+          due_date: formData.dueDate,
+          maxScore: Number(formData.maxScore),
+          max_score: Number(formData.maxScore),
+          description: formData.description,
+          fileUrl: uploadedFile.url,
+          fileName: uploadedFile.fileName,
+        };
+
+        if (modalType === "create") {
+          const response = await fetch(`${baseUrl}/courses/${course.id}/assignments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (response.ok) {
             const newAssignment = await response.json();
             setAssignments([...assignments, newAssignment.data || newAssignment]);
           }
+        } else if (modalType === "edit") {
+          const response = await fetch(`${baseUrl}/assignments/${selectedItem.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (response.ok) {
+            setAssignments(assignments.map(a => a.id === selectedItem.id ? { 
+              ...a, 
+              title: formData.title, 
+              dueDate: formData.dueDate, 
+              due_date: formData.dueDate, 
+              maxScore: Number(formData.maxScore), 
+              max_score: Number(formData.maxScore), 
+              description: formData.description, 
+              fileUrl: uploadedFile.url, 
+              fileName: uploadedFile.fileName 
+            } : a));
+          }
         }
-      } else if (formCategory === "quiz") {
+      }
+      // 4. Xử lý BÀI THI / KIỂM TRA (QUIZ)
+      else if (formCategory === "quiz") {
         if (modalType === "create") {
           const response = await fetch(`${baseUrl}/courses/${course.id}/quizzes`, {
             method: "POST",
@@ -268,11 +387,29 @@ export default function CourseDetail({ course, onBack }) {
             const newQuiz = await response.json();
             setQuizzes([...quizzes, newQuiz.data || newQuiz]);
           }
+        } else if (modalType === "edit") {
+          const response = await fetch(`${baseUrl}/quizzes/${selectedItem.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: formData.title,
+              duration: formData.duration,
+              total_questions: Number(formData.totalQuestions),
+              pass_score: Number(formData.passScore),
+              description: formData.description,
+              fileUrl: uploadedFile.url,
+              fileName: uploadedFile.fileName,
+            }),
+          });
+          if (response.ok) {
+            setQuizzes(quizzes.map(q => q.id === selectedItem.id ? { ...q, title: formData.title, duration: formData.duration, totalQuestions: Number(formData.totalQuestions), total_questions: Number(formData.totalQuestions), passScore: Number(formData.passScore), pass_score: Number(formData.passScore), description: formData.description, fileUrl: uploadedFile.url, fileName: uploadedFile.fileName } : q));
+          }
         }
       }
 
       setModalType(null);
       setSelectedFile(null);
+      setSelectedItem(null);
     } catch (error) {
       console.error("Lỗi khi lưu dữ liệu:", error);
       alert("Lỗi kết nối máy chủ! Hãy kiểm tra lại.");
@@ -287,13 +424,25 @@ export default function CourseDetail({ course, onBack }) {
     if (category === "quiz") setQuizzes(quizzes.map(q => q.id === id ? { ...q, isVisible: !q.isVisible } : q))
   }
 
-  const handleDelete = (category, id) => {
-    if (window.confirm("Thầy/Cô có chắc chắn muốn xóa mục này khỏi lớp học?")) {
-      if (category === "lesson") setLessons(lessons.filter(l => l.id !== id))
-      if (category === "assignment") setAssignments(assignments.filter(a => a.id !== id))
-      if (category === "quiz") setQuizzes(quizzes.filter(q => q.id !== id))
+  const handleDelete = async (category, id) => {
+    if (window.confirm("Thầy/Cô có chắc chắn muốn xóa mục này? Tệp đính kèm trên hệ thống cũng sẽ được xóa vĩnh viễn.")) {
+      try {
+        if (category === "lesson") {
+          await courseService.deleteLesson(id);
+          setLessons(lessons.filter(l => l.id !== id));
+        } else if (category === "assignment") {
+          await courseService.deleteAssignment(id);
+          setAssignments(assignments.filter(a => a.id !== id));
+        } else if (category === "quiz") {
+          await courseService.deleteQuiz(id);
+          setQuizzes(quizzes.filter(q => q.id !== id));
+        }
+      } catch (error) {
+        console.error("Lỗi khi xóa:", error);
+        alert("Không thể xóa lúc này. Vui lòng thử lại!");
+      }
     }
-  }
+  };
 
   if (!course) return null
 
@@ -427,7 +576,7 @@ export default function CourseDetail({ course, onBack }) {
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <span className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 font-extrabold text-xs flex items-center justify-center">
+                  <span className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 font-extrabold text-xs flex items-center justify-center shrink-0">
                     {idx + 1}
                   </span>
                   <div>
@@ -439,23 +588,42 @@ export default function CourseDetail({ course, onBack }) {
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Thời lượng: {lesson.duration}</p>
                     
-                   {(lesson.fileUrl || lesson.file_url) && (
-  <a 
-    href={lesson.fileUrl || lesson.file_url} 
-    target="_blank" 
-    rel="noreferrer"
-    className="inline-flex items-center space-x-1 text-[11px] text-blue-600 font-bold hover:underline pt-1"
-  >
-    <Paperclip className="w-3 h-3" />
-    <span>Slide đính kèm: {lesson.fileName || lesson.file_name || "Tải tài liệu PDF"}</span>
-  </a>
-)}
+                    {/* Hiển thị ngày giờ dạng format chuẩn */}
+                    <p className="text-[10px] text-slate-500 mt-0.5 font-medium">
+                      📅 Lịch học: <strong className="text-slate-700">{formatDateTime(lesson.duration)}</strong>
+                    </p>
+                    
+                    {(lesson.fileUrl || lesson.file_url) && (
+                      <div className="flex items-center space-x-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewFile({
+                            url: lesson.fileUrl || lesson.file_url,
+                            name: lesson.fileName || lesson.file_name || lesson.title
+                          })}
+                          className="inline-flex items-center space-x-1 text-xs text-orange-600 font-bold bg-orange-50 hover:bg-orange-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Xem tài liệu trực tiếp</span>
+                        </button>
+
+                        <a 
+                          href={lesson.fileUrl || lesson.file_url} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          download
+                          className="inline-flex items-center space-x-1 text-[11px] text-slate-500 hover:text-slate-800 underline"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Tải về</span>
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-1.5">
+                <div className="flex items-center space-x-1.5 shrink-0">
                   <button onClick={() => handleOpenView("lesson", lesson)} className="p-2 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-xl cursor-pointer" title="Xem chi tiết">
                     <Eye className="w-4 h-4" />
                   </button>
@@ -488,18 +656,26 @@ export default function CourseDetail({ course, onBack }) {
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="text-xs font-bold text-slate-900">{item.title}</h4>
-                    <span className="text-[10px] text-slate-500 mt-0.5 block">Hạn nộp: {item.dueDate || item.due_date}</span>
                     
-                    {item.fileUrl && (
-                      <a 
-                        href={item.fileUrl} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="inline-flex items-center space-x-1 text-[11px] text-blue-600 font-bold hover:underline pt-1"
-                      >
-                        <Paperclip className="w-3 h-3" />
-                        <span>Tệp đề bài: {item.fileName || "Tải đề bài.pdf"}</span>
-                      </a>
+                    {/* 🚀 ĐÃ CHUẨN HÓA: Format ngày giờ hạn nộp */}
+                    <p className="text-[10px] text-slate-500 mt-1 font-medium">
+                      ⏰ Hạn nộp: <strong className="text-red-600">{formatDateTime(item.dueDate || item.due_date)}</strong>
+                    </p>
+                    
+                    {(item.fileUrl || item.file_url) && (
+                      <div className="flex items-center space-x-2 pt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewFile({
+                            url: item.fileUrl || item.file_url,
+                            name: item.fileName || item.file_name || item.title
+                          })}
+                          className="inline-flex items-center space-x-1 text-xs text-orange-600 font-bold bg-orange-50 hover:bg-orange-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Xem đề bài trực tiếp</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.isVisible !== false ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
@@ -550,13 +726,24 @@ export default function CourseDetail({ course, onBack }) {
                       {quiz.isVisible !== false ? "Công khai" : "Đã ẩn"}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500">Thời gian: {quiz.duration} • Số câu: {quiz.totalQuestions || quiz.total_questions} câu</p>
                   
-                  {quiz.fileUrl && (
-                    <a href={quiz.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center space-x-1 text-[11px] text-blue-600 font-bold hover:underline">
-                      <Paperclip className="w-3 h-3" />
-                      <span>Tệp đề thi: {quiz.fileName || "Đề thi.pdf"}</span>
-                    </a>
+                  {/* Hiển thị thời gian mở bài thi theo định dạng chuẩn */}
+                  <p className="text-[11px] text-slate-500">
+                    📅 Thời gian mở: {formatDateTime(quiz.duration)} • Số câu: {quiz.totalQuestions || quiz.total_questions} câu
+                  </p>
+                  
+                  {(quiz.fileUrl || quiz.file_url) && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFile({
+                        url: quiz.fileUrl || quiz.file_url,
+                        name: quiz.fileName || quiz.file_name || quiz.title
+                      })}
+                      className="inline-flex items-center space-x-1 text-xs text-orange-600 font-bold bg-orange-50 hover:bg-orange-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer mt-1"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Xem đề thi trực tiếp</span>
+                    </button>
                   )}
                 </div>
 
@@ -643,15 +830,29 @@ export default function CourseDetail({ course, onBack }) {
                       <p className="text-[10px] text-slate-400 mt-0.5">Nộp lúc: {new Date(sub.created_at).toLocaleString("vi-VN")}</p>
                     </div>
 
-                    <a 
-                      href={sub.fileUrl} 
-                      target="_blank" 
-                      rel="noreferrer" 
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[11px] flex items-center space-x-1"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Tải Bài Làm ({sub.fileName || "File.pdf"})</span>
-                    </a>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewFile({
+                          url: sub.fileUrl || sub.file_url,
+                          name: sub.fileName || sub.file_name || `Bài làm của ${sub.student_name}`
+                        })}
+                        className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg text-[11px] flex items-center space-x-1 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Xem trực tiếp</span>
+                      </button>
+
+                      <a 
+                        href={sub.fileUrl || sub.file_url} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[11px]"
+                        title="Tải về máy"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
                   </div>
                 ))
               )}
@@ -746,13 +947,20 @@ export default function CourseDetail({ course, onBack }) {
                   <p className="text-[11px] text-slate-400 mt-0.5">Mã thuộc lớp: {course.code}</p>
                 </div>
 
-                {selectedItem?.fileUrl && (
+                {(selectedItem?.fileUrl || selectedItem?.file_url) && (
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
-                    <span className="font-bold text-blue-900">Tệp đính kèm: {selectedItem?.fileName || "Tài liệu"}</span>
-                    <a href={selectedItem?.fileUrl} target="_blank" rel="noreferrer" className="px-3 py-1 bg-blue-600 text-white font-bold rounded-lg flex items-center space-x-1">
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Mở Tệp</span>
-                    </a>
+                    <span className="font-bold text-blue-900">Tệp đính kèm: {selectedItem?.fileName || selectedItem?.file_name || "Tài liệu"}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFile({
+                        url: selectedItem?.fileUrl || selectedItem?.file_url,
+                        name: selectedItem?.fileName || selectedItem?.file_name || selectedItem?.title
+                      })}
+                      className="px-3 py-1 bg-blue-600 text-white font-bold rounded-lg flex items-center space-x-1 cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Xem trực tiếp</span>
+                    </button>
                   </div>
                 )}
 
@@ -801,15 +1009,17 @@ export default function CourseDetail({ course, onBack }) {
                 </div>
 
                 {formCategory === "assignment" && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="font-bold text-slate-700 uppercase">Hạn nộp bài *</label>
+                      <label className="font-bold text-slate-700 uppercase">
+                        Hạn nộp bài (Ngày & Giờ) *
+                      </label>
                       <input
-                        type="date"
+                        type="datetime-local"
                         required
                         value={formData.dueDate}
                         onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                        className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium"
+                        className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium focus:ring-2 focus:ring-orange-500/20 text-slate-700 cursor-pointer"
                       />
                     </div>
                     <div>
@@ -825,30 +1035,33 @@ export default function CourseDetail({ course, onBack }) {
                 )}
 
                 {(formCategory === "lesson" || formCategory === "quiz") && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="font-bold text-slate-700 uppercase">Thời lượng dự kiến</label>
-                      <input
-                        type="text"
-                        value={formData.duration}
-                        onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                        placeholder="VD: 45 phút..."
-                        className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium"
-                      />
-                    </div>
-                    {formCategory === "quiz" && (
-                      <div>
-                        <label className="font-bold text-slate-700 uppercase">Số lượng câu hỏi</label>
-                        <input
-                          type="number"
-                          value={formData.totalQuestions}
-                          onChange={(e) => setFormData({ ...formData, totalQuestions: e.target.value })}
-                          className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div>
+      <label className="font-bold text-slate-700 uppercase">
+        Thời gian diễn ra (Ngày & Giờ) *
+      </label>
+      <input
+        type="datetime-local"
+        required
+        value={formData.duration}
+        onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+        className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium focus:ring-2 focus:ring-orange-500/20 text-slate-700 cursor-pointer"
+      />
+    </div>
+    
+    {formCategory === "quiz" && (
+      <div>
+        <label className="font-bold text-slate-700 uppercase">Số lượng câu hỏi</label>
+        <input
+          type="number"
+          value={formData.totalQuestions}
+          onChange={(e) => setFormData({ ...formData, totalQuestions: e.target.value })}
+          className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium"
+        />
+      </div>
+    )}
+  </div>
+)}
 
                 <div>
                   <label className="font-bold text-slate-700 uppercase">Mô tả / Hướng dẫn chi tiết</label>
@@ -878,6 +1091,85 @@ export default function CourseDetail({ course, onBack }) {
         </div>
       )}
 
+      {/* ================= MODAL XEM TRỰC TIẾP TÀI LIỆU (EMBEDDED VIEWER) ================= */}
+      {previewFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-slate-900/70 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-5xl h-[90vh] bg-white rounded-3xl shadow-2xl border flex flex-col overflow-hidden">
+            
+            {/* Header Modal Viewer */}
+            <div className="bg-slate-900 text-white p-4 flex items-center justify-between shrink-0 border-b border-slate-800">
+              <div className="flex items-center space-x-2.5 truncate pr-4">
+                <Paperclip className="w-5 h-5 text-orange-400 shrink-0" />
+                <h3 className="font-extrabold text-sm truncate">
+                  Đang xem trực tiếp: <span className="text-orange-300">{previewFile.name}</span>
+                </h3>
+              </div>
+
+              <div className="flex items-center space-x-2 shrink-0">
+                <a
+                  href={previewFile.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  download
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl flex items-center space-x-1.5 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Tải về máy</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewFile(null)}
+                  className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Frame nhúng nội dung tài liệu */}
+            <div className="flex-1 bg-slate-100 relative overflow-hidden">
+              {(() => {
+                const url = previewFile.url.toLowerCase();
+                const isPdf = url.includes(".pdf");
+                const isOffice = url.match(/\.(xlsx|xls|docx|doc|pptx|ppt)$/i);
+
+                if (isPdf) {
+                  /* 🚀 1. FILE PDF: Trình duyệt đọc trực tiếp */
+                  return (
+                    <iframe
+                      src={previewFile.url}
+                      className="w-full h-full border-0"
+                      title={previewFile.name}
+                    />
+                  );
+                }
+
+                if (isOffice) {
+                  /* 🚀 2. FILE EXCEL / WORD / PPT: Dùng Microsoft Office Web Viewer */
+                  return (
+                    <iframe
+                      src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewFile.url)}`}
+                      title={previewFile.name}
+                      className="w-full h-full border-0"
+                      allowFullScreen
+                    />
+                  );
+                }
+
+                /* 🚀 3. DỰ PHÒNG: Google Docs Viewer cho các định dạng khác */
+                return (
+                  <iframe
+                    src={`https://docs.google.com/gview?url=${encodeURIComponent(previewFile.url)}&embedded=true`}
+                    title={previewFile.name}
+                    className="w-full h-full border-0"
+                    allowFullScreen
+                  />
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
