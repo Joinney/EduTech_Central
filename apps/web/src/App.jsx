@@ -30,8 +30,9 @@ import Schedule from "./userdb/pages/teacherpage/lichdaymeet/Schedule.jsx"
 
 // ================= ADMIN PAGES =================
 import AdminHome from "./admindb/pages/AdminHome.jsx"
-// 🟢 ĐÃ THÊM IMPORT TRANG QUẢN LÝ NGƯỜI DÙNG
 import AdminUsers from "./admindb/pages/AdminUsers.jsx" 
+// 🟢 ĐÃ THÊM IMPORT TRANG KIỂM DUYỆT KHÓA HỌC
+import AdminCourses from "./admindb/pages/AdminCourses.jsx" 
 
 // ================= SHARED PAGES =================
 import Profile from "./userdb/pages/Profile.jsx"
@@ -74,11 +75,11 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminHome />} />
-          
-          {/* 🟢 ĐÃ CẬP NHẬT TRANG USERS TẠI ĐÂY */}
           <Route path="users" element={<AdminUsers />} /> 
           
-          <Route path="courses" element={<AdminHome />} />
+          {/* 🟢 ĐÃ CẬP NHẬT TRANG COURSES TẠI ĐÂY */}
+          <Route path="courses" element={<AdminCourses />} /> 
+          
           <Route path="reports" element={<AdminHome />} />
           <Route path="settings" element={<AdminHome />} />
           <Route path="profile" element={<Profile />} />
