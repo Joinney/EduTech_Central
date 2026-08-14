@@ -16,7 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // Cấu hình Cloudinary chuyên dùng cho File Document
@@ -538,22 +537,42 @@ func markLessonProgress(c *gin.Context) {
 		IsCompleted bool `json:"is_completed"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("❌ Lỗi Bind JSON Tiến độ: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	lID := uint(parseUint(lessonID))
 	now := time.Now()
-	progress := LessonProgress{
-		CourseID:    req.CourseID,
-		LessonID:    uint(parseUint(lessonID)),
-		StudentID:   req.StudentID,
-		IsCompleted: req.IsCompleted,
-		CompletedAt: &now,
+
+	log.Printf("📥 Nhận request tiến độ: CourseID=%d, LessonID=%d, StudentID=%d, Completed=%v",
+		req.CourseID, lID, req.StudentID, req.IsCompleted)
+
+	var progress LessonProgress
+	err := db.Where("lesson_id = ? AND student_id = ?", lID, req.StudentID).First(&progress).Error
+	if err != nil {
+		// Chưa có -> Tạo mới
+		progress = LessonProgress{
+			CourseID:    req.CourseID,
+			LessonID:    lID,
+			StudentID:   req.StudentID,
+			IsCompleted: req.IsCompleted,
+			CompletedAt: &now,
+		}
+		if createErr := db.Create(&progress).Error; createErr != nil {
+			log.Printf("❌ Lỗi INSERT lesson_progress: %v", createErr)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu tiến độ"})
+			return
+		}
+		log.Printf("✅ ĐÃ INSERT lesson_progress ID=%d thành công!", progress.ID)
+	} else {
+		// Đã có -> Cập nhật
+		db.Model(&progress).Updates(map[string]interface{}{
+			"is_completed": req.IsCompleted,
+			"completed_at": now,
+		})
+		log.Printf("✅ ĐÃ UPDATE lesson_progress ID=%d thành công!", progress.ID)
 	}
-	// Upsert nếu đã tồn tại
-	db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "lesson_id"}, {Name: "student_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"is_completed", "completed_at"}),
-	}).Create(&progress)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật tiến độ thành công", "data": progress})
 }
@@ -759,11 +778,14 @@ func submitQuizResult(c *gin.Context) {
 		FileName         string  `json:"file_name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("❌ Lỗi Bind JSON Quiz: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	qID := uint(parseUint(quizID))
 	sub := QuizSubmission{
-		QuizID:           uint(parseUint(quizID)),
+		QuizID:           qID,
 		StudentID:        req.StudentID,
 		StudentName:      req.StudentName,
 		Score:            req.Score,
@@ -774,7 +796,14 @@ func submitQuizResult(c *gin.Context) {
 		FileName:         req.FileName,
 		SubmittedAt:      time.Now(),
 	}
-	db.Create(&sub)
+
+	if err := db.Create(&sub).Error; err != nil {
+		log.Printf("❌ Lỗi INSERT quiz_submissions: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu bài thi"})
+		return
+	}
+
+	log.Printf("🎉 ĐÃ LƯU quiz_submission ID=%d (Điểm: %.1f, HS: %s) vào DB!", sub.ID, sub.Score, sub.StudentName)
 	c.JSON(http.StatusCreated, gin.H{"message": "Đã lưu kết quả thi!", "data": sub})
 }
 
@@ -956,4 +985,21 @@ func getStudentJoinedCourses(c *gin.Context) {
 func parseUint(s string) uint {
 	val, _ := strconv.ParseUint(s, 10, 32)
 	return uint(val)
+}
+
+// Giữ lại DUY NHẤT 1 bộ này:
+func (LessonProgress) TableName() string {
+	return "lesson_progress"
+}
+
+func (QuizSubmission) TableName() string {
+	return "quiz_submissions"
+}
+
+func (AttendanceLog) TableName() string {
+	return "attendance_logs"
+}
+
+func (CourseDiscussion) TableName() string {
+	return "course_discussions"
 }
