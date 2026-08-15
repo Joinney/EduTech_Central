@@ -17,7 +17,7 @@ import {
   Layers,
   GraduationCap,
   TrendingUp,
-  MessageSquareCheck,
+  MessageSquare,
   Radio,
   Video,
   Clock,
@@ -33,29 +33,29 @@ export default function AdminSidebar() {
   
   const [isCollapsed, setIsCollapsed] = useState(false)
 
-  // Quản lý đóng/mở từng nhóm LCMS trên Sidebar
+  // Quản lý trạng thái mở/đóng của 4 menu cha LCMS
   const [openMenus, setOpenMenus] = useState({
     content: true,
-    students: false,
+    students: true,
     live: false,
     assessment: false
   })
 
-  // Tự động mở menu tương ứng dựa trên URL params
+  // Tự động mở nhóm menu cha tương ứng khi người dùng truy cập qua URL params
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search)
     const currentTab = searchParams.get("tab")
     if (currentTab && openMenus[currentTab] !== undefined) {
-      setOpenMenus(prev => ({ ...prev, [currentTab]: true }))
+      setOpenMenus((prev) => ({ ...prev, [currentTab]: true }))
     }
   }, [location.search])
 
   const toggleMenu = (key) => {
     if (isCollapsed) setIsCollapsed(false)
-    setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }))
+    setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
-  // 4 TRỤ CỘT LCMS VÀ CÁC TAB CON CHI TIẾT
+  // 4 TRỤ CỘT LCMS CORE & CÁC TAB CON ĐỒNG BỘ CHUẨN XÁC
   const lcmsGroups = [
     {
       id: "content",
@@ -74,7 +74,7 @@ export default function AdminSidebar() {
       subItems: [
         { name: "Danh sách học viên", tab: "students", sub: "student_list", icon: Users },
         { name: "Tiến độ học tập", tab: "students", sub: "progress", icon: TrendingUp },
-        { name: "Diễn đàn / Thảo luận", tab: "students", sub: "forum", icon: MessageSquareCheck },
+        { name: "Diễn đàn / Thảo luận", tab: "students", sub: "discussion", icon: MessageSquare }, // 👈 Đồng bộ chính xác với StudentsTab.jsx
       ]
     },
     {
@@ -104,7 +104,7 @@ export default function AdminSidebar() {
     navigate("/admin/login")
   }
 
-  // Kiểm tra tab con có đang active không
+  // Kiểm tra tab con có đang active hay không
   const isSubItemActive = (tab, sub) => {
     if (location.pathname !== "/admin/courses") return false
     const searchParams = new URLSearchParams(location.search)
@@ -119,17 +119,17 @@ export default function AdminSidebar() {
         isCollapsed ? "w-20 p-3" : "w-72 p-4"
       }`}
     >
-      {/* Nút Thu gọn/Mở rộng */}
+      {/* Nút Thu gọn/Mở rộng Sidebar */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="absolute -right-3 top-8 bg-orange-500 text-white rounded-full p-1 shadow-md z-50 hover:bg-orange-600 transition-all cursor-pointer"
-        title={isCollapsed ? "Mở rộng" : "Thu gọn"}
+        title={isCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn"}
       >
         {isCollapsed ? <ChevronRight size={16} strokeWidth={3} /> : <ChevronLeft size={16} strokeWidth={3} />}
       </button>
 
-      {/* Hiệu ứng ánh sáng */}
-      <div className="absolute top-0 left-0 w-full h-48 bg-white/10 blur-[80px] pointer-events-none"></div>
+      {/* Hiệu ứng ánh sáng nền phía trên */}
+      <div className="absolute top-0 left-0 w-full h-48 bg-white/10 blur-[80px] pointer-events-none" />
 
       <div className="space-y-4 relative z-10 overflow-y-auto max-h-[calc(100vh-100px)] pr-1 custom-scrollbar">
         
@@ -184,7 +184,7 @@ export default function AdminSidebar() {
           </Link>
         </div>
 
-        {/* ================= KHU VỰC 4 TRỤ CỘT LCMS CORE ================= */}
+        {/* ================= 4 TRỤ CỘT LCMS CORE ================= */}
         <div className="space-y-2 pt-2 border-t border-white/10">
           {!isCollapsed && (
             <div className="px-3 text-[10px] font-extrabold text-orange-400 uppercase tracking-wider flex items-center space-x-1.5">
@@ -254,7 +254,7 @@ export default function AdminSidebar() {
             title={isCollapsed ? "Báo cáo & Cảnh báo" : ""}
             className={`group flex items-center px-3 py-2 rounded-xl text-xs font-bold transition-all ${
               location.pathname === "/admin/reports"
-                ? "bg-orange-500 text-white"
+                ? "bg-orange-500 text-white font-bold"
                 : "text-blue-100/70 hover:bg-white/10 hover:text-white"
             } ${isCollapsed ? "justify-center" : "space-x-3"}`}
           >
@@ -267,7 +267,7 @@ export default function AdminSidebar() {
             title={isCollapsed ? "Cấu hình hệ thống" : ""}
             className={`group flex items-center px-3 py-2 rounded-xl text-xs font-bold transition-all ${
               location.pathname === "/admin/settings"
-                ? "bg-orange-500 text-white"
+                ? "bg-orange-500 text-white font-bold"
                 : "text-blue-100/70 hover:bg-white/10 hover:text-white"
             } ${isCollapsed ? "justify-center" : "space-x-3"}`}
           >

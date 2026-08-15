@@ -445,6 +445,7 @@ func main() {
 		// --- THẢO LUẬN / DIỄN ĐÀN ---
 		api.GET("/courses/:id/discussions", getCourseDiscussions)
 		api.POST("/courses/:id/discussions", createDiscussion)
+		api.DELETE("/discussions/:id", deleteDiscussion)
 	}
 
 	port := os.Getenv("PORT")
@@ -563,6 +564,13 @@ func getCourses(c *gin.Context) {
 	if err := query.Find(&courses).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi truy vấn danh sách khóa học"})
 		return
+	}
+
+	// 🎯 Đồng bộ đếm sĩ số thực tế từ bảng course_students
+	for i := range courses {
+		var actualCount int64
+		db.Model(&CourseStudent{}).Where("course_id = ?", courses[i].ID).Count(&actualCount)
+		courses[i].StudentsCount = int(actualCount)
 	}
 
 	c.JSON(http.StatusOK, courses)
@@ -1390,4 +1398,14 @@ func getStudentJoinedCourses(c *gin.Context) {
 func parseUint(s string) uint {
 	val, _ := strconv.ParseUint(s, 10, 32)
 	return uint(val)
+}
+
+// Thêm hàm controller deleteDiscussion:
+func deleteDiscussion(c *gin.Context) {
+	id := c.Param("id")
+	if err := db.Delete(&CourseDiscussion{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể xóa thảo luận"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Đã xóa thảo luận thành công"})
 }

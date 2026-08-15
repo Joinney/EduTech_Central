@@ -134,6 +134,12 @@ export const courseService = {
     const response = await courseApi.get(`/courses/${courseId}/students`);
     return response.data;
   },
+  // 👈 Thêm dòng này để khớp với StudentsTab.jsx:
+  getCourseStudents: async (courseId) => {
+    const response = await courseApi.get(`/courses/${courseId}/students`);
+    return response.data;
+  },
+
   joinCourse: async (courseId, studentData) => {
     const response = await courseApi.post(`/courses/${courseId}/join`, studentData);
     return response.data;
@@ -172,6 +178,10 @@ export const courseService = {
   },
   createDiscussion: async (courseId, discussionData) => {
     const response = await courseApi.post(`/courses/${courseId}/discussions`, discussionData);
+    return response.data;
+  },
+  deleteDiscussion: async (discussionId) => {
+    const response = await courseApi.delete(`/discussions/${discussionId}`);
     return response.data;
   }
 };
