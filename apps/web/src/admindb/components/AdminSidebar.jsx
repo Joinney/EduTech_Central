@@ -33,26 +33,43 @@ export default function AdminSidebar() {
   
   const [isCollapsed, setIsCollapsed] = useState(false)
 
-  // Quản lý trạng thái mở/đóng của 4 menu cha LCMS
-  const [openMenus, setOpenMenus] = useState({
-    content: true,
-    students: true,
-    live: false,
-    assessment: false
+  // Hàm xác định tab hiện tại từ URL query params
+  const getCurrentTabFromUrl = () => {
+    const searchParams = new URLSearchParams(location.search)
+    return searchParams.get("tab") || "content"
+  }
+
+  // Quản lý trạng thái mở/đóng: Chỉ mở nhóm tương ứng với URL hiện tại
+  const [openMenus, setOpenMenus] = useState(() => {
+    const currentTab = new URLSearchParams(location.search).get("tab") || "content"
+    return {
+      content: currentTab === "content",
+      students: currentTab === "students",
+      live: currentTab === "live",
+      assessment: currentTab === "assessment"
+    }
   })
 
-  // Tự động mở nhóm menu cha tương ứng khi người dùng truy cập qua URL params
+  // Tự động đóng các tab khác và chỉ mở tab tương ứng khi URL thay đổi
   useEffect(() => {
-    const searchParams = new URLSearchParams(location.search)
-    const currentTab = searchParams.get("tab")
-    if (currentTab && openMenus[currentTab] !== undefined) {
-      setOpenMenus((prev) => ({ ...prev, [currentTab]: true }))
-    }
+    const currentTab = getCurrentTabFromUrl()
+    setOpenMenus({
+      content: currentTab === "content",
+      students: currentTab === "students",
+      live: currentTab === "live",
+      assessment: currentTab === "assessment"
+    })
   }, [location.search])
 
   const toggleMenu = (key) => {
     if (isCollapsed) setIsCollapsed(false)
-    setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }))
+    // Khi bấm vào menu cha, chỉ mở menu đó và đóng các menu còn lại (Accordian behavior)
+    setOpenMenus((prev) => ({
+      content: key === "content" ? !prev.content : false,
+      students: key === "students" ? !prev.students : false,
+      live: key === "live" ? !prev.live : false,
+      assessment: key === "assessment" ? !prev.assessment : false
+    }))
   }
 
   // 4 TRỤ CỘT LCMS CORE & CÁC TAB CON ĐỒNG BỘ CHUẨN XÁC
@@ -74,7 +91,7 @@ export default function AdminSidebar() {
       subItems: [
         { name: "Danh sách học viên", tab: "students", sub: "student_list", icon: Users },
         { name: "Tiến độ học tập", tab: "students", sub: "progress", icon: TrendingUp },
-        { name: "Diễn đàn / Thảo luận", tab: "students", sub: "discussion", icon: MessageSquare }, // 👈 Đồng bộ chính xác với StudentsTab.jsx
+        { name: "Diễn đàn / Thảo luận", tab: "students", sub: "discussion", icon: MessageSquare },
       ]
     },
     {
