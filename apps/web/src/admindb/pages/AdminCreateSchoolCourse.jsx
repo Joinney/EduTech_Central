@@ -299,14 +299,13 @@ export default function AdminCreateSchoolCourse() {
             </div>
           </div>
 
-          {/* 2. Lịch dạy & Bổ nhiệm Giáo viên (Custom Dropdown + Profile Card) */}
+          {/* 2. Lịch dạy & Bổ nhiệm Giáo viên */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
               <Calendar className="w-4 h-4 text-blue-600" />
               <span>2. Thời Khóa Biểu & Bổ Nhiệm Giảng Viên</span>
             </h3>
 
-            {/* Khung giờ */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
@@ -339,7 +338,7 @@ export default function AdminCreateSchoolCourse() {
               </div>
             </div>
 
-            {/* Bổ nhiệm Giáo viên (Custom Dropdown kèm Avatar) */}
+            {/* Bổ nhiệm Giáo viên */}
             <div className="space-y-3" ref={dropdownRef}>
               <div className="flex justify-between items-center">
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
@@ -351,7 +350,6 @@ export default function AdminCreateSchoolCourse() {
 
               {qualifiedTeachers.length > 0 ? (
                 <div className="relative">
-                  {/* Nút trigger dropdown */}
                   <button
                     type="button"
                     onClick={() => setIsTeacherDropdownOpen(!isTeacherDropdownOpen)}
@@ -438,7 +436,7 @@ export default function AdminCreateSchoolCourse() {
                 </div>
               )}
 
-              {/* 🌟 PROFILE CARD CHI TIẾT CỦA GIẢNG VIÊN ĐƯỢC CHỌN */}
+              {/* Profile card chi tiết giáo viên */}
               {selectedTeacher && (
                 <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50/40 border border-slate-200 rounded-2xl space-y-3 animate-fadeIn">
                   <div className="flex items-start justify-between gap-3">
@@ -483,7 +481,6 @@ export default function AdminCreateSchoolCourse() {
                     </div>
                   </div>
 
-                  {/* Chi tiết chuyên môn & các lớp phụ trách */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-200/80 text-xs">
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
@@ -516,7 +513,6 @@ export default function AdminCreateSchoolCourse() {
                     </div>
                   </div>
 
-                  {/* Cảnh báo nếu bận lịch */}
                   {isTeacherConflicted && (
                     <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 flex items-center space-x-2 text-[11px]">
                       <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />

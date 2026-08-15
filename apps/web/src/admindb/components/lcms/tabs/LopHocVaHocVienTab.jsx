@@ -18,14 +18,11 @@ import {
   Send, 
   Trash2, 
   ShieldCheck, 
-  Pin, 
-  HelpCircle,
-  Clock,
-  User
+  Clock
 } from "lucide-react";
 import { courseService } from "../../../../api/course.api";
 
-export default function StudentsTab({
+export default function LopHocVaHocVienTab({
   courses,
   subTabStudent,
   onSwitchSubTab,
@@ -133,7 +130,6 @@ export default function StudentsTab({
       const res = await courseService.getCourseDiscussions(courseId);
       const list = res?.data || (Array.isArray(res) ? res : []);
       
-      // Nếu lớp mới chưa có bài thảo luận mẫu, khởi tạo danh sách câu hỏi mẫu trực quan
       if (list.length === 0) {
         setDiscussions([
           {
@@ -195,7 +191,6 @@ export default function StudentsTab({
       setAdminReplyText("");
     } catch (err) {
       console.error("Lỗi đăng thảo luận:", err);
-      // Cập nhật UI lạc quan nếu chưa có DB
       setDiscussions((prev) => [
         {
           id: Date.now(),
@@ -530,7 +525,7 @@ export default function StudentsTab({
         </div>
       )}
 
-      {/* ================= SUB-TAB 3: DIỄN ĐÀN & HỎI ĐÁP HỌC TẬP (MỚI) ================= */}
+      {/* ================= SUB-TAB 3: DIỄN ĐÀN & HỎI ĐÁP HỌC TẬP ================= */}
       {subTabStudent === "discussion" && (
         <div className="space-y-5">
           {/* Bộ chọn lớp thảo luận */}

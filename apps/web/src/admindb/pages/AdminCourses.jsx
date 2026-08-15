@@ -12,11 +12,12 @@ import {
 } from "lucide-react";
 import { courseService } from "../../api/course.api";
 
-import ImportStudentsModal from "../components/lcms/modals/ImportStudentsModal";
-import ContentTab from "../components/lcms/tabs/ContentTab";
-import StudentsTab from "../components/lcms/tabs/StudentsTab";
-import LiveMeetTab from "../components/lcms/tabs/LiveMeetTab";
-import AssessmentTab from "../components/lcms/tabs/AssessmentTab";
+// 🟢 Import các Tab và Modal theo tên Tiếng Việt chuẩn hóa
+import ImportHocSinhModal from "../components/lcms/modals/ImportHocSinhModal";
+import KhoaHocVaBaiGiangTab from "../components/lcms/tabs/KhoaHocVaBaiGiangTab";
+import LopHocVaHocVienTab from "../components/lcms/tabs/LopHocVaHocVienTab";
+import DayOnlineVaLichLiveTab from "../components/lcms/tabs/DayOnlineVaLichLiveTab";
+import DanhGiaVaKhaoThiTab from "../components/lcms/tabs/DanhGiaVaKhaoThiTab";
 
 export default function AdminCourses() {
   const location = useLocation();
@@ -39,12 +40,11 @@ export default function AdminCourses() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // State Modals
-  const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+  // State Modal Import
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [targetCourseForImport, setTargetCourseForImport] = useState(null);
 
-  // 1. Đồng bộ URL Query Params[cite: 3]
+  // 1. Đồng bộ URL Query Params
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get("tab") || "content";
@@ -57,7 +57,7 @@ export default function AdminCourses() {
     if (tabParam === "assessment" && subParam) setSubTabAssess(subParam);
   }, [location.search]);
 
-  // 2. Fetch dữ liệu[cite: 3]
+  // 2. Fetch dữ liệu
   const fetchAllData = async () => {
     try {
       setIsLoading(true);
@@ -93,7 +93,7 @@ export default function AdminCourses() {
     navigate(`/admin/courses?tab=${mainTab}&sub=${subId}`);
   };
 
-  // 3. Duyệt khóa học[cite: 3]
+  // 3. Duyệt khóa học
   const handleUpdateCourseStatus = async (courseId, newStatus) => {
     try {
       let defaultMsg = "Trạng thái đã được cập nhật.";
@@ -115,7 +115,7 @@ export default function AdminCourses() {
     }
   };
 
-  // Lọc dữ liệu[cite: 3]
+  // Lọc dữ liệu
   const externalCourses = courses.filter((c) => c.type === "external");
   const schoolCourses = courses.filter((c) => c.type === "school");
   const currentCategoryCourses = courseCategoryTab === "external" ? externalCourses : schoolCourses;
@@ -141,7 +141,7 @@ export default function AdminCourses() {
       case "live":
         return {
           title: "Điều Phối Dạy Online & Lịch Live",
-          desc: "Giám sát phòng học ảo Jitsi và nhật ký điểm danh thời gian thực.",
+          desc: "Giám sát phòng học ảo và nhật ký điểm danh thời gian thực.",
           icon: Radio
         };
       case "assessment":
@@ -178,13 +178,13 @@ export default function AdminCourses() {
         </div>
 
         <div className="flex items-center space-x-2.5">
-<button
-  onClick={() => navigate("/admin/courses/create-school")}
-  className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center space-x-1.5"
->
-  <Plus className="w-4 h-4" />
-  <span>Tạo Lớp Chính Quy Mới</span>
-</button>
+          <button
+            onClick={() => navigate("/admin/courses/create-school")}
+            className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center space-x-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tạo Lớp Chính Quy Mới</span>
+          </button>
 
           <button
             onClick={fetchAllData}
@@ -196,9 +196,9 @@ export default function AdminCourses() {
         </div>
       </div>
 
-      {/* RENDER TABS THEO URL */}
+      {/* RENDER CÁC TAB NỘI DUNG TƯƠNG ỨNG */}
       {mainTab === "content" && (
-        <ContentTab
+        <KhoaHocVaBaiGiangTab
           courses={courses}
           filteredCourses={filteredCourses}
           externalCourses={externalCourses}
@@ -220,7 +220,7 @@ export default function AdminCourses() {
       )}
 
       {mainTab === "students" && (
-        <StudentsTab
+        <LopHocVaHocVienTab
           courses={courses}
           subTabStudent={subTabStudent}
           onSwitchSubTab={handleSwitchSubTab}
@@ -232,7 +232,7 @@ export default function AdminCourses() {
       )}
 
       {mainTab === "live" && (
-        <LiveMeetTab
+        <DayOnlineVaLichLiveTab
           courses={courses}
           attendanceLogs={attendanceLogs}
           subTabLive={subTabLive}
@@ -241,16 +241,15 @@ export default function AdminCourses() {
       )}
 
       {mainTab === "assessment" && (
-        <AssessmentTab
+        <DanhGiaVaKhaoThiTab
           courses={courses}
           subTabAssess={subTabAssess}
           onSwitchSubTab={handleSwitchSubTab}
         />
       )}
 
-      
-
-      <ImportStudentsModal
+      {/* MODAL IMPORT EXCEL */}
+      <ImportHocSinhModal
         isOpen={isImportModalOpen}
         course={targetCourseForImport}
         onClose={() => {

@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React from "react";
 import {
   BookOpenCheck,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import { formatStatusBadge } from "../constants";
 
-export default function ContentTab({
+export default function KhoaHocVaBaiGiangTab({
   courses,
   filteredCourses,
   externalCourses,
@@ -36,8 +37,8 @@ export default function ContentTab({
   onUpdateCourseStatus
 }) {
   return (
-    <div className="space-y-4">
-      {/* Sub-tabs */}
+    <div className="space-y-4 animate-fadeIn">
+      {/* Sub-tabs điều hướng */}
       <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">
         {[
           { id: "course_list", label: `Danh sách khóa & Lớp (${courses.length})`, icon: BookOpenCheck },
@@ -59,7 +60,7 @@ export default function ContentTab({
         ))}
       </div>
 
-      {/* Switch Category */}
+      {/* Switch Phân Loại Lớp Học */}
       <div className="flex items-center justify-between gap-4 flex-wrap bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200">
         <div className="flex items-center space-x-1.5 w-full sm:w-auto">
           <button
@@ -121,7 +122,7 @@ export default function ContentTab({
         </div>
       </div>
 
-      {/* Sub-tab 1.1: Danh sách khóa học */}
+      {/* Sub-tab 1: Danh sách khóa học & Lớp */}
       {subTabContent === "course_list" && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className={`${courseCategoryTab === "external" ? "xl:col-span-8" : "xl:col-span-12"} space-y-3`}>
@@ -164,12 +165,12 @@ export default function ContentTab({
                               e.stopPropagation();
                               onUpdateCourseStatus(c.id, c.status === "APPROVED" ? "PAUSED" : "APPROVED");
                             }}
-                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[11px] transition-colors"
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[11px] transition-colors cursor-pointer"
                           >
                             {c.status === "APPROVED" ? "Tạm Đóng" : "Mở Lại"}
                           </button>
                         ) : (
-                          <button className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-600">
+                          <button className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-600 cursor-pointer">
                             <Eye className="w-3.5 h-3.5" />
                           </button>
                         )}
@@ -253,7 +254,7 @@ export default function ContentTab({
         </div>
       )}
 
-      {/* Sub-tab 1.2: Cấu trúc bài giảng */}
+      {/* Sub-tab 2: Cấu trúc bài giảng */}
       {subTabContent === "curriculum" && (
         <div className="space-y-4">
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -320,7 +321,7 @@ export default function ContentTab({
         </div>
       )}
 
-      {/* Sub-tab 1.3: Tài nguyên */}
+      {/* Sub-tab 3: Kho tài nguyên & Học liệu */}
       {subTabContent === "resources" && (
         <div className="space-y-4">
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">

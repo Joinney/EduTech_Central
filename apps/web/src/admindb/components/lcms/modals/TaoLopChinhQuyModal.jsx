@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React, { useState, useEffect } from "react";
 import { School, X, Loader2, Calendar, UserCheck, AlertCircle, Clock } from "lucide-react";
 import { SCHOOL_OPTIONS, SUBJECT_OPTIONS } from "../constants";
@@ -21,7 +22,7 @@ const DAYS_OF_WEEK = [
   "Thứ 7, Chủ Nhật"
 ];
 
-export default function CreateSchoolCourseModal({ isOpen, onClose, onSuccess }) {
+export default function TaoLopChinhQuyModal({ isOpen, onClose, onSuccess }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingTeachers, setIsLoadingTeachers] = useState(false);
   const [qualifiedTeachers, setQualifiedTeachers] = useState([]);
@@ -53,7 +54,6 @@ export default function CreateSchoolCourseModal({ isOpen, onClose, onSuccess }) 
       const list = res.data?.data || [];
       setQualifiedTeachers(list);
 
-      // Nếu giáo viên đang chọn không hợp lệ, tự động gán giáo viên đầu tiên trong danh sách
       if (list.length > 0) {
         const currentTeacherValid = list.find((t) => t.teacher_id === Number(formData.teacher_id));
         if (!currentTeacherValid) {
@@ -79,7 +79,6 @@ export default function CreateSchoolCourseModal({ isOpen, onClose, onSuccess }) 
 
   if (!isOpen) return null;
 
-  // Kiểm tra giáo viên đang chọn có bị trùng lịch không
   const selectedTeacherInfo = qualifiedTeachers.find((t) => t.teacher_id === Number(formData.teacher_id));
   const isTeacherConflicted = selectedTeacherInfo ? !selectedTeacherInfo.is_available : false;
 
@@ -217,7 +216,7 @@ export default function CreateSchoolCourseModal({ isOpen, onClose, onSuccess }) 
             </div>
           </div>
 
-          {/* 👨‍🏫 BỔ NHIỆM GIẢNG VIÊN (TỰ ĐỘNG LỌC ĐÚNG MÔN VÀ BÁO TRÙNG LỊCH) */}
+          {/* 👨‍🏫 BỔ NHIỆM GIẢNG VIÊN */}
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
@@ -256,7 +255,6 @@ export default function CreateSchoolCourseModal({ isOpen, onClose, onSuccess }) 
               </div>
             )}
 
-            {/* Thông báo nếu giáo viên bị trùng lịch */}
             {isTeacherConflicted && selectedTeacherInfo && (
               <div className="mt-1.5 p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 flex items-center space-x-1.5 text-[11px]">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />

@@ -1,8 +1,9 @@
+/* eslint-disable react/prop-types */
 import React, { useState } from "react";
 import { School, X, Download, Loader2 } from "lucide-react";
 import { courseService } from "../../../../api/course.api";
 
-export default function ImportStudentsModal({ isOpen, course, onClose, onSuccess }) {
+export default function ImportHocSinhModal({ isOpen, course, onClose, onSuccess }) {
   const [parsedStudents, setParsedStudents] = useState([]);
   const [isImporting, setIsImporting] = useState(false);
 
