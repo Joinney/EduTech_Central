@@ -1,5 +1,6 @@
 /* eslint-disable react/prop-types */
-import React, { useState, useEffect } from "react"
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect, useMemo } from "react"
 import { 
   Calendar as CalendarIcon, 
   X, 
@@ -7,12 +8,18 @@ import {
   Clock,
   ClipboardList,
   GraduationCap,
-  Sparkles
+  Sparkles,
+  HelpCircle,
+  FileCheck
 } from "lucide-react"
+import { quizApi } from "../api/quiz.api"
 
 export default function LichHocWidget({ courses = [] }) {
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("assessments") // "assessments" (Tab 1: Bài tập & Thi) | "schedule" (Tab 2: Lịch học)
+
+  // Danh sách đề thi MongoDB của toàn bộ môn học
+  const [mongoExams, setMongoExams] = useState([])
 
   // Map lưu sự kiện cho 2 Tab riêng biệt
   const [assessmentEventsMap, setAssessmentEventsMap] = useState({})
@@ -33,19 +40,54 @@ export default function LichHocWidget({ courses = [] }) {
   const daysArray = Array.from({ length: daysInCurrentMonth }, (_, i) => i + 1)
   const blanksArray = Array.from({ length: prefixBlanksCount }, (_, i) => i)
 
-  // 1. Tự động mở Lịch dạng phóng to khi vào trang lần đầu trong phiên
-  useEffect(() => {
-    const hasSeenAutoCalendar = sessionStorage.getItem("hasSeenAutoCalendar")
-    if (!hasSeenAutoCalendar) {
-      const timer = setTimeout(() => {
-        setIsOpen(true)
-        sessionStorage.setItem("hasSeenAutoCalendar", "true")
-      }, 800)
-      return () => clearTimeout(timer)
+  // Lấy ID user để quản lý cờ mở lần đầu cho từng tài khoản
+  const currentUserId = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("user")
+      if (!stored) return "guest"
+      const parsed = JSON.parse(stored)
+      return parsed.id_users || parsed.id || parsed.user_id || "guest"
+    } catch {
+      return "guest"
     }
   }, [])
 
-  // 2. Bóc tách dữ liệu thật thành 2 luồng sự kiện riêng biệt
+  // 1. Tự động mở Lịch dạng phóng to khi vào trang lần đầu trong phiên đăng nhập
+  useEffect(() => {
+    const storageKey = `hasSeenAutoCalendar_${currentUserId}`
+    const hasSeenAutoCalendar = sessionStorage.getItem(storageKey)
+    if (!hasSeenAutoCalendar) {
+      const timer = setTimeout(() => {
+        setIsOpen(true)
+        sessionStorage.setItem(storageKey, "true")
+      }, 700)
+      return () => clearTimeout(timer)
+    }
+  }, [currentUserId])
+
+  // 2. Kéo toàn bộ đề thi trắc nghiệm & tự luận của các khóa học
+  useEffect(() => {
+    const fetchAllQuizzes = async () => {
+      if (!courses || courses.length === 0) return
+      try {
+        const promises = courses.map(async (c) => {
+          const exams = await quizApi.getExamsByCourse(c.id).catch(() => [])
+          return exams.map((e) => ({
+            ...e,
+            courseTitle: c.title,
+            courseCode: c.code
+          }))
+        })
+        const results = await Promise.all(promises)
+        setMongoExams(results.flat())
+      } catch (err) {
+        console.error("Lỗi khi tải đề thi vào widget:", err)
+      }
+    }
+    fetchAllQuizzes()
+  }, [courses])
+
+  // 3. Bóc tách dữ liệu sự kiện thành 2 luồng riêng biệt
   useEffect(() => {
     const assessMapped = {}
     const schedMapped = {}
@@ -88,12 +130,11 @@ export default function LichHocWidget({ courses = [] }) {
         }
       }
 
-      // ================= TAB 1: BÀI TẬP, BÀI THI & BÀI MỞ MỚI =================
-      // Hạn nộp bài tập
+      // ================= TAB 1: BÀI TẬP VỀ NHÀ =================
       ;(course.assignments || []).forEach((a, idx) => {
         let targetDay = (currentDayNumber + idx * 3 + 2) % daysInCurrentMonth || 15
-        if (a.dueDate || a.due_date) {
-          const rawDateStr = a.dueDate || a.due_date
+        const rawDateStr = a.dueDate || a.due_date
+        if (rawDateStr) {
           const parsed = new Date(rawDateStr)
           if (!isNaN(parsed.getDate()) && parsed.getMonth() === currentMonth) {
             targetDay = parsed.getDate()
@@ -105,19 +146,8 @@ export default function LichHocWidget({ courses = [] }) {
         addEvent(assessMapped, targetDay, {
           type: "due",
           title: `Hạn nộp: ${a.title} (${course.title})`,
-          time: a.dueDate || "23:59",
+          time: rawDateStr ? (rawDateStr.includes("T") ? rawDateStr.split("T")[1]?.slice(0, 5) : "23:59") : "23:59",
           color: "rose"
-        })
-      })
-
-      // Bài kiểm tra & Đề thi
-      ;(course.quizzes || []).forEach((q, idx) => {
-        const targetDay = (currentDayNumber + idx * 4 + 4) % daysInCurrentMonth || 20
-        addEvent(assessMapped, targetDay, {
-          type: "quiz",
-          title: `Kiểm tra: ${q.title} (${course.title})`,
-          time: q.duration ? `${q.duration} phút` : "45 phút",
-          color: "purple"
         })
       })
 
@@ -133,6 +163,25 @@ export default function LichHocWidget({ courses = [] }) {
       })
     })
 
+    // ================= TAB 1: ĐỀ THI & BÀI KIỂM TRA MỚI =================
+    mongoExams.forEach((q, idx) => {
+      let targetDay = (currentDayNumber + idx * 4 + 3) % daysInCurrentMonth || 20
+      const dateStr = q.start_time || q.duration || q.end_time || q.dueDate
+      if (dateStr) {
+        const parsed = new Date(dateStr)
+        if (!isNaN(parsed.getDate()) && parsed.getMonth() === currentMonth) {
+          targetDay = parsed.getDate()
+        }
+      }
+
+      addEvent(assessMapped, targetDay, {
+        type: "quiz",
+        title: `Đề thi: ${q.title} (${q.courseTitle || "Khóa học"})`,
+        time: `${q.duration_mins || 15} phút`,
+        color: "purple"
+      })
+    })
+
     if (Object.keys(assessMapped).length === 0) {
       addEvent(assessMapped, currentDayNumber, {
         type: "open",
@@ -144,9 +193,8 @@ export default function LichHocWidget({ courses = [] }) {
 
     setAssessmentEventsMap(assessMapped)
     setScheduleEventsMap(schedMapped)
-  }, [courses, daysInCurrentMonth, currentMonth, currentYear, currentDayNumber])
+  }, [courses, mongoExams, daysInCurrentMonth, currentMonth, currentYear, currentDayNumber])
 
-  // Lấy dữ liệu theo Tab hiện hành
   const currentActiveEventsMap = activeTab === "assessments" ? assessmentEventsMap : scheduleEventsMap
   const selectedDayEvents = currentActiveEventsMap[selectedDayNumber] || []
   const totalAssessmentEvents = Object.values(assessmentEventsMap).reduce((acc, curr) => acc + curr.length, 0)
@@ -154,7 +202,7 @@ export default function LichHocWidget({ courses = [] }) {
 
   return (
     <>
-      {/* ================= ICON CUỐN LỊCH NỔI GÓC TRÁI ================= */}
+      {/* Nút Cuốn Lịch Nổi */}
       <div className="fixed bottom-6 left-6 z-40">
         <button
           onClick={() => {
@@ -166,7 +214,7 @@ export default function LichHocWidget({ courses = [] }) {
         >
           <CalendarIcon className="w-6 h-6 animate-bounce" />
 
-          <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white font-black text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+          <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white font-black text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-xs">
             {totalAssessmentEvents || 1}
           </span>
 
@@ -176,12 +224,12 @@ export default function LichHocWidget({ courses = [] }) {
         </button>
       </div>
 
-      {/* ================= MODAL LỊCH PHÓNG TO 2 TAB ================= */}
+      {/* Modal Lịch Phóng To */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
           <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-scaleUp">
             
-            {/* Header Lịch & Thanh Chuyển Tab */}
+            {/* Header Lịch */}
             <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 p-4 text-white shrink-0 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -215,7 +263,7 @@ export default function LichHocWidget({ courses = [] }) {
                 </div>
               </div>
 
-              {/* 🟢 2 TAB ĐIỀU HƯỚNG CHÍNH */}
+              {/* Điều hướng 2 Tab */}
               <div className="flex items-center bg-black/20 p-1 rounded-2xl w-full sm:w-fit gap-1">
                 <button
                   onClick={() => {
@@ -252,7 +300,7 @@ export default function LichHocWidget({ courses = [] }) {
             {/* Thân Lịch */}
             <div className="p-5 overflow-y-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
               
-              {/* Lưới 31 Ngày */}
+              {/* Lưới ngày */}
               <div className="lg:col-span-8 space-y-3">
                 <div className="grid grid-cols-7 gap-1 text-center font-bold text-[11px] text-slate-400 uppercase tracking-wider pb-1">
                   <span>T2</span>
@@ -280,9 +328,9 @@ export default function LichHocWidget({ courses = [] }) {
                         onClick={() => setSelectedDayNumber(day)}
                         className={`h-16 p-1 rounded-xl border flex flex-col justify-between transition-all cursor-pointer text-left relative group ${
                           isToday
-                            ? "bg-gradient-to-b from-amber-50 to-orange-50/40 border-amber-400 ring-2 ring-amber-400/40 shadow-sm"
+                            ? "bg-gradient-to-b from-amber-50 to-orange-50/40 border-amber-400 ring-2 ring-amber-400/40 shadow-xs"
                             : isSelected
-                            ? "bg-blue-50/90 border-blue-500 shadow-sm ring-2 ring-blue-400/20"
+                            ? "bg-blue-50/90 border-blue-500 shadow-xs ring-2 ring-blue-400/20"
                             : events.length > 0
                             ? "bg-white border-slate-200 hover:border-blue-300 hover:bg-slate-50"
                             : "bg-slate-50/40 border-slate-100 hover:bg-slate-100/60 text-slate-400"
@@ -300,7 +348,7 @@ export default function LichHocWidget({ courses = [] }) {
                           >
                             {day}
                             {isToday && (
-                              <span className="px-1 py-0.2 bg-amber-500 text-white text-[8px] font-black uppercase rounded shadow-xs animate-pulse">
+                              <span className="px-1 py-0.2 bg-amber-500 text-white text-[8px] font-black uppercase rounded shadow-2xs animate-pulse">
                                 Nay
                               </span>
                             )}
@@ -328,7 +376,7 @@ export default function LichHocWidget({ courses = [] }) {
                             >
                               {ev.type === "open" && "🟢 Mở bài"}
                               {ev.type === "due" && "🔴 Hạn nộp"}
-                              {ev.type === "quiz" && "📝 Thi"}
+                              {ev.type === "quiz" && "📝 Đề thi"}
                               {ev.type === "live" && "📹 Tiết học"}
                             </div>
                           ))}
@@ -344,7 +392,7 @@ export default function LichHocWidget({ courses = [] }) {
                 </div>
               </div>
 
-              {/* Khung Chi Tiết Sự Kiện Bên Phải */}
+              {/* Chi tiết sự kiện bên phải */}
               <div className="lg:col-span-4 bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
                   <div className="border-b border-slate-200 pb-2.5 flex items-center justify-between">
@@ -385,10 +433,10 @@ export default function LichHocWidget({ courses = [] }) {
                                   : "bg-blue-100 text-blue-700"
                               }`}
                             >
-                              {ev.type === "open" ? "Bắt đầu mở" : ev.type === "due" ? "Hạn chót nộp" : ev.type === "quiz" ? "Khảo thí" : "Tiết học"}
+                              {ev.type === "open" ? "Bắt đầu mở" : ev.type === "due" ? "Hạn chót nộp" : ev.type === "quiz" ? "Bài thi khảo thí" : "Tiết học"}
                             </span>
                             <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> {ev.time}
+                              <Clock className="w-3.5 h-3.5" /> {ev.time}
                             </span>
                           </div>
                           <h5 className="font-bold text-xs text-slate-900 leading-snug">{ev.title}</h5>
@@ -398,7 +446,7 @@ export default function LichHocWidget({ courses = [] }) {
                   ) : (
                     <div className="p-6 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-200 text-xs">
                       {activeTab === "assessments" 
-                        ? "Không có bài tập mở hay hạn nộp nào trong ngày này." 
+                        ? "Không có bài tập hay đề thi nào trong ngày này." 
                         : "Không có tiết học nào được xếp lịch vào ngày này."}
                     </div>
                   )}
