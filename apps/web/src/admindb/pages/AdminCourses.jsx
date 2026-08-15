@@ -178,7 +178,6 @@ export default function AdminCourses() {
         </div>
 
         <div className="flex items-center space-x-2.5">
-          // Thay vì mở modal, chuyển hướng sang trang riêng:
 <button
   onClick={() => navigate("/admin/courses/create-school")}
   className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center space-x-1.5"

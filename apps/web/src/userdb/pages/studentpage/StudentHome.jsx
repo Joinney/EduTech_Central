@@ -13,15 +13,18 @@ import {
   ThumbsUp, 
   MessageSquare,
   Bookmark,
-  Filter
+  Filter,
+  Radio
 } from "lucide-react"
 
-// 🟢 Đường dẫn trỏ tới WelcomeStudentModal
+// 🟢 Import Modals & Widgets
 import WelcomeStudentModal from "../../components/WelcomeStudentModal.jsx"
+import LichHocWidget from "../../../components/LichHocWidget.jsx"
+import { courseService } from "../../../api/course.api.js"
 
 const API_AUTH_URL = import.meta.env.VITE_API_AUTH_URL || "http://localhost:8001/api/v1"
 
-// Component Canvas hạt phân tử AI chuyển động
+// Component Canvas hạt phân tử AI
 function ParticleCanvas() {
   const canvasRef = useRef(null)
 
@@ -106,11 +109,12 @@ function ParticleCanvas() {
   )
 }
 
-export default function UserHome() {
+export default function StudentHome() {
   const [user, setUser] = useState(null)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+  const [myCourses, setMyCourses] = useState([])
 
-  // 1. Đồng bộ profile mới nhất từ Server khi mở trang
+  // 1. Đồng bộ profile từ Server
   useEffect(() => {
     const fetchLatestProfile = async () => {
       const token = localStorage.getItem("token")
@@ -135,7 +139,18 @@ export default function UserHome() {
     fetchLatestProfile()
   }, [])
 
-  // 2. Lắng nghe thay đổi User và kiểm tra điều kiện bật Modal Onboarding
+  // 2. Lấy dữ liệu khóa học thật của học sinh
+  const fetchStudentCourses = async (studentId, studentEmail) => {
+    try {
+      const res = await courseService.getStudentJoinedCourses(studentId, studentEmail)
+      const courses = Array.isArray(res) ? res : res?.data || []
+      setMyCourses(courses)
+    } catch (err) {
+      console.error("Lỗi lấy danh sách khóa học:", err)
+    }
+  }
+
+  // 3. Lắng nghe trạng thái đăng nhập
   useEffect(() => {
     const loadUserData = () => {
       const storedUser = localStorage.getItem("user")
@@ -143,22 +158,21 @@ export default function UserHome() {
       if (storedUser) {
         try {
           let parsedUser = JSON.parse(storedUser)
-
-          // Bóc tách lớp vỏ bọc nếu object bị lồng { user: ... }
           while (parsedUser && (parsedUser.user || parsedUser.data)) {
             parsedUser = parsedUser.user || parsedUser.data
           }
 
           setUser(parsedUser)
 
-          // Lấy cờ onboarding (hỗ trợ cả camelCase và snake_case)
           const onboardedStatus = parsedUser?.isOnboarded ?? parsedUser?.is_onboarded
-
-          // 🟢 ĐIỀU KIỆN QUYẾT ĐỊNH: Bật Modal nếu cờ chưa bằng true
           if (onboardedStatus !== true) {
             setShowWelcomeModal(true)
           } else {
             setShowWelcomeModal(false)
+          }
+
+          if (parsedUser?.id_users || parsedUser?.id) {
+            fetchStudentCourses(parsedUser.id_users || parsedUser.id, parsedUser.email)
           }
         } catch (e) {
           console.error("Lỗi parse JSON user:", e)
@@ -180,7 +194,6 @@ export default function UserHome() {
     }
   }, [])
 
-  // 🟢 Callback xử lý khi hoàn thành Onboarding
   const handleOnboardingComplete = (updatedUser) => {
     setUser(updatedUser)
     localStorage.setItem("user", JSON.stringify(updatedUser))
@@ -193,14 +206,17 @@ export default function UserHome() {
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-10 relative">
       
-      {/* ================= MODAL CHÀO MỪNG LẦN ĐẦU ĐĂNG NHẬP DÀNH CHO STUDENT ================= */}
+      {/* 🟢 MODAL ONBOARDING CHÀO MỪNG */}
       <WelcomeStudentModal
         isOpen={showWelcomeModal}
         user={user}
         onComplete={handleOnboardingComplete}
       />
-      
-      {/* ================= THANH TẠO VÀ THAM GIA CUỘC HỌP ================= */}
+
+      {/* 📅 WIDGET CUỐN LỊCH HỌC TẬP THỰC TẾ (GÓC TRÁI DƯỚI) */}
+      <LichHocWidget courses={myCourses} />
+
+      {/* ================= THANH TẠO & THAM GIA MEET ================= */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
@@ -226,26 +242,9 @@ export default function UserHome() {
 
       {/* ================= HÀNG 1: LỘ TRÌNH AI ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Banner Lộ trình AI đề xuất */}
         <div className="lg:col-span-2 relative rounded-3xl p-6 border border-slate-300/60 shadow-md overflow-hidden flex flex-col justify-between bg-gradient-to-br from-[#c8d3e0] via-[#b6c4d4] to-[#9eb0c3]">
-          
           <div className="absolute inset-0 bg-gradient-to-tr from-white/30 via-transparent to-blue-200/20 pointer-events-none z-0" />
-
           <ParticleCanvas />
-
-          <span className="absolute top-3 left-4 text-[9px] font-bold text-slate-600/30 select-none pointer-events-none tracking-tight z-0">
-            Bảng điều khiển Học viên - Kinetic Academy
-          </span>
-          <span className="absolute top-3 right-4 text-[9px] font-bold text-slate-600/30 select-none pointer-events-none tracking-tight z-0">
-            Bảng điều khiển Học viên - Kinetic Academy
-          </span>
-          <span className="absolute bottom-3 left-4 text-[9px] font-bold text-slate-600/30 select-none pointer-events-none tracking-tight z-0">
-            Bảng điều khiển Học viên - Kinetic Academy
-          </span>
-          <span className="absolute bottom-3 right-4 text-[9px] font-bold text-slate-600/30 select-none pointer-events-none tracking-tight z-0">
-            Bảng điều khiển Học viên - Kinetic Academy
-          </span>
 
           <div className="relative z-10 flex items-center space-x-2 text-[#0a2540] font-black text-xl mb-5">
             <Sparkles className="w-5 h-5 text-amber-500 fill-amber-400 shrink-0" />
@@ -253,8 +252,6 @@ export default function UserHome() {
           </div>
 
           <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            
-            {/* Card 1 */}
             <div className="bg-white p-5 rounded-2xl shadow-xs flex flex-col justify-between border border-white/60">
               <div>
                 <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider block mb-2">
@@ -272,7 +269,6 @@ export default function UserHome() {
               </button>
             </div>
 
-            {/* Card 2 */}
             <div className="bg-white/80 backdrop-blur-md p-5 rounded-2xl shadow-xs flex flex-col justify-between border border-white/40">
               <div>
                 <span className="text-[10px] font-extrabold text-[#8a5d28] uppercase tracking-wider block mb-2">
@@ -290,7 +286,6 @@ export default function UserHome() {
               </button>
             </div>
 
-            {/* Card 3 */}
             <div className="bg-[#d5ceca]/60 backdrop-blur-md p-5 rounded-2xl shadow-xs flex flex-col justify-between border border-white/30">
               <div>
                 <span className="text-[10px] font-extrabold text-[#703b0d] uppercase tracking-wider block mb-2">
@@ -307,11 +302,9 @@ export default function UserHome() {
                 Bắt đầu
               </button>
             </div>
-
           </div>
         </div>
 
-        {/* Widgets bên phải */}
         <div className="space-y-4">
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
             <div className="flex items-center space-x-2 text-slate-800 font-bold text-sm">
@@ -330,7 +323,7 @@ export default function UserHome() {
             </div>
 
             <p className="text-[11px] text-slate-500 leading-tight pt-1">
-              Mức độ tập trung trung bình tuần này: <strong className="text-blue-600 font-bold">82%</strong>. Tăng 12% so với tuần trước.
+              Mức độ tập trung trung bình tuần này: <strong className="text-blue-600 font-bold">82%</strong>.
             </p>
           </div>
 
@@ -358,130 +351,82 @@ export default function UserHome() {
             </p>
           </div>
         </div>
-
       </div>
 
-      {/* ================= HÀNG 2: HỌC KỲ HIỆN TẠI + BỘ LỌC ================= */}
+      {/* ================= HÀNG 2: MÔN HỌC THỰC TẾ ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="font-bold text-base text-slate-800">Học kỳ hiện tại (Môn học)</h3>
+            <h3 className="font-bold text-base text-slate-800 flex items-center gap-2">
+              <span>Học kỳ hiện tại (Môn học chính quy)</span>
+              <span className="text-xs bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
+                {myCourses.length} Môn
+              </span>
+            </h3>
             <a href="#view-all" className="text-xs font-bold text-blue-600 hover:underline">Xem tất cả</a>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            
-            {/* Card Môn 1 */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
-              <div className="relative h-40 bg-slate-100">
-                <img 
-                  src="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&auto=format&fit=crop&q=80" 
-                  alt="Giai tich" 
-                  className="w-full h-full object-cover"
-                />
-                <span className="absolute top-2.5 left-2.5 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
-                  Bắt buộc
-                </span>
-                <span className="absolute top-2.5 right-2.5 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center space-x-1 shadow-xs">
-                  <Video className="w-3 h-3" />
-                  <span>Lớp học Meet</span>
-                </span>
-              </div>
-
-              <div className="p-4 space-y-3">
-                <div>
-                  <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">
-                    MÔN TOÁN - KHỐI 12
+            {myCourses.map((c) => (
+              <div key={c.id} className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between group">
+                <div className="relative h-40 bg-slate-100">
+                  <img 
+                    src={c.thumbnail || "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=500&auto=format&fit=crop&q=80"} 
+                    alt={c.title} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <span className="absolute top-2.5 left-2.5 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-xs uppercase">
+                    {c.type === "school" ? "Chính Quy" : "Tự Do"}
                   </span>
-                  <h4 className="font-bold text-sm text-slate-800 mt-0.5">
-                    Giải tích 12: Đạo hàm
-                  </h4>
+                  {(c.meetIsActive || c.meet_is_active) && (
+                    <span className="absolute top-2.5 right-2.5 bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center space-x-1 shadow-xs animate-pulse">
+                      <Radio className="w-3 h-3" />
+                      <span>Đang Live</span>
+                    </span>
+                  )}
                 </div>
 
-                <div className="space-y-1">
-                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-blue-600 h-full w-[45%]" />
+                <div className="p-4 space-y-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">
+                      {c.subject || "MÔN HỌC"} - {c.grade || "KHỐI 12"}
+                    </span>
+                    <h4 className="font-bold text-sm text-slate-800 mt-0.5 line-clamp-1">
+                      {c.title}
+                    </h4>
                   </div>
-                  <div className="text-right text-[10px] font-bold text-slate-400">45%</div>
-                </div>
 
-                <p className="text-xs text-slate-500 font-medium">👨‍🏫 TS. Sarah Jenkins</p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    👨‍🏫 {c.teacher_name || c.teacherName || "Giảng viên bộ môn"}
+                  </p>
 
-                <div className="grid grid-cols-3 gap-1 pt-1">
-                  <button className="flex items-center justify-center space-x-1 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-[9px] font-bold text-slate-700 transition">
-                    <FileText className="w-3 h-3 text-slate-500" />
-                    <span>TÓM TẮT AI</span>
-                  </button>
-                  <button className="flex items-center justify-center space-x-1 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-[9px] font-bold text-slate-700 transition">
-                    <Layers className="w-3 h-3 text-slate-500" />
-                    <span>FLASHCARDS</span>
-                  </button>
-                  <button className="flex items-center justify-center space-x-1 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-[9px] font-bold text-slate-700 transition">
-                    <Network className="w-3 h-3 text-slate-500" />
-                    <span>SƠ ĐỒ TƯ DUY</span>
-                  </button>
-                </div>
-
-                <button className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition cursor-pointer">
-                  Học ngay
-                </button>
-              </div>
-            </div>
-
-            {/* Card Môn 2 */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
-              <div className="relative h-40 bg-slate-100">
-                <img 
-                  src="https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=500&auto=format&fit=crop&q=80" 
-                  alt="Vat ly" 
-                  className="w-full h-full object-cover"
-                />
-                <span className="absolute top-2.5 right-2.5 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center space-x-1 shadow-xs">
-                  <Video className="w-3 h-3" />
-                  <span>Lớp học Meet</span>
-                </span>
-              </div>
-
-              <div className="p-4 space-y-3">
-                <div>
-                  <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">
-                    MÔN VẬT LÝ - KHỐI 12
-                  </span>
-                  <h4 className="font-bold text-sm text-slate-800 mt-0.5">
-                    Vật lý 12: Điện xoay chiều
-                  </h4>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-blue-600 h-full w-[15%]" />
+                  <div className="grid grid-cols-3 gap-1 pt-1">
+                    <button className="flex items-center justify-center space-x-1 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-[9px] font-bold text-slate-700 transition">
+                      <FileText className="w-3 h-3 text-slate-500" />
+                      <span>TÓM TẮT AI</span>
+                    </button>
+                    <button className="flex items-center justify-center space-x-1 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-[9px] font-bold text-slate-700 transition">
+                      <Layers className="w-3 h-3 text-slate-500" />
+                      <span>FLASHCARDS</span>
+                    </button>
+                    <button className="flex items-center justify-center space-x-1 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-[9px] font-bold text-slate-700 transition">
+                      <Network className="w-3 h-3 text-slate-500" />
+                      <span>SƠ ĐỒ TƯ DUY</span>
+                    </button>
                   </div>
-                  <div className="text-right text-[10px] font-bold text-slate-400">15%</div>
-                </div>
 
-                <p className="text-xs text-slate-500 font-medium">👨‍🏫 GS. Mark Reed</p>
-
-                <div className="grid grid-cols-3 gap-1 pt-1">
-                  <button className="flex items-center justify-center space-x-1 py-1.5 bg-slate-100 hover:bg-slate-200 rounded text-[9px] font-bold text-slate-700 transition">
-                    <FileText className="w-3 h-3 text-slate-500" />
-                    <span>TÓM TẮT AI</span>
-                  </button>
-                  <button className="flex items-center justify-center space-x-1 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[9px] font-bold text-slate-700 transition">
-                    <Layers className="w-3 h-3 text-slate-500" />
-                    <span>FLASHCARDS</span>
-                  </button>
-                  <button className="flex items-center justify-center space-x-1 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[9px] font-bold text-slate-700 transition">
-                    <Network className="w-3 h-3 text-slate-500" />
-                    <span>SƠ ĐỒ TƯ DUY</span>
+                  <button className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition cursor-pointer">
+                    Vào Học Ngay
                   </button>
                 </div>
-
-                <button className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition cursor-pointer">
-                  Học ngay
-                </button>
               </div>
-            </div>
+            ))}
 
+            {myCourses.length === 0 && (
+              <div className="col-span-2 p-8 text-center bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs">
+                Bạn chưa được phân bổ vào lớp học chính quy nào.
+              </div>
+            )}
           </div>
         </div>
 
@@ -507,163 +452,15 @@ export default function UserHome() {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Năm học / Học kỳ</label>
-                <select className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-500">
-                  <option>2023-2024</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">&nbsp;</label>
-                <select className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-500">
-                  <option>Học kỳ 1</option>
-                </select>
-              </div>
-            </div>
-
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Mức giá</label>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Năm học</label>
               <select className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-blue-500">
-                <option>Tất cả mức giá</option>
+                <option>2026-2027</option>
               </select>
             </div>
 
             <button className="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition mt-2 cursor-pointer">
               Áp dụng bộ lọc
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ================= HÀNG 3: HỌC LIỆU ĐỀ XUẤT ================= */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="font-bold text-base text-slate-800">Học liệu & Khóa học đề xuất</h3>
-          <a href="#shop" className="text-xs font-bold text-blue-600 hover:underline">Xem cửa hàng</a>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex flex-col justify-between space-y-4">
-            <div className="relative bg-slate-100 rounded-xl h-36 flex items-center justify-center">
-              <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-xs">
-                -20%
-              </span>
-              <FileText className="w-10 h-10 text-slate-400" />
-            </div>
-
-            <div>
-              <h4 className="font-bold text-sm text-slate-800">Chuyên sâu Prompt Engineering</h4>
-              <div className="mt-1 flex items-baseline space-x-2">
-                <span className="font-bold text-blue-600 text-sm">450.000đ</span>
-                <span className="text-xs text-slate-400 line-through">560.000đ</span>
-              </div>
-            </div>
-
-            <div className="flex space-x-2">
-              <button className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition cursor-pointer">
-                Mua ngay
-              </button>
-              <button className="p-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 transition cursor-pointer">
-                <ShoppingBag className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex flex-col justify-between space-y-4">
-            <div className="bg-slate-100 rounded-xl h-36 flex items-center justify-center">
-              <PlayCircle className="w-10 h-10 text-slate-400" />
-            </div>
-
-            <div>
-              <h4 className="font-bold text-sm text-slate-800">Mastering React & Tailwind</h4>
-              <div className="mt-1">
-                <span className="font-bold text-blue-600 text-sm">Miễn phí</span>
-              </div>
-            </div>
-
-            <div className="flex space-x-2">
-              <button className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition cursor-pointer">
-                Đăng ký
-              </button>
-              <button className="p-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 transition cursor-pointer">
-                <Bookmark className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ================= HÀNG 4: THƯ VIỆN SỐ ================= */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="font-bold text-base text-slate-800">Thư viện số (Đang nghiên cứu)</h3>
-          <div className="flex space-x-1 bg-slate-200/60 p-0.5 rounded-lg text-xs font-bold text-slate-600">
-            <button className="px-3 py-1 bg-white rounded-md shadow-xs">PDF</button>
-            <button className="px-3 py-1 hover:text-slate-900 transition">Video</button>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-start space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-red-500 shrink-0 mt-1 sm:mt-0">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2 mb-1">
-                  <span className="bg-amber-500/10 text-amber-600 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                    BẮT BUỘC
-                  </span>
-                  <h4 className="font-bold text-xs sm:text-sm text-slate-800">
-                    Kỹ thuật Tối ưu hóa Machine Learning.pdf
-                  </h4>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">2023 • Khối 12 • 45 trang</p>
-                <div className="flex items-center space-x-4 mt-2 text-[11px] text-slate-400 font-medium">
-                  <span className="flex items-center space-x-1"><ThumbsUp className="w-3 h-3" /> <span>124 Hữu ích</span></span>
-                  <span className="flex items-center space-x-1"><MessageSquare className="w-3 h-3" /> <span>32 Bình luận</span></span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2 w-full sm:w-auto">
-              <button className="flex-1 sm:flex-none flex items-center justify-center space-x-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer">
-                <Eye className="w-3.5 h-3.5" />
-                <span>Đọc trực tuyến</span>
-              </button>
-              <button className="flex-1 sm:flex-none flex items-center justify-center space-x-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition cursor-pointer">
-                <Download className="w-3.5 h-3.5" />
-                <span>Tải về</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-start space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-500 shrink-0 mt-1 sm:mt-0">
-                <PlayCircle className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2 mb-1">
-                  <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                    THAM KHẢO
-                  </span>
-                  <h4 className="font-bold text-xs sm:text-sm text-slate-800">
-                    Bài giảng 4: Mở rộng Cơ sở Hạ tầng Đám mây (Video)
-                  </h4>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">2024 • Nền tảng CNTT • 1h 20m</p>
-                <div className="flex items-center space-x-4 mt-2 text-[11px] text-slate-400 font-medium">
-                  <span className="flex items-center space-x-1"><ThumbsUp className="w-3 h-3" /> <span>89 Hữu ích</span></span>
-                  <span className="flex items-center space-x-1"><MessageSquare className="w-3 h-3" /> <span>12 Bình luận</span></span>
-                </div>
-              </div>
-            </div>
-
-            <button className="w-full sm:w-auto flex items-center justify-center space-x-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition cursor-pointer">
-              <PlayCircle className="w-3.5 h-3.5" />
-              <span>Xem ngay</span>
             </button>
           </div>
         </div>

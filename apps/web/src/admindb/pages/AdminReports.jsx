@@ -155,7 +155,7 @@ export default function AdminReports() {
               <div className="border-l-[3px] border-red-500 bg-red-50/50 rounded-r-xl p-3">
                 <div className="flex justify-between items-start mb-1">
                   <div className="flex items-center gap-1.5 text-red-600 font-bold text-xs">
-                    <AlertCircle className="w-3.5 h-3.5" fill="currentColor" className="text-white w-3.5 h-3.5 rounded-full bg-red-500" />
+                   <AlertCircle fill="currentColor" className="text-white w-3.5 h-3.5 rounded-full bg-red-500" />
                     Quá tải Server Database
                   </div>
                   <span className="text-[9px] text-slate-400 font-medium">10 phút trước</span>
@@ -183,7 +183,7 @@ export default function AdminReports() {
               <div className="border-l-[3px] border-[#38497C] bg-slate-50 rounded-r-xl p-3">
                 <div className="flex justify-between items-start mb-1">
                   <div className="flex items-center gap-1.5 text-[#38497C] font-bold text-xs">
-                    <Info className="w-3.5 h-3.5" fill="currentColor" className="text-white w-3.5 h-3.5 rounded-full bg-[#38497C]" />
+                    <Info fill="currentColor" className="text-white w-3.5 h-3.5 rounded-full bg-[#38497C]" />
                     Backup hoàn tất
                   </div>
                   <span className="text-[9px] text-slate-400 font-medium">02:00 AM</span>
