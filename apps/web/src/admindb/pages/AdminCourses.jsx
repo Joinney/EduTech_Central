@@ -11,7 +11,7 @@ import {
   Download
 } from "lucide-react";
 import { courseService } from "../../api/course.api";
-import CreateSchoolCourseModal from "../components/lcms/modals/CreateSchoolCourseModal";
+
 import ImportStudentsModal from "../components/lcms/modals/ImportStudentsModal";
 import ContentTab from "../components/lcms/tabs/ContentTab";
 import StudentsTab from "../components/lcms/tabs/StudentsTab";
@@ -178,13 +178,14 @@ export default function AdminCourses() {
         </div>
 
         <div className="flex items-center space-x-2.5">
-          <button
-            onClick={() => setIsSchoolModalOpen(true)}
-            className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center space-x-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Tạo Lớp Chính Quy Mới</span>
-          </button>
+          // Thay vì mở modal, chuyển hướng sang trang riêng:
+<button
+  onClick={() => navigate("/admin/courses/create-school")}
+  className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center space-x-1.5"
+>
+  <Plus className="w-4 h-4" />
+  <span>Tạo Lớp Chính Quy Mới</span>
+</button>
 
           <button
             onClick={fetchAllData}
@@ -248,12 +249,7 @@ export default function AdminCourses() {
         />
       )}
 
-      {/* MODALS */}
-      <CreateSchoolCourseModal
-        isOpen={isSchoolModalOpen}
-        onClose={() => setIsSchoolModalOpen(false)}
-        onSuccess={fetchAllData}
-      />
+      
 
       <ImportStudentsModal
         isOpen={isImportModalOpen}

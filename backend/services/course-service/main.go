@@ -19,7 +19,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Cấu hình Cloudinary chuyên dùng cho File Document
+// Cấu hình Cloudinary
 const (
 	CloudinaryCloudName = "j3iibkjc"
 	CloudinaryAPIKey    = "923999593653689"
@@ -27,7 +27,7 @@ const (
 )
 
 // ==========================================
-// 1. MODELS DATABASE (LCMS & AUTH)
+// 1. MODELS DATABASE (LCMS, SCHEDULING & AUTH)
 // ==========================================
 
 type Course struct {
@@ -56,6 +56,7 @@ type Course struct {
 	Lessons       []Lesson     `gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE" json:"lessons"`
 	Assignments   []Assignment `gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE" json:"assignments"`
 	Quizzes       []Quiz       `gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE" json:"quizzes"`
+	Schedules     []CourseSchedule `gorm:"foreignKey:CourseID;constraint:OnDelete:CASCADE" json:"schedules"`
 	CreatedAt     time.Time    `json:"createdAt"`
 	UpdatedAt     time.Time    `json:"updatedAt"`
 }
@@ -171,6 +172,27 @@ type CourseDiscussion struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+// 🎯 Model Chuyên môn Giáo viên (1 Giáo viên có thể dạy nhiều môn)
+type TeacherSubject struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	TeacherID   uint      `gorm:"index;not null" json:"teacher_id"`
+	TeacherName string    `gorm:"size:255;not null" json:"teacher_name"`
+	Subject     string    `gorm:"size:100;not null" json:"subject"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// 🎯 Model Lịch dạy chi tiết (Chống trùng lịch)
+type CourseSchedule struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	CourseID    uint      `gorm:"index;not null" json:"course_id"`
+	CourseTitle string    `gorm:"size:255" json:"course_title"`
+	TeacherID   uint      `gorm:"index;not null" json:"teacher_id"`
+	DayOfWeek   string    `gorm:"size:50;not null" json:"day_of_week"` // "Thứ 2", "Thứ 4", "Thứ 6"
+	TimeSlot    string    `gorm:"size:50;not null" json:"time_slot"`   // "Tiết 1 - 3 (07:30 - 09:45)"
+	Type        string    `gorm:"size:50" json:"type"`                 // "school" / "external"
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 // Model User & StudentProfile thuộc database auth_service
 type User struct {
 	IDUsers     uint      `gorm:"primaryKey;column:id_users" json:"id_users"`
@@ -194,7 +216,6 @@ type StudentProfile struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// Cố định tên bảng chuẩn trong PostgreSQL
 func (User) TableName() string             { return "users" }
 func (StudentProfile) TableName() string   { return "student_profiles" }
 func (CourseStudent) TableName() string    { return "course_students" }
@@ -202,6 +223,8 @@ func (LessonProgress) TableName() string   { return "lesson_progress" }
 func (QuizSubmission) TableName() string   { return "quiz_submissions" }
 func (AttendanceLog) TableName() string    { return "attendance_logs" }
 func (CourseDiscussion) TableName() string { return "course_discussions" }
+func (TeacherSubject) TableName() string   { return "teacher_subjects" }
+func (CourseSchedule) TableName() string   { return "course_schedules" }
 
 var db *gorm.DB
 var authDB *gorm.DB
@@ -224,7 +247,6 @@ func initDB() {
 		password = "postgrespassword"
 	}
 
-	// 1. Kết nối Database course_service (Quản lý khóa học, bài giảng, điểm số)
 	courseDBName := os.Getenv("DB_NAME")
 	if courseDBName == "" {
 		courseDBName = "course_service"
@@ -246,19 +268,17 @@ func initDB() {
 		log.Fatalf("❌ KHÔNG THỂ kết nối đến database course_service: %v", err)
 	}
 
-	// 2. Kết nối Database auth_service (Quản lý tài khoản Users để đồng bộ đăng nhập)
 	dsnAuth := fmt.Sprintf("host=%s user=%s password=%s dbname=auth_service port=%s sslmode=disable TimeZone=Asia/Ho_Chi_Minh",
 		host, user, password, port)
 
 	authDB, err = gorm.Open(postgres.Open(dsnAuth), &gorm.Config{})
 	if err != nil {
-		log.Printf("⚠️ Lỗi kết nối database auth_service (sẽ dùng chung db hiện tại): %v", err)
+		log.Printf("⚠️ Lỗi kết nối database auth_service: %v", err)
 		authDB = db
 	} else {
 		log.Println("✅ [course-service] Kết nối thành công đến database auth_service!")
 	}
 
-	// AutoMigrate toàn bộ bảng LCMS
 	db.AutoMigrate(
 		&Course{},
 		&Lesson{},
@@ -270,11 +290,35 @@ func initDB() {
 		&LessonProgress{},
 		&QuizSubmission{},
 		&CourseDiscussion{},
+		&TeacherSubject{},
+		&CourseSchedule{},
 	)
-	log.Println("✅ AutoMigrate toàn bộ 10 bảng LCMS thành công!")
+	log.Println("✅ AutoMigrate toàn bộ 12 bảng LCMS & Lịch giảng dạy thành công!")
+
+	seedTeacherSubjects()
 }
 
-// Xóa file Cloudinary
+// Tự động gán môn chuyên môn mẫu nếu bảng teacher_subjects trống
+func seedTeacherSubjects() {
+	var count int64
+	db.Model(&TeacherSubject{}).Count(&count)
+	if count == 0 {
+		sampleSubjects := []TeacherSubject{
+			{TeacherID: 1, TeacherName: "Phan Thuận", Subject: "Toán Học"},
+			{TeacherID: 1, TeacherName: "Phan Thuận", Subject: "Tin Học"},
+			{TeacherID: 1, TeacherName: "Phan Thuận", Subject: "Lập trình Web"},
+			{TeacherID: 7, TeacherName: "Nguyễn Thị Huyền Diệu", Subject: "Tiếng Anh"},
+			{TeacherID: 7, TeacherName: "Nguyễn Thị Huyền Diệu", Subject: "Ngữ Văn"},
+			{TeacherID: 11, TeacherName: "Võ Duy Toàn", Subject: "Vật Lý"},
+			{TeacherID: 11, TeacherName: "Võ Duy Toàn", Subject: "Hóa Học"},
+			{TeacherID: 14, TeacherName: "Phan Thuận (GV)", Subject: "Toán Học"},
+			{TeacherID: 14, TeacherName: "Phan Thuận (GV)", Subject: "Hóa Học"},
+		}
+		db.Create(&sampleSubjects)
+		log.Println("🌱 Đã khởi tạo dữ liệu chuyên môn giáo viên mẫu (teacher_subjects)!")
+	}
+}
+
 func deleteCloudinaryFile(fileURL string) {
 	if fileURL == "" {
 		return
@@ -359,6 +403,9 @@ func main() {
 		api.PATCH("/courses/:id/meet", updateCourseMeet)
 		api.PATCH("/courses/:id/status", updateCourseStatus)
 
+		// --- NGHIỆP VỤ BỔ NHIỆM & KIỂM TRA LỊCH GIÁO VIÊN ---
+		api.GET("/teachers/qualified", getQualifiedTeachers)
+
 		// --- BÀI HỌC & TIẾN ĐỘ ---
 		api.GET("/courses/:id/lessons", getLessons)
 		api.POST("/courses/:id/lessons", createLesson)
@@ -387,7 +434,7 @@ func main() {
 		api.POST("/courses/:id/join", joinCourse)
 		api.GET("/courses/:id/students", getCourseStudents)
 		api.GET("/students/:student_id/courses", getStudentJoinedCourses)
-		api.POST("/courses/:id/students/import", importStudentsBatch) // 👈 Admin Import Excel
+		api.POST("/courses/:id/students/import", importStudentsBatch)
 
 		// --- ĐIỂM DANH LIVE MEET ---
 		api.POST("/attendance/join", recordJoinAttendance)
@@ -410,6 +457,93 @@ func main() {
 // ==========================================
 // 3. CONTROLLERS & LOGIC
 // ==========================================
+
+// 🎯 API LỌC GIÁO VIÊN THEO CHUYÊN MÔN, KÈM AVATAR, EMAIL & PROFILE CHI TIẾT
+func getQualifiedTeachers(c *gin.Context) {
+	subject := c.Query("subject")
+	dayOfWeek := c.Query("day_of_week")
+	timeSlot := c.Query("time_slot")
+
+	if subject == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Vui lòng chọn môn học/lĩnh vực"})
+		return
+	}
+
+	// 1. Tìm các giáo viên có chuyên môn môn học này
+	var qualified []TeacherSubject
+	db.Where("LOWER(subject) = ?", strings.ToLower(strings.TrimSpace(subject))).Find(&qualified)
+
+	if len(qualified) == 0 {
+		c.JSON(http.StatusOK, gin.H{"data": []interface{}{}, "message": "Chưa có giáo viên nào phụ trách môn học này"})
+		return
+	}
+
+	type TeacherResponse struct {
+		TeacherID     uint     `json:"teacher_id"`
+		TeacherName   string   `json:"teacher_name"`
+		Email         string   `json:"email"`
+		Avatar        string   `json:"avatar"`
+		Subject       string   `json:"subject"`
+		AllSubjects   []string `json:"all_subjects"`
+		TotalCourses  int64    `json:"total_courses"`
+		IsAvailable   bool     `json:"is_available"`
+		ConflictMsg   string   `json:"conflict_msg"`
+	}
+
+	var results []TeacherResponse
+	targetAuthDB := authDB
+	if targetAuthDB == nil {
+		targetAuthDB = db
+	}
+
+	for _, t := range qualified {
+		isAvail := true
+		conflictInfo := ""
+
+		// Quét trùng lịch
+		if dayOfWeek != "" && timeSlot != "" {
+			var conflicts []CourseSchedule
+			db.Where("teacher_id = ? AND day_of_week LIKE ? AND time_slot LIKE ?",
+				t.TeacherID, "%"+dayOfWeek+"%", "%"+timeSlot+"%").Find(&conflicts)
+
+			if len(conflicts) > 0 {
+				isAvail = false
+				conflictInfo = fmt.Sprintf("Bận dạy lớp: %s (%s - %s)",
+					conflicts[0].CourseTitle, conflicts[0].DayOfWeek, conflicts[0].TimeSlot)
+			}
+		}
+
+		// Lấy thông tin user (Avatar, Email) từ auth_service
+		var u User
+		targetAuthDB.Table("users").Where("id_users = ?", t.TeacherID).First(&u)
+		avatar := u.Avatar
+		if avatar == "" {
+			avatar = fmt.Sprintf("https://ui-avatars.com/api/?name=%s&background=0284c7&color=ffffff&bold=true", url.QueryEscape(t.TeacherName))
+		}
+
+		// Lấy tất cả môn giáo viên này phụ trách
+		var allSubs []string
+		db.Model(&TeacherSubject{}).Where("teacher_id = ?", t.TeacherID).Pluck("subject", &allSubs)
+
+		// Đếm tổng số lớp đang dạy
+		var totalClasses int64
+		db.Model(&Course{}).Where("teacher_id = ?", t.TeacherID).Count(&totalClasses)
+
+		results = append(results, TeacherResponse{
+			TeacherID:     t.TeacherID,
+			TeacherName:   t.TeacherName,
+			Email:         u.Email,
+			Avatar:        avatar,
+			Subject:       t.Subject,
+			AllSubjects:   allSubs,
+			TotalCourses:  totalClasses,
+			IsAvailable:   isAvail,
+			ConflictMsg:   conflictInfo,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": results})
+}
 
 func getCourses(c *gin.Context) {
 	var courses []Course
@@ -435,11 +569,52 @@ func getCourses(c *gin.Context) {
 }
 
 func createCourse(c *gin.Context) {
-	var course Course
-	if err := c.ShouldBindJSON(&course); err != nil {
+	var req struct {
+		Course
+		DaysOfWeek string `json:"days_of_week"` // "Thứ 2, Thứ 4, Thứ 6"
+		TimeSlot   string `json:"time_slot"`   // "Tiết 1 - 3 (07:30 - 09:45)"
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	course := req.Course
+
+	// 🔒 1. KIỂM TRA CHUYÊN MÔN: Giáo viên có phụ trách môn này không?
+	var matchSubject TeacherSubject
+	errSub := db.Where("teacher_id = ? AND LOWER(subject) = ?",
+		course.TeacherID, strings.ToLower(strings.TrimSpace(course.Subject))).First(&matchSubject).Error
+
+	if errSub != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Giáo viên %s không thuộc lĩnh vực/chuyên môn '%s'!", course.TeacherName, course.Subject),
+		})
+		return
+	}
+
+	// 🔒 2. KIỂM TRA TRÙNG LỊCH DẠY: Quét trên cả lớp chính quy & mở rộng
+	scheduleStr := course.Schedule
+	if scheduleStr == "" && req.DaysOfWeek != "" {
+		scheduleStr = fmt.Sprintf("%s (%s)", req.DaysOfWeek, req.TimeSlot)
+		course.Schedule = scheduleStr
+	}
+
+	if req.DaysOfWeek != "" && req.TimeSlot != "" {
+		var conflict CourseSchedule
+		errConf := db.Where("teacher_id = ? AND day_of_week LIKE ? AND time_slot LIKE ?",
+			course.TeacherID, "%"+req.DaysOfWeek+"%", "%"+req.TimeSlot+"%").First(&conflict).Error
+
+		if errConf == nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("Trùng lịch dạy! Giáo viên %s đã có lịch dạy lớp '%s' vào %s (%s). Vui lòng chọn khung giờ khác.",
+					course.TeacherName, conflict.CourseTitle, conflict.DayOfWeek, conflict.TimeSlot),
+			})
+			return
+		}
+	}
+
 	if course.Code == "" {
 		prefix := "CLASS"
 		if course.Type == "external" {
@@ -447,6 +622,7 @@ func createCourse(c *gin.Context) {
 		}
 		course.Code = fmt.Sprintf("%s-%d", prefix, time.Now().Unix()%10000)
 	}
+
 	if course.Status == "" {
 		if course.Type == "school" {
 			course.Status = "APPROVED"
@@ -456,14 +632,33 @@ func createCourse(c *gin.Context) {
 			course.IsPublished = false
 		}
 	}
-	db.Create(&course)
+
+	if err := db.Create(&course).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể tạo khóa học"})
+		return
+	}
+
+	// 3. GHI NHẬN LỊCH DẠY VÀO BẢNG course_schedules ĐỂ KHÓA GIỜ CHO GIÁO VIÊN
+	if req.DaysOfWeek != "" && req.TimeSlot != "" {
+		sch := CourseSchedule{
+			CourseID:    course.ID,
+			CourseTitle: course.Title,
+			TeacherID:   course.TeacherID,
+			DayOfWeek:   req.DaysOfWeek,
+			TimeSlot:    req.TimeSlot,
+			Type:        course.Type,
+			CreatedAt:   time.Now(),
+		}
+		db.Create(&sch)
+	}
+
 	c.JSON(http.StatusCreated, course)
 }
 
 func getCourseByID(c *gin.Context) {
 	id := c.Param("id")
 	var course Course
-	if err := db.Preload("Lessons").Preload("Assignments").Preload("Quizzes").First(&course, id).Error; err != nil {
+	if err := db.Preload("Lessons").Preload("Assignments").Preload("Quizzes").Preload("Schedules").First(&course, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy lớp học"})
 		return
 	}
@@ -484,6 +679,7 @@ func deleteCourse(c *gin.Context) {
 			deleteCloudinaryFile(q.FileURL)
 		}
 	}
+	db.Where("course_id = ?", id).Delete(&CourseSchedule{})
 	db.Delete(&Course{}, id)
 	c.JSON(http.StatusOK, gin.H{"message": "Xóa lớp học thành công"})
 }
@@ -584,7 +780,6 @@ func updateLesson(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật bài học thành công", "data": lesson})
 }
 
-// 🎯 ĐÁNH DẤU TIẾN ĐỘ HỌC TẬP
 func markLessonProgress(c *gin.Context) {
 	lessonID := c.Param("id")
 	var req struct {
@@ -814,7 +1009,6 @@ func updateQuiz(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật bài kiểm tra thành công", "data": quiz})
 }
 
-// 🎯 NỘP BÀI THI TRẮC NGHIỆM / QUIZ RESULT
 func submitQuizResult(c *gin.Context) {
 	quizID := c.Param("id")
 	var req struct {
@@ -864,7 +1058,6 @@ func getQuizSubmissions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": subs})
 }
 
-// 🎯 ĐIỂM DANH LIVE MEET (JOIN & LEAVE)
 func recordJoinAttendance(c *gin.Context) {
 	var req struct {
 		CourseID    uint   `json:"course_id"`
@@ -926,7 +1119,6 @@ func getAllAttendanceLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": logs})
 }
 
-// 🎯 DIỄN ĐÀN & THẢO LUẬN
 func getCourseDiscussions(c *gin.Context) {
 	courseID := c.Param("id")
 	var discussions []CourseDiscussion
@@ -947,7 +1139,6 @@ func createDiscussion(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Đăng thảo luận thành công", "data": discussion})
 }
 
-// 🎯 THAM GIA LỚP HỌC (CHỈ ÁP DỤNG CHO KHÓA TỰ DO)
 func joinCourse(c *gin.Context) {
 	courseID := c.Param("id")
 	var req struct {
@@ -967,7 +1158,6 @@ func joinCourse(c *gin.Context) {
 		return
 	}
 
-	// 🔒 RÀNG BUỘC NGHIỆP VỤ: Lớp chính quy không cho tự nhập mã
 	if course.Type == "school" {
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "Đây là Lớp học trường chính quy! Danh sách học viên được Admin phân bổ trực tiếp từ Nhà trường, không thể tự ý nhập mã tham gia.",
@@ -1002,7 +1192,6 @@ func joinCourse(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Đăng ký tham gia lớp thành công!", "data": enrollment})
 }
 
-// 🎯 ADMIN IMPORT EXCEL: TỰ ĐỘNG TẠO USER (BCRYPT) VÀ GHI DANH VÀO LỚP
 func importStudentsBatch(c *gin.Context) {
 	courseID := c.Param("id")
 	var req struct {
@@ -1030,7 +1219,7 @@ func importStudentsBatch(c *gin.Context) {
 	importedCount := 0
 	alreadyInClassCount := 0
 	createdUserCount := 0
-	var errorLogs []string // 👈 Mảng lưu vết lỗi để báo ra màn hình Admin
+	var errorLogs []string
 
 	targetAuthDB := authDB
 	if targetAuthDB == nil {
@@ -1054,26 +1243,20 @@ func importStudentsBatch(c *gin.Context) {
 			avatar = fmt.Sprintf("https://ui-avatars.com/api/?name=%s&background=0284c7&color=ffffff&bold=true", url.QueryEscape(name))
 		}
 
-		// 1. KIỂM TRA TÀI KHOẢN TRONG BẢNG USERS CỦA AUTH_SERVICE
 		var existingUser User
 		errFind := targetAuthDB.Table("users").Where("email = ?", email).First(&existingUser).Error
-
 		finalStudentID := existingUser.IDUsers
 
-		// Nếu không tìm thấy -> Tạo tài khoản mới
 		if errFind != nil || finalStudentID == 0 {
-			// Mã hóa mật khẩu bằng Bcrypt chuẩn
 			hashedPassBytes, hashErr := bcrypt.GenerateFromPassword([]byte(rawPass), bcrypt.DefaultCost)
 			var hashedPass string
 			if hashErr != nil {
-				hashedPass = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy" // Fallback hash 123456
+				hashedPass = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
 			} else {
 				hashedPass = string(hashedPassBytes)
 			}
 
 			now := time.Now()
-			
-			// Tạo bằng Map để bỏ qua các lỗi liên quan đến Struct GORM
 			newUser := map[string]interface{}{
 				"email":        email,
 				"password":     hashedPass,
@@ -1087,9 +1270,7 @@ func importStudentsBatch(c *gin.Context) {
 			}
 
 			errInsert := targetAuthDB.Table("users").Create(&newUser).Error
-			
 			if errInsert == nil {
-				// Lấy lại ID vừa tạo
 				var createdUser User
 				targetAuthDB.Table("users").Where("email = ?", email).First(&createdUser)
 				finalStudentID = createdUser.IDUsers
@@ -1097,8 +1278,7 @@ func importStudentsBatch(c *gin.Context) {
 				if finalStudentID > 0 {
 					createdUserCount++
 					log.Printf("🎉 [auth_service] ĐÃ TẠO TÀI KHOẢN: %s (id: %d)", email, finalStudentID)
-					
-					// Tạo profile học sinh
+
 					targetAuthDB.Table("student_profiles").Create(map[string]interface{}{
 						"user_id":    finalStudentID,
 						"grade":      course.Grade,
@@ -1108,7 +1288,6 @@ func importStudentsBatch(c *gin.Context) {
 					})
 				}
 			} else {
-				// Nếu lỗi, ghi nhận lại để báo cho Admin biết
 				errorMsg := fmt.Sprintf("Lỗi tạo user %s: %v", email, errInsert)
 				log.Println("❌", errorMsg)
 				errorLogs = append(errorLogs, errorMsg)
@@ -1119,7 +1298,6 @@ func importStudentsBatch(c *gin.Context) {
 			finalStudentID = s.StudentID
 		}
 
-		// 2. GHI DANH HỌC VIÊN VÀO BẢNG course_students
 		var existing CourseStudent
 		if err := db.Where("course_id = ? AND student_email = ?", cID, email).First(&existing).Error; err == nil {
 			alreadyInClassCount++
@@ -1140,17 +1318,15 @@ func importStudentsBatch(c *gin.Context) {
 		}
 	}
 
-	// 3. Cập nhật lại tổng sĩ số
 	var totalCount int64
 	db.Model(&CourseStudent{}).Where("course_id = ?", cID).Count(&totalCount)
 	db.Model(&course).UpdateColumn("students_count", totalCount)
 
-	// Ghi kèm lỗi (nếu có) vào màn hình Alert
 	msg := fmt.Sprintf("✅ Kết quả Import:\n• Thêm mới vào lớp: %d học viên\n• Đã có sẵn trong lớp: %d học viên\n• Tạo tài khoản mới: %d\n• Tổng sĩ số lớp hiện tại: %d/%d",
 		importedCount, alreadyInClassCount, createdUserCount, totalCount, course.MaxStudents)
 
 	if len(errorLogs) > 0 {
-		msg += "\n\n⚠️ Chi tiết lỗi DB (Gửi báo cáo này cho IT):\n" + strings.Join(errorLogs, "\n")
+		msg += "\n\n⚠️ Chi tiết lỗi DB:\n" + strings.Join(errorLogs, "\n")
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -1207,7 +1383,7 @@ func getStudentJoinedCourses(c *gin.Context) {
 	}
 
 	var courses []Course
-	db.Preload("Lessons").Preload("Assignments").Preload("Quizzes").Where("id IN ?", courseIDs).Order("created_at desc").Find(&courses)
+	db.Preload("Lessons").Preload("Assignments").Preload("Quizzes").Preload("Schedules").Where("id IN ?", courseIDs).Order("created_at desc").Find(&courses)
 	c.JSON(http.StatusOK, courses)
 }
 

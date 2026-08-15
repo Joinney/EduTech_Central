@@ -1,5 +1,6 @@
 ﻿import React from "react"
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"
+import AdminCreateSchoolCourse from "./admindb/pages/AdminCreateSchoolCourse";
 
 // ================= PUBLIC PAGES =================
 import Home from "./pages/Home.jsx"
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="settings" element={<AdminSettings />} />
           
           <Route path="profile" element={<Profile />} />
+          <Route path="/admin/courses/create-school" element={<AdminCreateSchoolCourse />} />
         </Route>
       </Route>
 
