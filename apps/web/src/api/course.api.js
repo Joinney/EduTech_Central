@@ -1,7 +1,7 @@
 import { courseApi } from './axios';
 
 export const courseService = {
-  // 1. QUẢN LÝ LỚP HỌC & KIỂM DUYỆT (Tương thích cả teacherId lẫn params object)
+  // 1. QUẢN LÝ LỚP HỌC & KIỂM DUYỆT (ADMIN / TEACHER)
   getAllCourses: async (paramOrId) => {
     let params = {};
     if (typeof paramOrId === 'object' && paramOrId !== null) {
@@ -129,7 +129,7 @@ export const courseService = {
     return response.data;
   },
 
-  // 6. THÀNH VIÊN LỚP HỌC
+  // 6. THÀNH VIÊN LỚP HỌC & GHI DANH
   getStudentsByCourse: async (courseId) => {
     const response = await courseApi.get(`/courses/${courseId}/students`);
     return response.data;
@@ -138,8 +138,30 @@ export const courseService = {
     const response = await courseApi.post(`/courses/${courseId}/join`, studentData);
     return response.data;
   },
+  joinCourseByCode: async (code) => {
+    const response = await courseApi.get('/courses');
+    const courses = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+    
+    const matchedCourse = courses.find(
+      (c) => (c.code || "").trim().toUpperCase() === code.trim().toUpperCase()
+    );
+
+    if (!matchedCourse) {
+      throw new Error("Mã lớp không hợp lệ hoặc không tồn tại!");
+    }
+
+    if (matchedCourse.type === "school") {
+      throw new Error("Đây là Lớp học trường chính quy! Danh sách học viên được Admin phân bổ trực tiếp từ Nhà trường, không thể tự ý nhập mã tham gia.");
+    }
+
+    return matchedCourse;
+  },
   getStudentJoinedCourses: async (studentId) => {
     const response = await courseApi.get(`/students/${studentId}/courses`);
+    return response.data;
+  },
+  importStudentsBatch: async (courseId, students) => {
+    const response = await courseApi.post(`/courses/${courseId}/students/import`, { students });
     return response.data;
   },
 

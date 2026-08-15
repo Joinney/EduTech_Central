@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -26,7 +27,7 @@ const (
 )
 
 // ==========================================
-// 1. MODELS DATABASE
+// 1. MODELS DATABASE (LCMS & AUTH)
 // ==========================================
 
 type Course struct {
@@ -44,7 +45,7 @@ type Course struct {
 	Schedule      string       `gorm:"size:255" json:"schedule"`
 	Thumbnail     string       `gorm:"type:text" json:"thumbnail"`
 	Description   string       `gorm:"type:text" json:"description"`
-	Status        string       `gorm:"size:50;default:'APPROVED'" json:"status"` // 'PENDING', 'APPROVED', 'REJECTED', 'NEEDS_REVISION'
+	Status        string       `gorm:"size:50;default:'APPROVED'" json:"status"`
 	Price         float64      `gorm:"type:numeric(12,2);default:0" json:"price"`
 	AdminNote     string       `gorm:"type:text" json:"admin_note"`
 	IsPublished   bool         `gorm:"default:true" json:"is_published"`
@@ -122,7 +123,6 @@ type CourseStudent struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
-// Bảng điểm danh Live Meet
 type AttendanceLog struct {
 	ID              uint       `gorm:"primaryKey" json:"id"`
 	CourseID        uint       `json:"course_id"`
@@ -135,7 +135,6 @@ type AttendanceLog struct {
 	CreatedAt       time.Time  `json:"created_at"`
 }
 
-// Bảng tiến độ học bài
 type LessonProgress struct {
 	ID          uint       `gorm:"primaryKey" json:"id"`
 	CourseID    uint       `json:"course_id"`
@@ -145,7 +144,6 @@ type LessonProgress struct {
 	CompletedAt *time.Time `json:"completed_at"`
 }
 
-// Bảng kết quả thi trắc nghiệm
 type QuizSubmission struct {
 	ID               uint      `gorm:"primaryKey" json:"id"`
 	QuizID           uint      `json:"quiz_id"`
@@ -160,7 +158,6 @@ type QuizSubmission struct {
 	SubmittedAt      time.Time `json:"submitted_at"`
 }
 
-// Bảng thảo luận lớp học
 type CourseDiscussion struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	CourseID   uint      `json:"course_id"`
@@ -174,7 +171,40 @@ type CourseDiscussion struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+// Model User & StudentProfile thuộc database auth_service
+type User struct {
+	IDUsers     uint      `gorm:"primaryKey;column:id_users" json:"id_users"`
+	Email       string    `gorm:"size:255;unique;not null" json:"email"`
+	Password    string    `gorm:"size:255;not null" json:"password"`
+	FullName    string    `gorm:"size:255;not null" json:"full_name"`
+	Role        string    `gorm:"size:50;default:'student'" json:"role"`
+	Status      string    `gorm:"size:50;default:'active'" json:"status"`
+	Avatar      string    `gorm:"type:text" json:"avatar"`
+	IsOnboarded bool      `gorm:"default:true" json:"is_onboarded"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type StudentProfile struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"column:user_id;uniqueIndex" json:"user_id"`
+	Grade     string    `gorm:"size:50" json:"grade"`
+	School    string    `gorm:"size:255" json:"school"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Cố định tên bảng chuẩn trong PostgreSQL
+func (User) TableName() string             { return "users" }
+func (StudentProfile) TableName() string   { return "student_profiles" }
+func (CourseStudent) TableName() string    { return "course_students" }
+func (LessonProgress) TableName() string   { return "lesson_progress" }
+func (QuizSubmission) TableName() string   { return "quiz_submissions" }
+func (AttendanceLog) TableName() string    { return "attendance_logs" }
+func (CourseDiscussion) TableName() string { return "course_discussions" }
+
 var db *gorm.DB
+var authDB *gorm.DB
 
 func initDB() {
 	host := os.Getenv("DB_HOST")
@@ -193,29 +223,42 @@ func initDB() {
 	if password == "" {
 		password = "postgrespassword"
 	}
-	dbname := os.Getenv("DB_NAME")
-	if dbname == "" {
-		dbname = "auth_service"
-	}
 
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Ho_Chi_Minh",
-		host, user, password, dbname, port)
+	// 1. Kết nối Database course_service (Quản lý khóa học, bài giảng, điểm số)
+	courseDBName := os.Getenv("DB_NAME")
+	if courseDBName == "" {
+		courseDBName = "course_service"
+	}
+	dsnCourse := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Ho_Chi_Minh",
+		host, user, password, courseDBName, port)
 
 	var err error
 	for i := 1; i <= 10; i++ {
-		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		db, err = gorm.Open(postgres.Open(dsnCourse), &gorm.Config{})
 		if err == nil {
-			log.Println("✅ Đã kết nối thành công đến PostgreSQL!")
+			log.Println("✅ [course-service] Kết nối thành công đến database course_service!")
 			break
 		}
 		time.Sleep(3 * time.Second)
 	}
 
 	if err != nil {
-		log.Fatalf("❌ KHÔNG THỂ kết nối đến Postgres DB sau 10 lần thử: %v", err)
+		log.Fatalf("❌ KHÔNG THỂ kết nối đến database course_service: %v", err)
 	}
 
-	// Tự động đồng bộ các bảng
+	// 2. Kết nối Database auth_service (Quản lý tài khoản Users để đồng bộ đăng nhập)
+	dsnAuth := fmt.Sprintf("host=%s user=%s password=%s dbname=auth_service port=%s sslmode=disable TimeZone=Asia/Ho_Chi_Minh",
+		host, user, password, port)
+
+	authDB, err = gorm.Open(postgres.Open(dsnAuth), &gorm.Config{})
+	if err != nil {
+		log.Printf("⚠️ Lỗi kết nối database auth_service (sẽ dùng chung db hiện tại): %v", err)
+		authDB = db
+	} else {
+		log.Println("✅ [course-service] Kết nối thành công đến database auth_service!")
+	}
+
+	// AutoMigrate toàn bộ bảng LCMS
 	db.AutoMigrate(
 		&Course{},
 		&Lesson{},
@@ -308,21 +351,21 @@ func main() {
 
 	api := r.Group("/api/v1")
 	{
-		// --- KHÓA HỌC ---
+		// --- KHÓA HỌC & KIỂM DUYỆT ---
 		api.GET("/courses", getCourses)
 		api.POST("/courses", createCourse)
 		api.GET("/courses/:id", getCourseByID)
 		api.DELETE("/courses/:id", deleteCourse)
 		api.PATCH("/courses/:id/meet", updateCourseMeet)
-		api.PATCH("/courses/:id/status", updateCourseStatus) // 👈 Admin duyệt khóa
+		api.PATCH("/courses/:id/status", updateCourseStatus)
 
 		// --- BÀI HỌC & TIẾN ĐỘ ---
 		api.GET("/courses/:id/lessons", getLessons)
 		api.POST("/courses/:id/lessons", createLesson)
 		api.PUT("/lessons/:id", updateLesson)
 		api.DELETE("/lessons/:id", deleteLesson)
-		api.POST("/lessons/:id/progress", markLessonProgress)                 // 👈 Ghi nhận học xong bài
-		api.GET("/courses/:id/progress/:student_id", getStudentCourseProgress) // 👈 Lấy tiến độ học viên
+		api.POST("/lessons/:id/progress", markLessonProgress)
+		api.GET("/courses/:id/progress/:student_id", getStudentCourseProgress)
 
 		// --- BÀI TẬP & NỘP BÀI ---
 		api.GET("/courses/:id/assignments", getAssignments)
@@ -332,24 +375,25 @@ func main() {
 		api.POST("/assignments/:id/submit", submitAssignment)
 		api.GET("/assignments/:id/submissions", getSubmissions)
 
-		// --- BÀI THI / QUIZ ---
+		// --- BÀI THI TRẮC NGHIỆM / QUIZ ---
 		api.GET("/courses/:id/quizzes", getQuizzes)
 		api.POST("/courses/:id/quizzes", createQuiz)
 		api.PUT("/quizzes/:id", updateQuiz)
 		api.DELETE("/quizzes/:id", deleteQuiz)
-		api.POST("/quizzes/:id/submit", submitQuizResult)       // 👈 Nộp điểm thi trắc nghiệm
-		api.GET("/quizzes/:id/submissions", getQuizSubmissions) // 👈 Xem bảng điểm quiz
+		api.POST("/quizzes/:id/submit", submitQuizResult)
+		api.GET("/quizzes/:id/submissions", getQuizSubmissions)
 
-		// --- THÀNH VIÊN LỚP HỌC ---
+		// --- THÀNH VIÊN LỚP HỌC & GHI DANH ---
 		api.POST("/courses/:id/join", joinCourse)
 		api.GET("/courses/:id/students", getCourseStudents)
 		api.GET("/students/:student_id/courses", getStudentJoinedCourses)
+		api.POST("/courses/:id/students/import", importStudentsBatch) // 👈 Admin Import Excel
 
 		// --- ĐIỂM DANH LIVE MEET ---
-		api.POST("/attendance/join", recordJoinAttendance)    // 👈 Vào phòng Meet
-		api.POST("/attendance/leave", recordLeaveAttendance)  // 👈 Rời phòng Meet
-		api.GET("/courses/:id/attendance", getCourseAttendanceLogs) // 👈 Xem nhật ký điểm danh lớp
-		api.GET("/attendance/all", getAllAttendanceLogs)      // 👈 Admin xem toàn bộ nhật ký
+		api.POST("/attendance/join", recordJoinAttendance)
+		api.POST("/attendance/leave", recordLeaveAttendance)
+		api.GET("/courses/:id/attendance", getCourseAttendanceLogs)
+		api.GET("/attendance/all", getAllAttendanceLogs)
 
 		// --- THẢO LUẬN / DIỄN ĐÀN ---
 		api.GET("/courses/:id/discussions", getCourseDiscussions)
@@ -371,24 +415,22 @@ func getCourses(c *gin.Context) {
 	var courses []Course
 	teacherID := c.Query("teacher_id")
 	status := c.Query("status")
-	
+
 	query := db.Preload("Lessons").Preload("Assignments").Preload("Quizzes").Order("created_at desc")
-	
-	// Nếu có truyền teacher_id thì lọc theo giáo viên đó
+
 	if teacherID != "" && teacherID != "undefined" && teacherID != "null" {
 		query = query.Where("teacher_id = ?", teacherID)
 	}
-	
-	// Nếu có truyền status cụ thể (ví dụ Admin muốn lọc) thì mới áp dụng
-	if status != "" && status != "all" && status != "Tất cả" {
+
+	if status != "" && status != "all" && status != "ALL" && status != "Tất cả" {
 		query = query.Where("status = ?", status)
 	}
-	
+
 	if err := query.Find(&courses).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi truy vấn danh sách khóa học"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, courses)
 }
 
@@ -399,10 +441,20 @@ func createCourse(c *gin.Context) {
 		return
 	}
 	if course.Code == "" {
-		course.Code = fmt.Sprintf("CLASS-%d", time.Now().Unix()%10000)
+		prefix := "CLASS"
+		if course.Type == "external" {
+			prefix = "SKILL"
+		}
+		course.Code = fmt.Sprintf("%s-%d", prefix, time.Now().Unix()%10000)
 	}
 	if course.Status == "" {
-		course.Status = "APPROVED" // Mặc định mở luôn hoặc PENDING nếu cần duyệt
+		if course.Type == "school" {
+			course.Status = "APPROVED"
+			course.IsPublished = true
+		} else {
+			course.Status = "PENDING"
+			course.IsPublished = false
+		}
 	}
 	db.Create(&course)
 	c.JSON(http.StatusCreated, course)
@@ -446,9 +498,13 @@ func updateCourseStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	isPublished := req.Status == "APPROVED"
+
 	db.Model(&Course{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"status":     req.Status,
-		"admin_note": req.AdminNote,
+		"status":       req.Status,
+		"admin_note":   req.AdminNote,
+		"is_published": isPublished,
 	})
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật trạng thái kiểm duyệt thành công"})
 }
@@ -545,13 +601,9 @@ func markLessonProgress(c *gin.Context) {
 	lID := uint(parseUint(lessonID))
 	now := time.Now()
 
-	log.Printf("📥 Nhận request tiến độ: CourseID=%d, LessonID=%d, StudentID=%d, Completed=%v",
-		req.CourseID, lID, req.StudentID, req.IsCompleted)
-
 	var progress LessonProgress
 	err := db.Where("lesson_id = ? AND student_id = ?", lID, req.StudentID).First(&progress).Error
 	if err != nil {
-		// Chưa có -> Tạo mới
 		progress = LessonProgress{
 			CourseID:    req.CourseID,
 			LessonID:    lID,
@@ -564,14 +616,12 @@ func markLessonProgress(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu tiến độ"})
 			return
 		}
-		log.Printf("✅ ĐÃ INSERT lesson_progress ID=%d thành công!", progress.ID)
+		log.Printf("✅ Đã lưu tiến độ bài học ID=%d cho StudentID=%d", lID, req.StudentID)
 	} else {
-		// Đã có -> Cập nhật
 		db.Model(&progress).Updates(map[string]interface{}{
 			"is_completed": req.IsCompleted,
 			"completed_at": now,
 		})
-		log.Printf("✅ ĐÃ UPDATE lesson_progress ID=%d thành công!", progress.ID)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Cập nhật tiến độ thành công", "data": progress})
@@ -803,7 +853,7 @@ func submitQuizResult(c *gin.Context) {
 		return
 	}
 
-	log.Printf("🎉 ĐÃ LƯU quiz_submission ID=%d (Điểm: %.1f, HS: %s) vào DB!", sub.ID, sub.Score, sub.StudentName)
+	log.Printf("🎉 ĐÃ LƯU kết quả thi ID=%d (Điểm: %.1f, HS: %s)", sub.ID, sub.Score, sub.StudentName)
 	c.JSON(http.StatusCreated, gin.H{"message": "Đã lưu kết quả thi!", "data": sub})
 }
 
@@ -897,6 +947,7 @@ func createDiscussion(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Đăng thảo luận thành công", "data": discussion})
 }
 
+// 🎯 THAM GIA LỚP HỌC (CHỈ ÁP DỤNG CHO KHÓA TỰ DO)
 func joinCourse(c *gin.Context) {
 	courseID := c.Param("id")
 	var req struct {
@@ -916,8 +967,16 @@ func joinCourse(c *gin.Context) {
 		return
 	}
 
+	// 🔒 RÀNG BUỘC NGHIỆP VỤ: Lớp chính quy không cho tự nhập mã
+	if course.Type == "school" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Đây là Lớp học trường chính quy! Danh sách học viên được Admin phân bổ trực tiếp từ Nhà trường, không thể tự ý nhập mã tham gia.",
+		})
+		return
+	}
+
 	var existing CourseStudent
-	if err := db.Where("course_id = ? AND student_id = ?", course.ID, req.StudentID).First(&existing).Error; err == nil {
+	if err := db.Where("course_id = ? AND (student_id = ? OR student_email = ?)", course.ID, req.StudentID, req.StudentEmail).First(&existing).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Bạn đã tham gia lớp học này rồi!"})
 		return
 	}
@@ -928,6 +987,7 @@ func joinCourse(c *gin.Context) {
 		StudentName:  req.StudentName,
 		StudentEmail: req.StudentEmail,
 		AvatarURL:    req.AvatarURL,
+		CreatedAt:    time.Now(),
 	}
 
 	if err := db.Create(&enrollment).Error; err != nil {
@@ -940,6 +1000,165 @@ func joinCourse(c *gin.Context) {
 	db.Model(&course).UpdateColumn("students_count", actualCount)
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Đăng ký tham gia lớp thành công!", "data": enrollment})
+}
+
+// 🎯 ADMIN IMPORT EXCEL: TỰ ĐỘNG TẠO USER (BCRYPT) VÀ GHI DANH VÀO LỚP
+func importStudentsBatch(c *gin.Context) {
+	courseID := c.Param("id")
+	var req struct {
+		Students []struct {
+			StudentID    uint   `json:"student_id"`
+			StudentName  string `json:"student_name"`
+			StudentEmail string `json:"student_email"`
+			Password     string `json:"password"`
+			AvatarURL    string `json:"avatar_url"`
+		} `json:"students"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu danh sách học viên không hợp lệ"})
+		return
+	}
+
+	var course Course
+	if err := db.First(&course, courseID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy lớp học"})
+		return
+	}
+
+	cID := uint(parseUint(courseID))
+	importedCount := 0
+	alreadyInClassCount := 0
+	createdUserCount := 0
+	var errorLogs []string // 👈 Mảng lưu vết lỗi để báo ra màn hình Admin
+
+	targetAuthDB := authDB
+	if targetAuthDB == nil {
+		targetAuthDB = db
+	}
+
+	for _, s := range req.Students {
+		if strings.TrimSpace(s.StudentEmail) == "" || strings.TrimSpace(s.StudentName) == "" {
+			continue
+		}
+
+		email := strings.TrimSpace(strings.ToLower(s.StudentEmail))
+		name := strings.TrimSpace(s.StudentName)
+		rawPass := strings.TrimSpace(s.Password)
+		if rawPass == "" {
+			rawPass = "123456"
+		}
+
+		avatar := s.AvatarURL
+		if avatar == "" {
+			avatar = fmt.Sprintf("https://ui-avatars.com/api/?name=%s&background=0284c7&color=ffffff&bold=true", url.QueryEscape(name))
+		}
+
+		// 1. KIỂM TRA TÀI KHOẢN TRONG BẢNG USERS CỦA AUTH_SERVICE
+		var existingUser User
+		errFind := targetAuthDB.Table("users").Where("email = ?", email).First(&existingUser).Error
+
+		finalStudentID := existingUser.IDUsers
+
+		// Nếu không tìm thấy -> Tạo tài khoản mới
+		if errFind != nil || finalStudentID == 0 {
+			// Mã hóa mật khẩu bằng Bcrypt chuẩn
+			hashedPassBytes, hashErr := bcrypt.GenerateFromPassword([]byte(rawPass), bcrypt.DefaultCost)
+			var hashedPass string
+			if hashErr != nil {
+				hashedPass = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy" // Fallback hash 123456
+			} else {
+				hashedPass = string(hashedPassBytes)
+			}
+
+			now := time.Now()
+			
+			// Tạo bằng Map để bỏ qua các lỗi liên quan đến Struct GORM
+			newUser := map[string]interface{}{
+				"email":        email,
+				"password":     hashedPass,
+				"full_name":    name,
+				"role":         "student",
+				"status":       "active",
+				"avatar":       avatar,
+				"is_onboarded": true,
+				"created_at":   now,
+				"updated_at":   now,
+			}
+
+			errInsert := targetAuthDB.Table("users").Create(&newUser).Error
+			
+			if errInsert == nil {
+				// Lấy lại ID vừa tạo
+				var createdUser User
+				targetAuthDB.Table("users").Where("email = ?", email).First(&createdUser)
+				finalStudentID = createdUser.IDUsers
+
+				if finalStudentID > 0 {
+					createdUserCount++
+					log.Printf("🎉 [auth_service] ĐÃ TẠO TÀI KHOẢN: %s (id: %d)", email, finalStudentID)
+					
+					// Tạo profile học sinh
+					targetAuthDB.Table("student_profiles").Create(map[string]interface{}{
+						"user_id":    finalStudentID,
+						"grade":      course.Grade,
+						"school":     course.SchoolName,
+						"created_at": now,
+						"updated_at": now,
+					})
+				}
+			} else {
+				// Nếu lỗi, ghi nhận lại để báo cho Admin biết
+				errorMsg := fmt.Sprintf("Lỗi tạo user %s: %v", email, errInsert)
+				log.Println("❌", errorMsg)
+				errorLogs = append(errorLogs, errorMsg)
+			}
+		}
+
+		if finalStudentID == 0 {
+			finalStudentID = s.StudentID
+		}
+
+		// 2. GHI DANH HỌC VIÊN VÀO BẢNG course_students
+		var existing CourseStudent
+		if err := db.Where("course_id = ? AND student_email = ?", cID, email).First(&existing).Error; err == nil {
+			alreadyInClassCount++
+			continue
+		}
+
+		enrollment := CourseStudent{
+			CourseID:     cID,
+			StudentID:    finalStudentID,
+			StudentName:  name,
+			StudentEmail: email,
+			AvatarURL:    avatar,
+			CreatedAt:    time.Now(),
+		}
+
+		if err := db.Create(&enrollment).Error; err == nil {
+			importedCount++
+		}
+	}
+
+	// 3. Cập nhật lại tổng sĩ số
+	var totalCount int64
+	db.Model(&CourseStudent{}).Where("course_id = ?", cID).Count(&totalCount)
+	db.Model(&course).UpdateColumn("students_count", totalCount)
+
+	// Ghi kèm lỗi (nếu có) vào màn hình Alert
+	msg := fmt.Sprintf("✅ Kết quả Import:\n• Thêm mới vào lớp: %d học viên\n• Đã có sẵn trong lớp: %d học viên\n• Tạo tài khoản mới: %d\n• Tổng sĩ số lớp hiện tại: %d/%d",
+		importedCount, alreadyInClassCount, createdUserCount, totalCount, course.MaxStudents)
+
+	if len(errorLogs) > 0 {
+		msg += "\n\n⚠️ Chi tiết lỗi DB (Gửi báo cáo này cho IT):\n" + strings.Join(errorLogs, "\n")
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":            msg,
+		"imported_count":     importedCount,
+		"created_user_count": createdUserCount,
+		"total_students":     totalCount,
+	})
 }
 
 func getCourseStudents(c *gin.Context) {
@@ -964,19 +1183,29 @@ func getCourseStudents(c *gin.Context) {
 
 func getStudentJoinedCourses(c *gin.Context) {
 	studentID := c.Param("student_id")
+	studentEmail := c.Query("email")
+
 	var enrollments []CourseStudent
-	if err := db.Where("student_id = ?", studentID).Find(&enrollments).Error; err != nil {
+	query := db.Where("student_id = ?", studentID)
+	if studentEmail != "" {
+		query = db.Where("student_id = ? OR student_email = ?", studentID, strings.ToLower(studentEmail))
+	}
+
+	if err := query.Find(&enrollments).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi lấy dữ liệu"})
 		return
 	}
+
 	if len(enrollments) == 0 {
 		c.JSON(http.StatusOK, []Course{})
 		return
 	}
+
 	var courseIDs []uint
 	for _, e := range enrollments {
 		courseIDs = append(courseIDs, e.CourseID)
 	}
+
 	var courses []Course
 	db.Preload("Lessons").Preload("Assignments").Preload("Quizzes").Where("id IN ?", courseIDs).Order("created_at desc").Find(&courses)
 	c.JSON(http.StatusOK, courses)
@@ -985,21 +1214,4 @@ func getStudentJoinedCourses(c *gin.Context) {
 func parseUint(s string) uint {
 	val, _ := strconv.ParseUint(s, 10, 32)
 	return uint(val)
-}
-
-// Giữ lại DUY NHẤT 1 bộ này:
-func (LessonProgress) TableName() string {
-	return "lesson_progress"
-}
-
-func (QuizSubmission) TableName() string {
-	return "quiz_submissions"
-}
-
-func (AttendanceLog) TableName() string {
-	return "attendance_logs"
-}
-
-func (CourseDiscussion) TableName() string {
-	return "course_discussions"
 }

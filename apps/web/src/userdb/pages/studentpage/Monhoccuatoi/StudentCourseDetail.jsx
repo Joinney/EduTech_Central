@@ -140,7 +140,7 @@ export default function StudentCourseDetail({ course, onBack }) {
 
   useEffect(() => {
     loadData();
-  }, [course?.id, currentUser?.id]);
+  }, [course?.id, currentUserId]);
 
   // 🎯 2. ĐÁNH DẤU TIẾN ĐỘ BÀI HỌC (LESSON PROGRESS)
   const handleCompleteLesson = async (lesson) => {
@@ -194,7 +194,7 @@ export default function StudentCourseDetail({ course, onBack }) {
 
       if (uploadRes) {
         await courseService.submitAssignment(submittingAssignment.id, {
-          student_id: Number(currentUser.id),
+          student_id: currentUserId,
           student_name: studentName,
           fileUrl: uploadRes.url,
           fileName: uploadRes.fileName

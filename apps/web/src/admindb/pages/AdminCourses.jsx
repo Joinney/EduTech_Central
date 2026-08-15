@@ -32,8 +32,8 @@ import {
   School,
   AlertTriangle,
   Hourglass,
-  ToggleLeft,
-  ToggleRight,
+  FileText,
+  Paperclip,
   X
 } from "lucide-react";
 import { courseService } from "../../api/course.api";
@@ -124,7 +124,7 @@ export default function AdminCourses() {
 
   // Tab chính & Tab con
   const [mainTab, setMainTab] = useState("content");
-  const [courseCategoryTab, setCourseCategoryTab] = useState("external"); // 'external' (Mở rộng) | 'school' (Chính quy)
+  const [courseCategoryTab, setCourseCategoryTab] = useState("external");
   const [subTabContent, setSubTabContent] = useState("course_list");
   const [subTabStudent, setSubTabStudent] = useState("student_list");
   const [subTabLive, setSubTabLive] = useState("schedule");
@@ -152,6 +152,12 @@ export default function AdminCourses() {
     schedule: "Thứ 2, Thứ 4, Thứ 6 (Tiết 1 - 3)",
     description: "Lớp học chính quy theo chương trình chuẩn của Bộ Giáo Dục & Đào Tạo."
   });
+
+  // Modal Import Excel Danh Sách Học Viên
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [targetCourseForImport, setTargetCourseForImport] = useState(null);
+  const [parsedStudents, setParsedStudents] = useState([]);
+  const [isImporting, setIsImporting] = useState(false);
 
   // 1. Đồng bộ URL Query Params
   useEffect(() => {
@@ -224,7 +230,7 @@ export default function AdminCourses() {
     }
   };
 
-  // 4. Admin tạo lớp Trường học chính quy mới (Trực tiếp mở, không qua duyệt)
+  // 4. Admin tạo lớp Trường học chính quy mới
   const handleCreateSchoolCourse = async (e) => {
     e.preventDefault();
     try {
@@ -232,7 +238,7 @@ export default function AdminCourses() {
       const payload = {
         teacher_id: 1,
         teacher_name: schoolFormData.teacher_name,
-        type: "school", // Lớp chính quy
+        type: "school",
         title: schoolFormData.title,
         code: `EDU-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
         subject: schoolFormData.subject,
@@ -242,7 +248,7 @@ export default function AdminCourses() {
         schedule: schoolFormData.schedule,
         thumbnail: "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=600&auto=format&fit=crop",
         description: schoolFormData.description,
-        status: "APPROVED",     // Lớp chính quy mở luôn
+        status: "APPROVED",
         is_published: true
       };
 
@@ -268,10 +274,75 @@ export default function AdminCourses() {
     }
   };
 
-  // Lọc khóa học theo phân loại (Chính quy / Mở rộng) & Tìm kiếm
+  // 5. Đọc file CSV / Excel mẫu
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target.result;
+      const lines = text.split("\n").filter((line) => line.trim() !== "");
+      const students = [];
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(",").map((p) => p.trim().replace(/^"|"$/g, ""));
+        if (parts.length >= 2 && parts[0]) {
+          students.push({
+            student_name: parts[0],
+            student_email: parts[1],
+            password: parts[2] || "123456", // 👈 Nhận mật khẩu
+            student_id: Number(parts[3]) || Math.floor(1000 + Math.random() * 9000),
+            school_name: parts[4] || targetCourseForImport?.schoolName || "THPT",
+            grade: parts[5] || targetCourseForImport?.grade || "Lớp 12"
+          });
+        }
+      }
+      setParsedStudents(students);
+    };
+    reader.readAsText(file);
+  };
+
+  // 1. Tải file mẫu CSV có cột Mật khẩu
+  const handleDownloadSampleFile = () => {
+    const sampleContent =
+      "Họ Và Tên,Email/Tài Khoản,Mật Khẩu,Mã Học Sinh,Trường Học,Khối Lớp\n" +
+      "Nguyễn Văn An,an.nguyen@school.edu.vn,123456,1001,THPT Chuyên Lê Hồng Phong,Lớp 12\n" +
+      "Trần Thị Mai,mai.tran@school.edu.vn,123456,1002,THPT Chuyên Lê Hồng Phong,Lớp 12\n" +
+      "Lê Hoàng Nam,nam.le@school.edu.vn,123456,1003,THPT Chuyên Lê Hồng Phong,Lớp 12\n" +
+      "Phạm Quỳnh Chi,chi.pham@school.edu.vn,123456,1004,THPT Chuyên Lê Hồng Phong,Lớp 12";
+
+    const blob = new Blob(["\uFEFF" + sampleContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Danh_Sach_Hoc_Sinh_${targetCourseForImport?.code || "ChinhQuy"}.csv`;
+    a.click();
+  };
+
+  const handleConfirmImport = async () => {
+    if (!targetCourseForImport || parsedStudents.length === 0) {
+      alert("Chưa có dữ liệu học viên để nạp!");
+      return;
+    }
+
+    try {
+      setIsImporting(true);
+      const res = await courseService.importStudentsBatch(targetCourseForImport.id, parsedStudents);
+      alert(res.message || "Đã nạp danh sách học viên thành công!");
+      setIsImportModalOpen(false);
+      setParsedStudents([]);
+      fetchAllData();
+    } catch (err) {
+      console.error("Lỗi Import học viên:", err);
+      alert("Lỗi trong quá trình nạp dữ liệu!");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Phân loại khóa học
   const externalCourses = courses.filter((c) => c.type === "external");
   const schoolCourses = courses.filter((c) => c.type === "school");
-
   const currentCategoryCourses = courseCategoryTab === "external" ? externalCourses : schoolCourses;
 
   const filteredCourses = currentCategoryCourses.filter((c) => {
@@ -332,7 +403,6 @@ export default function AdminCourses() {
         </div>
 
         <div className="flex items-center space-x-2.5">
-          {/* Nút Tạo Lớp Trường Học Chính Quy */}
           <button
             onClick={() => setIsSchoolModalOpen(true)}
             className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer flex items-center space-x-1.5"
@@ -376,291 +446,435 @@ export default function AdminCourses() {
             ))}
           </div>
 
+          {/* Thanh chuyển đổi Khóa Tự Do vs Lớp Chính Quy */}
+          <div className="flex items-center justify-between gap-4 flex-wrap bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200">
+            <div className="flex items-center space-x-1.5 w-full sm:w-auto">
+              <button
+                onClick={() => {
+                  setCourseCategoryTab("external");
+                  setStatusFilter("ALL");
+                }}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  courseCategoryTab === "external"
+                    ? "bg-white text-orange-600 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <Globe className="w-4 h-4" />
+                <span>Khóa Kỹ Năng / Tự Do - Cần Duyệt ({externalCourses.length})</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setCourseCategoryTab("school");
+                  setStatusFilter("ALL");
+                }}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  courseCategoryTab === "school"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                <School className="w-4 h-4" />
+                <span>Lớp Trường Học Chính Quy ({schoolCourses.length})</span>
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Tìm theo tên khóa, mã lớp, trường..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/20"
+                />
+              </div>
+
+              {subTabContent === "course_list" && courseCategoryTab === "external" && (
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer"
+                >
+                  <option value="ALL">Tất cả trạng thái</option>
+                  <option value="PENDING">Chờ kiểm duyệt (PENDING)</option>
+                  <option value="APPROVED">Đã phê duyệt (APPROVED)</option>
+                  <option value="NEEDS_REVISION">Yêu cầu chỉnh sửa</option>
+                  <option value="REJECTED">Bị từ chối</option>
+                </select>
+              )}
+            </div>
+          </div>
+
           {/* Sub-tab 1.1: Danh sách khóa học */}
           {subTabContent === "course_list" && (
-            <div className="space-y-4">
-              {/* PHÂN CHIA 2 PHẦN: KHÓA MỞ RỘNG (CẦN DUYỆT) VS LỚP CHÍNH QUY (KHÔNG CẦN DUYỆT) */}
-              <div className="flex items-center justify-between gap-4 flex-wrap bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200">
-                <div className="flex items-center space-x-1.5 w-full sm:w-auto">
-                  <button
-                    onClick={() => {
-                      setCourseCategoryTab("external");
-                      setStatusFilter("ALL");
-                    }}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                      courseCategoryTab === "external"
-                        ? "bg-white text-orange-600 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    <Globe className="w-4 h-4" />
-                    <span>Khóa Kỹ Năng / Tự Do - Cần Duyệt ({externalCourses.length})</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setCourseCategoryTab("school");
-                      setStatusFilter("ALL");
-                    }}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                      courseCategoryTab === "school"
-                        ? "bg-white text-blue-600 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    <School className="w-4 h-4" />
-                    <span>Lớp Trường Học Chính Quy ({schoolCourses.length})</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center space-x-2 w-full sm:w-auto">
-                  <div className="relative flex-1 sm:w-64">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Tìm theo mã, tên khóa, giảng viên..."
-                      className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/20"
-                    />
-                  </div>
-
-                  {courseCategoryTab === "external" && (
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer"
-                    >
-                      <option value="ALL">Tất cả trạng thái</option>
-                      <option value="PENDING">Chờ kiểm duyệt (PENDING)</option>
-                      <option value="APPROVED">Đã phê duyệt (APPROVED)</option>
-                      <option value="NEEDS_REVISION">Yêu cầu chỉnh sửa</option>
-                      <option value="REJECTED">Bị từ chối</option>
-                    </select>
-                  )}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              <div className={`${courseCategoryTab === "external" ? "xl:col-span-8" : "xl:col-span-12"} space-y-3`}>
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden text-xs">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px]">
+                      <tr>
+                        <th className="p-3.5">Mã / Tên Khóa Học</th>
+                        <th className="p-3.5">Giảng Viên</th>
+                        <th className="p-3.5">Đơn Vị / Trường</th>
+                        <th className="p-3.5">Nội Dung</th>
+                        <th className="p-3.5">Trạng Thái</th>
+                        <th className="p-3.5 text-right">Thao Tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                      {filteredCourses.map((c) => (
+                        <tr
+                          key={c.id}
+                          onClick={() => setSelectedCourse(c)}
+                          className={`cursor-pointer transition-colors ${
+                            selectedCourse?.id === c.id ? "bg-orange-50/60" : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <td className="p-3.5">
+                            <span className="font-mono text-[10px] text-orange-600 font-bold block">
+                              {c.code}
+                            </span>
+                            <span className="font-bold text-slate-900">{c.title}</span>
+                          </td>
+                          <td className="p-3.5 font-semibold text-slate-800">
+                            {c.teacher_name || c.teacherName || "Chưa phân công"}
+                          </td>
+                          <td className="p-3.5 text-slate-500">{c.schoolName || "EduTech"}</td>
+                          <td className="p-3.5 text-slate-500">
+                            {c.lessons?.length || 0} bài • {c.assignments?.length || 0} bài tập • {c.quizzes?.length || 0} thi
+                          </td>
+                          <td className="p-3.5">{formatStatusBadge(c.status || "APPROVED", c.type)}</td>
+                          <td className="p-3.5 text-right">
+                            {c.type === "school" ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateCourseStatus(
+                                    c.id,
+                                    c.status === "APPROVED" ? "PAUSED" : "APPROVED"
+                                  );
+                                }}
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[11px] transition-colors"
+                              >
+                                {c.status === "APPROVED" ? "Tạm Đóng" : "Mở Lại"}
+                              </button>
+                            ) : (
+                              <button className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-600">
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredCourses.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-slate-400">
+                            Không tìm thấy khóa học nào phù hợp.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              {/* BẢNG DỮ LIỆU & BẢNG KIỂM DUYỆT */}
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-                {/* Cột trái: Danh sách */}
-                <div className={`${courseCategoryTab === "external" ? "xl:col-span-8" : "xl:col-span-12"} space-y-3`}>
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden text-xs">
-                    <table className="w-full text-left">
-                      <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px]">
-                        <tr>
-                          <th className="p-3.5">Mã / Tên Khóa Học</th>
-                          <th className="p-3.5">Giảng Viên</th>
-                          <th className="p-3.5">Đơn Vị / Trường</th>
-                          <th className="p-3.5">Nội Dung</th>
-                          <th className="p-3.5">Trạng Thái</th>
-                          <th className="p-3.5 text-right">Thao Tác</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                        {filteredCourses.map((c) => (
-                          <tr
-                            key={c.id}
-                            onClick={() => setSelectedCourse(c)}
-                            className={`cursor-pointer transition-colors ${
-                              selectedCourse?.id === c.id ? "bg-orange-50/60" : "hover:bg-slate-50"
-                            }`}
-                          >
-                            <td className="p-3.5">
-                              <span className="font-mono text-[10px] text-orange-600 font-bold block">
-                                {c.code}
-                              </span>
-                              <span className="font-bold text-slate-900">{c.title}</span>
-                            </td>
-                            <td className="p-3.5 font-semibold text-slate-800">
-                              {c.teacher_name || c.teacherName || "Chưa phân công"}
-                            </td>
-                            <td className="p-3.5 text-slate-500">{c.schoolName || "EduTech"}</td>
-                            <td className="p-3.5 text-slate-500">
-                              {c.lessons?.length || 0} bài • {c.assignments?.length || 0} bài tập • {c.quizzes?.length || 0} thi
-                            </td>
-                            <td className="p-3.5">{formatStatusBadge(c.status || "APPROVED", c.type)}</td>
-                            <td className="p-3.5 text-right">
-                              {c.type === "school" ? (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleUpdateCourseStatus(
-                                      c.id,
-                                      c.status === "APPROVED" ? "PAUSED" : "APPROVED"
-                                    );
-                                  }}
-                                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[11px] transition-colors"
-                                >
-                                  {c.status === "APPROVED" ? "Tạm Đóng" : "Mở Lại"}
-                                </button>
-                              ) : (
-                                <button className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-600">
-                                  <Eye className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                        {filteredCourses.length === 0 && (
-                          <tr>
-                            <td colSpan={6} className="p-8 text-center text-slate-400">
-                              Không tìm thấy khóa học nào phù hợp.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Cột phải: Bảng Kiểm Duyệt (Chỉ áp dụng cho Khóa Tự Do / Mở Rộng) */}
-                {courseCategoryTab === "external" && (
-                  <div className="xl:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
-                    {selectedCourse ? (
-                      <>
-                        <h3 className="font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
-                          <span>Kiểm Duyệt Khóa Tự Do</span>
-                          <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold font-mono uppercase">
-                            {selectedCourse.code}
-                          </span>
-                        </h3>
-                        <div className="space-y-2">
-                          <p className="text-slate-500">
-                            Khóa học: <strong className="text-slate-900">{selectedCourse.title}</strong>
-                          </p>
-                          <p className="text-slate-500">
-                            Giảng viên:{" "}
-                            <strong className="text-slate-800">
-                              {selectedCourse.teacher_name || selectedCourse.teacherName || "Chưa gán"}
-                            </strong>
-                          </p>
-                          <p className="text-slate-500">
-                            Chuyên đề: <strong className="text-slate-800">{selectedCourse.subject}</strong>
-                          </p>
-                          <p className="text-slate-500">
-                            Đơn vị: <strong className="text-slate-800">{selectedCourse.schoolName}</strong>
-                          </p>
-                          <div className="flex items-center space-x-2 pt-1">
-                            <span className="text-slate-500">Trạng thái:</span>
-                            {formatStatusBadge(selectedCourse.status || "APPROVED", selectedCourse.type)}
-                          </div>
+              {/* Bảng Kiểm Duyệt Khóa Tự Do */}
+              {courseCategoryTab === "external" && (
+                <div className="xl:col-span-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
+                  {selectedCourse ? (
+                    <>
+                      <h3 className="font-extrabold text-sm text-slate-900 border-b border-slate-100 pb-3 flex items-center justify-between">
+                        <span>Kiểm Duyệt Khóa Tự Do</span>
+                        <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold font-mono uppercase">
+                          {selectedCourse.code}
+                        </span>
+                      </h3>
+                      <div className="space-y-2">
+                        <p className="text-slate-500">
+                          Khóa học: <strong className="text-slate-900">{selectedCourse.title}</strong>
+                        </p>
+                        <p className="text-slate-500">
+                          Giảng viên:{" "}
+                          <strong className="text-slate-800">
+                            {selectedCourse.teacher_name || selectedCourse.teacherName || "Chưa gán"}
+                          </strong>
+                        </p>
+                        <p className="text-slate-500">
+                          Chuyên đề: <strong className="text-slate-800">{selectedCourse.subject}</strong>
+                        </p>
+                        <p className="text-slate-500">
+                          Đơn vị: <strong className="text-slate-800">{selectedCourse.schoolName}</strong>
+                        </p>
+                        <div className="flex items-center space-x-2 pt-1">
+                          <span className="text-slate-500">Trạng thái:</span>
+                          {formatStatusBadge(selectedCourse.status || "APPROVED", selectedCourse.type)}
                         </div>
+                      </div>
 
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                          <span className="font-bold text-slate-700 block uppercase text-[10px]">
-                            Ý kiến / Ghi chú phản hồi đến Giảng viên
-                          </span>
-                          <textarea
-                            rows="3"
-                            value={adminNote}
-                            onChange={(e) => setAdminNote(e.target.value)}
-                            placeholder="Nhập lý do phê duyệt, từ chối hoặc yêu cầu sửa đổi..."
-                            className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs resize-none outline-none focus:border-orange-500"
-                          />
-                        </div>
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                        <span className="font-bold text-slate-700 block uppercase text-[10px]">
+                          Ý kiến / Ghi chú phản hồi đến Giảng viên
+                        </span>
+                        <textarea
+                          rows="3"
+                          value={adminNote}
+                          onChange={(e) => setAdminNote(e.target.value)}
+                          placeholder="Nhập lý do phê duyệt, từ chối hoặc yêu cầu sửa đổi..."
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs resize-none outline-none focus:border-orange-500"
+                        />
+                      </div>
 
-                        <div className="space-y-2">
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => handleUpdateCourseStatus(selectedCourse.id, "APPROVED")}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Phê Duyệt Khóa Học (APPROVED)</span>
+                        </button>
+
+                        <div className="grid grid-cols-2 gap-2">
                           <button
-                            onClick={() => handleUpdateCourseStatus(selectedCourse.id, "APPROVED")}
-                            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center justify-center space-x-1.5 shadow-sm cursor-pointer"
+                            onClick={() => handleUpdateCourseStatus(selectedCourse.id, "NEEDS_REVISION")}
+                            className="py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-xl border border-amber-200 flex items-center justify-center space-x-1 cursor-pointer"
                           >
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span>Phê Duyệt Khóa Học (APPROVED)</span>
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Yêu Cầu Sửa</span>
                           </button>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={() => handleUpdateCourseStatus(selectedCourse.id, "NEEDS_REVISION")}
-                              className="py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-xl border border-amber-200 flex items-center justify-center space-x-1 cursor-pointer"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                              <span>Yêu Cầu Sửa</span>
-                            </button>
-                            <button
-                              onClick={() => handleUpdateCourseStatus(selectedCourse.id, "REJECTED")}
-                              className="py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl border border-rose-200 flex items-center justify-center space-x-1 cursor-pointer"
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                              <span>Từ Chối</span>
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleUpdateCourseStatus(selectedCourse.id, "REJECTED")}
+                            className="py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl border border-rose-200 flex items-center justify-center space-x-1 cursor-pointer"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>Từ Chối</span>
+                          </button>
                         </div>
-                      </>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-center text-slate-400 py-8">Chọn một khóa học bên trái để kiểm duyệt.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-tab 1.2: Cấu trúc bài giảng chi tiết */}
+          {subTabContent === "curriculum" && (
+            <div className="space-y-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    Cấu Trúc Chương Mục & Bài Giảng:{" "}
+                    <span className={courseCategoryTab === "external" ? "text-orange-600" : "text-blue-600"}>
+                      {courseCategoryTab === "external" ? "Khóa Kỹ Năng / Tự Do" : "Lớp Trường Học Chính Quy"}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Hiển thị toàn bộ cây bài học theo từng lớp được đăng tải trong hệ thống.
+                  </p>
+                </div>
+                <span className="text-xs font-bold px-3 py-1 bg-slate-100 text-slate-700 rounded-xl">
+                  Tổng: {filteredCourses.length} Lớp
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {filteredCourses.map((c) => (
+                  <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono text-xs font-bold text-orange-600 px-2 py-0.5 bg-orange-50 rounded-md">
+                            {c.code}
+                          </span>
+                          <h4 className="font-extrabold text-sm text-slate-900">{c.title}</h4>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Đơn vị: <strong>{c.schoolName}</strong> • Giảng viên: <strong>{c.teacher_name || c.teacherName || "Chưa gán"}</strong>
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 shrink-0">
+                        {c.lessons?.length || 0} Bài Giảng
+                      </span>
+                    </div>
+
+                    {(c.lessons || []).length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                        {c.lessons.map((l, i) => (
+                          <div
+                            key={l.id}
+                            className="p-3 bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl flex items-center justify-between transition-colors text-xs"
+                          >
+                            <div className="flex items-center space-x-2.5 truncate pr-2">
+                              <span className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0">
+                                {i + 1}
+                              </span>
+                              <div className="truncate">
+                                <h5 className="font-bold text-slate-900 truncate">{l.title}</h5>
+                                <span className="text-[10px] text-slate-400">Thời lượng: {l.duration || "30 phút"}</span>
+                              </div>
+                            </div>
+                            {(l.fileUrl || l.file_url) && (
+                              <span className="p-1 text-blue-600 bg-blue-50 rounded" title="Có tệp tài liệu">
+                                <Paperclip className="w-3.5 h-3.5" />
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <p className="text-center text-slate-400 py-8">Chọn một khóa học bên trái để kiểm duyệt.</p>
+                      <div className="p-4 text-center text-slate-400 bg-slate-50 rounded-xl text-xs">
+                        Chưa có bài giảng nào trong lớp này.
+                      </div>
                     )}
+                  </div>
+                ))}
+
+                {filteredCourses.length === 0 && (
+                  <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs">
+                    Không tìm thấy lớp học nào thuộc mục này.
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Sub-tab 1.2: Cấu trúc chương mục */}
-          {subTabContent === "curriculum" && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
-              <h3 className="font-bold text-sm text-slate-900">Chi tiết cấu trúc bài giảng các lớp</h3>
-              <div className="space-y-3">
-                {courses.map((c) => (
-                  <div key={c.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                    <div className="flex justify-between items-center">
-                      <h4 className="font-bold text-slate-900">
-                        {c.title} ({c.code}) -{" "}
-                        <span className="text-orange-600 font-normal">
-                          {c.type === "school" ? "Chính quy" : "Tự do"}
-                        </span>
-                      </h4>
-                      <span className="font-bold text-orange-600">{c.lessons?.length || 0} bài giảng</span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
-                      {(c.lessons || []).map((l, i) => (
-                        <div
-                          key={l.id}
-                          className="p-2.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between"
-                        >
-                          <span>
-                            {i + 1}. {l.title}
-                          </span>
-                          <span className="text-[10px] text-slate-400">{l.duration || "30 phút"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Sub-tab 1.3: Tài nguyên đính kèm */}
+          {/* Sub-tab 1.3: Kho học liệu & Tệp đính kèm */}
           {subTabContent === "resources" && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
-              <h3 className="font-bold text-sm text-slate-900">Kho tài liệu & Tệp bài giảng đính kèm</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {courses
-                  .flatMap((c) => (c.lessons || []).filter((l) => l.fileUrl || l.file_url))
-                  .map((l, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between"
-                    >
-                      <div className="truncate pr-2">
-                        <h5 className="font-bold text-slate-900 truncate">
-                          {l.fileName || l.file_name || l.title}
-                        </h5>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Tệp bài học</p>
+            <div className="space-y-4">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    Kho Học Liệu & Tài Nguyên Đính Kèm:{" "}
+                    <span className={courseCategoryTab === "external" ? "text-orange-600" : "text-blue-600"}>
+                      {courseCategoryTab === "external" ? "Khóa Kỹ Năng / Tự Do" : "Lớp Trường Học Chính Quy"}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Tài liệu, Slide bài giảng, Đề bài tập và Đề thi trắc nghiệm được gom nhóm theo từng lớp cụ thể.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {filteredCourses.map((c) => {
+                  const lessonFiles = (c.lessons || [])
+                    .filter((l) => l.fileUrl || l.file_url)
+                    .map((l) => ({
+                      type: "Bài Giảng",
+                      title: l.title,
+                      fileName: l.fileName || l.file_name || l.title,
+                      fileUrl: l.fileUrl || l.file_url,
+                      color: "blue"
+                    }));
+
+                  const assignmentFiles = (c.assignments || [])
+                    .filter((a) => a.fileUrl || a.file_url)
+                    .map((a) => ({
+                      type: "Đề Bài Tập",
+                      title: a.title,
+                      fileName: a.fileName || a.file_name || a.title,
+                      fileUrl: a.fileUrl || a.file_url,
+                      color: "orange"
+                    }));
+
+                  const quizFiles = (c.quizzes || [])
+                    .filter((q) => q.fileUrl || q.file_url)
+                    .map((q) => ({
+                      type: "Đề Kiểm Tra",
+                      title: q.title,
+                      fileName: q.fileName || q.file_name || q.title,
+                      fileUrl: q.fileUrl || q.file_url,
+                      color: "rose"
+                    }));
+
+                  const allClassFiles = [...lessonFiles, ...assignmentFiles, ...quizFiles];
+
+                  return (
+                    <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                        <div className="flex items-center space-x-2.5">
+                          <span className="font-mono text-xs font-bold text-orange-600 px-2 py-0.5 bg-orange-50 rounded-md">
+                            {c.code}
+                          </span>
+                          <h4 className="font-extrabold text-sm text-slate-900">{c.title}</h4>
+                          <span className="text-[11px] text-slate-400">({c.schoolName})</span>
+                        </div>
+                        <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700">
+                          {allClassFiles.length} Tệp Tài Liệu
+                        </span>
                       </div>
-                      <a
-                        href={l.fileUrl || l.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        download
-                        className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                      </a>
+
+                      {allClassFiles.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {allClassFiles.map((file, idx) => (
+                            <div
+                              key={idx}
+                              className="p-3.5 bg-slate-50/90 hover:bg-slate-100/90 border border-slate-200/80 rounded-xl flex items-center justify-between transition-all"
+                            >
+                              <div className="flex items-start space-x-2.5 truncate pr-2">
+                                <div
+                                  className={`p-2 rounded-lg shrink-0 ${
+                                    file.color === "blue"
+                                      ? "bg-blue-100 text-blue-700"
+                                      : file.color === "orange"
+                                      ? "bg-orange-100 text-orange-700"
+                                      : "bg-rose-100 text-rose-700"
+                                  }`}
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </div>
+                                <div className="truncate text-xs">
+                                  <h5 className="font-bold text-slate-900 truncate">{file.fileName}</h5>
+                                  <p className="text-[10px] text-slate-500 mt-0.5">
+                                    Loại: <span className="font-semibold">{file.type}</span> • Thuộc: {file.title}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-1 shrink-0">
+                                <a
+                                  href={file.fileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-1.5 bg-white hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition-colors"
+                                  title="Xem trực tiếp"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </a>
+                                <a
+                                  href={file.fileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  download
+                                  className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                                  title="Tải về máy"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 text-center text-slate-400 bg-slate-50 rounded-xl text-xs">
+                          Lớp này hiện chưa có tệp tài liệu nào được đính kèm.
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  );
+                })}
+
+                {filteredCourses.length === 0 && (
+                  <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-slate-200 text-slate-400 text-xs">
+                    Không tìm thấy lớp học nào thuộc mục này.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -670,41 +884,85 @@ export default function AdminCourses() {
       {/* ==================== 2. LỚP HỌC & HỌC VIÊN ==================== */}
       {mainTab === "students" && (
         <div className="space-y-4">
-          <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">
-            {[
-              { id: "student_list", label: "Danh sách thành viên các lớp", icon: Users },
-              { id: "progress", label: "Tiến độ bài học thực tế", icon: TrendingUp }
-            ].map((st) => (
-              <button
-                key={st.id}
-                onClick={() => handleSwitchSubTab(st.id)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  subTabStudent === st.id
-                    ? "bg-[#38497C] text-white shadow-sm"
-                    : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                }`}
-              >
-                <st.icon className="w-4 h-4" />
-                <span>{st.label}</span>
-              </button>
-            ))}
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2 flex-wrap gap-2">
+            <div className="flex items-center space-x-2">
+              {[
+                { id: "student_list", label: "Quản Lý Danh Sách Học Viên Theo Lớp", icon: Users },
+                { id: "progress", label: "Tiến Độ Học Tập Trực Tiếp", icon: TrendingUp }
+              ].map((st) => (
+                <button
+                  key={st.id}
+                  onClick={() => handleSwitchSubTab(st.id)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    subTabStudent === st.id
+                      ? "bg-[#38497C] text-white shadow-sm"
+                      : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                  }`}
+                >
+                  <st.icon className="w-4 h-4" />
+                  <span>{st.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-xs space-y-4">
-            <h3 className="font-bold text-sm text-slate-900">Thống kê học viên & Quy mô đào tạo</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl">
-                <span className="text-blue-800 font-bold">Lớp chính quy đang mở</span>
-                <h4 className="text-2xl font-black text-blue-600 mt-1">{schoolCourses.length} Lớp</h4>
-              </div>
-              <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl">
-                <span className="text-purple-800 font-bold">Khóa kỹ năng mở rộng</span>
-                <h4 className="text-2xl font-black text-purple-600 mt-1">{externalCourses.length} Khóa</h4>
-              </div>
-              <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
-                <span className="text-amber-800 font-bold">Lượt điểm danh trực tuyến</span>
-                <h4 className="text-2xl font-black text-amber-600 mt-1">{attendanceLogs.length} Lượt</h4>
-              </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              {courses.map((c) => (
+                <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span
+                          className={`px-2 py-0.5 text-[10px] font-black uppercase rounded-md ${
+                            c.type === "school" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
+                          }`}
+                        >
+                          {c.type === "school" ? "Lớp Chính Quy (Excel)" : "Khóa Kỹ Năng (Tự Do)"}
+                        </span>
+                        <span className="font-mono text-xs font-bold text-orange-600 px-1.5 py-0.5 bg-orange-50 rounded">
+                          {c.code}
+                        </span>
+                        <h4 className="font-extrabold text-sm text-slate-900">{c.title}</h4>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Trường: <strong>{c.schoolName}</strong> • Giảng viên:{" "}
+                        <strong>{c.teacher_name || c.teacherName}</strong> • Sĩ số:{" "}
+                        <strong className="text-blue-600">
+                          {c.studentsCount || 0}/{c.maxStudents} Học viên
+                        </strong>
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      {c.type === "school" ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTargetCourseForImport(c);
+                            setParsedStudents([]);
+                            setIsImportModalOpen(true);
+                          }}
+                          className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>📥 Import DS Học Sinh (Excel)</span>
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 font-semibold bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                          Mã tham gia: <strong className="text-orange-600 font-mono">{c.code}</strong>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-500">
+                    {c.type === "school"
+                      ? "📌 Lớp chính quy: Danh sách học sinh được phân bổ trực tiếp từ file Excel do Trường/Sở gửi về."
+                      : "🔓 Khóa tự do: Học sinh tự nhập mã lớp để tham gia."}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -990,6 +1248,111 @@ export default function AdminCourses() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL IMPORT DANH SÁCH HỌC VIÊN BẰNG EXCEL / CSV ================= */}
+      {isImportModalOpen && targetCourseForImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-4 text-white flex justify-between items-center shrink-0">
+              <div className="flex items-center space-x-2">
+                <School className="w-5 h-5 text-emerald-200" />
+                <div>
+                  <h3 className="font-extrabold text-sm">Nạp Danh Sách Học Viên Từ Excel</h3>
+                  <p className="text-[11px] text-emerald-100">
+                    Lớp: <strong>{targetCourseForImport.title}</strong> ({targetCourseForImport.code})
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsImportModalOpen(false)}
+                className="p-1 hover:bg-white/20 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <h5 className="font-bold text-emerald-900">Quy chuẩn file Excel / CSV:</h5>
+                  <p className="text-[11px] text-emerald-700">
+                    File cần có các cột: <strong>Họ Và Tên</strong>, <strong>Email / Tài Khoản</strong>, <strong>Mã Học Sinh</strong>.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadSampleFile}
+                  className="px-3 py-1.5 bg-white border border-emerald-300 hover:bg-emerald-100 text-emerald-800 font-bold rounded-xl text-xs flex items-center space-x-1 shrink-0 transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Tải File Mẫu (.CSV)</span>
+                </button>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-2">
+                  Chọn tệp Excel / CSV danh sách học sinh trường gửi:
+                </label>
+                <input
+                  type="file"
+                  accept=".csv,.txt"
+                  onChange={handleFileUpload}
+                  className="w-full p-6 border-2 border-dashed border-slate-300 rounded-2xl bg-slate-50 text-xs font-bold text-slate-600 text-center file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                />
+              </div>
+
+              {parsedStudents.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-800">
+                      Xem trước dữ liệu ({parsedStudents.length} học viên):
+                    </span>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 uppercase text-[10px] text-slate-500 font-bold border-b sticky top-0">
+                        <tr>
+                          <th className="p-2.5">Mã HS</th>
+                          <th className="p-2.5">Họ Và Tên</th>
+                          <th className="p-2.5">Email / Tài Khoản</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {parsedStudents.map((s, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-mono text-orange-600 font-bold">{s.student_id}</td>
+                            <td className="p-2.5 font-bold text-slate-900">{s.student_name}</td>
+                            <td className="p-2.5 text-slate-500">{s.student_email}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(false)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isImporting || parsedStudents.length === 0}
+                onClick={handleConfirmImport}
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-md shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
+              >
+                {isImporting && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>{isImporting ? "Đang nạp dữ liệu..." : `Xác Nhận Nhập ${parsedStudents.length} Học Viên`}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
