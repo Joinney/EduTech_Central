@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { 
   ArrowLeft, 
   BookOpen, 
@@ -24,7 +25,6 @@ import {
   Paperclip, 
   Loader2, 
   FileCheck, 
-  ShieldAlert, 
   Award,
   Check
 } from "lucide-react"
@@ -33,7 +33,6 @@ import { courseService } from "../../../../api/course.api"
 import { quizApi } from "../../../../api/quiz.api"
 import LiveMeetingRoom from "./LiveMeetingRoom.jsx"
 
-// Cấu hình Cloudinary dành cho File Tệp (Word, PDF, Slide)[cite: 1]
 const CLOUD_NAME = "j3iibkjc";
 const UPLOAD_PRESET = "ml_default"; 
 
@@ -88,7 +87,9 @@ const formatForDateTimeInput = (val) => {
 };
 
 export default function CourseDetail({ course, onBack }) {
-  // 1. Thứ tự tab mặc định: Bài giảng[cite: 1]
+  const navigate = useNavigate();
+
+  // Thứ tự tab mặc định: Bài giảng
   const [activeTab, setActiveTab] = useState("lessons") // "lessons" | "assignments" | "quizzes" | "students"
   const [isInMeeting, setIsInMeeting] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
@@ -112,12 +113,6 @@ export default function CourseDetail({ course, onBack }) {
   const [viewSubmissionsAssignment, setViewSubmissionsAssignment] = useState(null)
   const [submissionsList, setSubmissionsList] = useState([])
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false)
-
-  // Danh sách nộp bài thi (MongoDB)
-  const [viewingExamSubmissions, setViewingExamSubmissions] = useState(null)
-  const [examSubmissionsList, setExamSubmissionsList] = useState([])
-  const [isLoadingExamSubs, setIsLoadingExamSubs] = useState(false)
-  const [showViolationDetails, setShowViolationDetails] = useState(false) // 👈 Mặc định TẮT giám sát
 
   // State Xem Trước Đề Thi Thật Bóc Tách từ File Word
   const [previewStudentExam, setPreviewStudentExam] = useState(false)
@@ -192,18 +187,10 @@ export default function CourseDetail({ course, onBack }) {
     }
   };
 
-  const handleOpenExamSubmissions = async (quiz) => {
-    setViewingExamSubmissions(quiz);
-    setShowViolationDetails(false);
-    setIsLoadingExamSubs(true);
-    try {
-      const subs = await quizApi.getAllSubmissions(quiz.id || quiz._id);
-      setExamSubmissionsList(subs);
-    } catch (err) {
-      console.error("Lỗi lấy bài nộp thi:", err);
-    } finally {
-      setIsLoadingExamSubs(false);
-    }
+  // 🎯 ĐIỀU HƯỚNG SANG TRANG RIÊNG BIỆT ĐỂ XEM DANH SÁCH BÀI LÀM
+  const handleOpenExamSubmissions = (quiz) => {
+    const examId = quiz.id || quiz._id;
+    navigate(`/teacher/exam/${examId}/submissions`);
   };
 
   const handleSaveMeet = (e) => {
@@ -272,7 +259,6 @@ export default function CourseDetail({ course, onBack }) {
     setModalType("view");
   };
 
-  // 🎯 HÀM XỬ LÝ BÓC TÁCH VÀ XEM TRƯỚC FILE WORD THẬT
   const handleTriggerPreview = async () => {
     if (!selectedFile) {
       alert("Vui lòng chọn file Word (.docx) trước!");
@@ -281,10 +267,8 @@ export default function CourseDetail({ course, onBack }) {
 
     try {
       setIsParsingPreview(true);
-      // 1. Upload file tạm lên Cloudinary
       const uploadRes = await uploadDocumentFile(selectedFile);
       if (uploadRes?.url) {
-        // 2. Gửi URL sang quiz-service để bóc tách câu hỏi thật
         const parsedData = await quizApi.parsePreview(uploadRes.url);
         setParsedPreviewQuestions(parsedData || []);
         setPreviewStudentExam(true);
@@ -315,7 +299,6 @@ export default function CourseDetail({ course, onBack }) {
         }
       }
 
-      // 1. Bài giảng (Postgres)[cite: 1]
       if (formCategory === "lesson") {
         if (modalType === "create") {
           const response = await fetch(`${baseUrl}/courses/${course.id}/lessons`, {
@@ -348,7 +331,6 @@ export default function CourseDetail({ course, onBack }) {
           if (response.ok) fetchAllCourseDetails();
         }
       } 
-      // 2. Bài tập về nhà (Postgres)[cite: 1]
       else if (formCategory === "assignment") {
         const payload = {
           title: formData.title,
@@ -380,7 +362,6 @@ export default function CourseDetail({ course, onBack }) {
           if (response.ok) fetchAllCourseDetails();
         }
       }
-      // 3. Khảo thí & Đề thi (MongoDB Atlas)
       else if (formCategory === "quiz") {
         const payload = {
           course_id: Number(course.id || course.id_course || 1),
@@ -527,7 +508,7 @@ export default function CourseDetail({ course, onBack }) {
         <p className="text-xs text-slate-600 leading-relaxed">{course.description}</p>
       </div>
 
-      {/* TABS CHỨC NĂNG: ĐẶT BÀI THI Ở VỊ TRÍ SỐ 3 TRƯỚC DANH SÁCH HỌC VIÊN */}
+      {/* Tabs Chức Năng */}
       <div className="flex border-b border-slate-200 space-x-6 overflow-x-auto">
         {[
           { id: "lessons", label: `Nội dung Bài giảng (${lessons.length})`, icon: BookOpen },
@@ -986,193 +967,66 @@ export default function CourseDetail({ course, onBack }) {
         </div>
       )}
 
-      {/* ================= MODAL DANH SÁCH BÀI LÀM HỌC SINH ================= */}
-      {viewingExamSubmissions && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="bg-slate-900 text-white p-5 flex justify-between items-center shrink-0 border-b border-slate-800">
-              <div>
-                <h3 className="font-extrabold text-base">{viewingExamSubmissions.title}</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Danh sách học sinh đã hoàn thành bài thi</p>
-              </div>
-
-              {/* Nút Bật/Tắt Giám Sát Thoát Trang */}
-              <div className="flex items-center space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowViolationDetails(!showViolationDetails)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
-                    showViolationDetails ? "bg-rose-500 text-white" : "bg-slate-800 text-slate-300 hover:text-white"
-                  }`}
-                >
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  <span>{showViolationDetails ? "Đang hiện giám sát" : "Kiểm tra thoát trang"}</span>
-                </button>
-
-                <button onClick={() => setViewingExamSubmissions(null)} className="p-1.5 hover:bg-white/10 rounded-xl cursor-pointer">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3 bg-slate-50 rounded-2xl border text-center">
-                  <span className="text-slate-400 font-medium">Đã nộp</span>
-                  <h4 className="text-lg font-black text-slate-900 mt-0.5">{examSubmissionsList.length} bài</h4>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-2xl border text-center">
-                  <span className="text-slate-400 font-medium">Điểm trung bình</span>
-                  <h4 className="text-lg font-black text-blue-600 mt-0.5">
-                    {examSubmissionsList.length > 0
-                      ? (examSubmissionsList.reduce((acc, c) => acc + (c.score || 0), 0) / examSubmissionsList.length).toFixed(1)
-                      : "0.0"}
-                  </h4>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-2xl border text-center">
-                  <span className="text-slate-400 font-medium">Tỉ lệ đạt chuẩn</span>
-                  <h4 className="text-lg font-black text-emerald-600 mt-0.5">
-                    {examSubmissionsList.length > 0
-                      ? `${Math.round((examSubmissionsList.filter(s => s.score >= 5).length / examSubmissionsList.length) * 100)}%`
-                      : "0%"}
-                  </h4>
-                </div>
-              </div>
-
-              {isLoadingExamSubs ? (
-                <div className="py-16 text-center text-slate-400 space-y-2">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-orange-500" />
-                  <p>Đang tải kết quả bài nộp...</p>
-                </div>
-              ) : examSubmissionsList.length > 0 ? (
-                <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-2xs">
-                  {examSubmissionsList.map((sub, idx) => (
-                    <div key={sub.id || idx} className="p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 font-extrabold flex items-center justify-center text-xs shrink-0">
-                          {idx + 1}
-                        </span>
-                        <div>
-                          <h5 className="font-bold text-slate-900 text-sm">{sub.student_name}</h5>
-                          <p className="text-[11px] text-slate-400">
-                            Nộp lúc: {new Date(sub.submitted_at || sub.created_at).toLocaleString("vi-VN")}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-4">
-                        {showViolationDetails && sub.violations_count > 0 && (
-                          <span className="px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold flex items-center gap-1">
-                            <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-                            <span>Thoát tab: {sub.violations_count} lần</span>
-                          </span>
-                        )}
-
-                        <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 font-black rounded-xl text-xs">
-                          {sub.score}/10 Điểm
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-16 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed text-xs">
-                  Chưa có học sinh nào nộp bài thi này.
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 bg-slate-50 border-t flex justify-end">
-              <button onClick={() => setViewingExamSubmissions(null)} className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs cursor-pointer">
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= MODAL TẠO BÀI GIẢNG / BÀI TẬP VỀ NHÀ ================= */}
-      {modalType && (formCategory === "lesson" || formCategory === "assignment") && (
+      {/* ================= MODAL XEM CÁC BÀI TẬP HỌC SINH ĐÃ NỘP (POSTGRES) ================= */}
+      {viewSubmissionsAssignment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="bg-gradient-to-r from-orange-600 to-amber-600 p-4 text-white flex justify-between items-center shrink-0">
-              <h3 className="font-extrabold text-sm capitalize">
-                {modalType === "create" ? "Tạo " : "Chỉnh Sửa "}
-                {formCategory === "lesson" ? "Bài Giảng" : "Bài Tập Về Nhà"}
-              </h3>
-              <button onClick={() => setModalType(null)} className="p-1 hover:bg-white/20 rounded-lg cursor-pointer"><X className="w-5 h-5" /></button>
+            <div className="bg-gradient-to-r from-orange-600 to-amber-600 p-4 text-white flex justify-between items-center">
+              <h3 className="font-extrabold text-sm">Danh sách Bài làm đã nộp: {viewSubmissionsAssignment.title}</h3>
+              <button onClick={() => setViewSubmissionsAssignment(null)} className="p-1 hover:bg-white/20 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <form onSubmit={handleSubmitForm} className="p-5 space-y-3 overflow-y-auto flex-1 text-xs">
-              <div>
-                <label className="font-bold text-slate-700 uppercase">Tiêu đề *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium"
-                />
-              </div>
-
-              {formCategory === "assignment" && (
-                <div>
-                  <label className="font-bold text-slate-700 uppercase">Hạn nộp bài *</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium"
-                  />
+            <div className="p-5 space-y-3 overflow-y-auto flex-1 text-xs">
+              {isLoadingSubmissions ? (
+                <div className="p-8 text-center flex justify-center items-center space-x-2 text-slate-400">
+                  <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                  <span>Đang tải danh sách bài nộp...</span>
                 </div>
+              ) : submissionsList.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">Chưa có học sinh nào nộp bài tập này.</div>
+              ) : (
+                submissionsList.map((sub, i) => (
+                  <div key={i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                    <div>
+                      <h5 className="font-bold text-slate-900">{sub.student_name}</h5>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Nộp lúc: {new Date(sub.created_at).toLocaleString("vi-VN")}</p>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewFile({
+                          url: sub.fileUrl || sub.file_url,
+                          name: sub.fileName || sub.file_name || `Bài làm của ${sub.student_name}`
+                        })}
+                        className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg text-[11px] flex items-center space-x-1 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Xem trực tiếp</span>
+                      </button>
+
+                      <a 
+                        href={sub.fileUrl || sub.file_url} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        download
+                        className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[11px]"
+                        title="Tải về máy"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                ))
               )}
-
-              {formCategory === "lesson" && (
-                <div>
-                  <label className="font-bold text-slate-700 uppercase">Lịch học diễn ra *</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={formData.duration}
-                    onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border rounded-xl font-medium"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="font-bold text-slate-700 uppercase">Tệp đính kèm (Slide / PDF / Word)</label>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.ppt,.pptx"
-                  onChange={(e) => setSelectedFile(e.target.files[0])}
-                  className="w-full px-3 py-2 bg-slate-50 border rounded-xl"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 uppercase">Mô tả chi tiết</label>
-                <textarea
-                  rows="3"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border rounded-xl"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end space-x-2">
-                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold">Hủy</button>
-                <button type="submit" disabled={isUploading} className="px-5 py-2 bg-orange-500 text-white rounded-xl font-bold">
-                  {isUploading ? "Đang lưu..." : "Lưu Dữ Liệu"}
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ================= MODAL TẠO MEET ================= */}
+      {/* ================= MODAL TẠO / SỬA MEET ================= */}
       {modalType === "meet" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border overflow-hidden">

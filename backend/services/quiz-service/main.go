@@ -33,12 +33,18 @@ func main() {
 		api.POST("/create", createExamHandler)
 		api.POST("/parse-preview", parsePreviewHandler)
 		api.GET("/course/:course_id", getExamsByCourseHandler)
+
+		// 🎯 1. API học sinh lấy đề (ẩn đáp án)
 		api.GET("/:exam_id", getExamDetailHandler)
 
-		// 🎯 CÁC API PHIÊN LÀM BÀI ĐA THIẾT BỊ & THỜI GIAN CHẠY LIÊN TỤC
+		// 🎯 2. API giáo viên lấy đầy đủ đề thi kèm đáp án chính xác
+		api.GET("/:exam_id/full", getExamFullDetailHandler)
+
+		// Phiên làm bài & Tự lưu tiến độ
 		api.POST("/:exam_id/start", startOrResumeSessionHandler)
 		api.POST("/:exam_id/save-progress", saveSessionProgressHandler)
 
+		// Nộp bài & Báo cáo
 		api.POST("/:exam_id/submit", submitExamHandler)
 		api.GET("/:exam_id/submission/:student_id", getStudentSubmissionHandler)
 		api.GET("/:exam_id/submissions", getAllSubmissionsHandler)
@@ -51,7 +57,57 @@ func main() {
 	r.Run(":" + port)
 }
 
-// 🎯 API: Bắt đầu hoặc Tiếp tục phiên làm bài (Tính giờ thực tế từ Server)
+// API dành riêng cho Giáo viên: Giữ nguyên đáp án đúng để đối chiếu
+func getExamFullDetailHandler(c *gin.Context) {
+	examIDStr := c.Param("exam_id")
+	objID, err := primitive.ObjectIDFromHex(examIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
+		return
+	}
+
+	var exam ExamDocument
+	err = ExamsCol.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&exam)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy bài thi"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": exam})
+}
+
+// API dành cho Học sinh: Ẩn đáp án đúng tránh lộ đề
+func getExamDetailHandler(c *gin.Context) {
+	examIDStr := c.Param("exam_id")
+	objID, err := primitive.ObjectIDFromHex(examIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
+		return
+	}
+
+	var exam ExamDocument
+	err = ExamsCol.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&exam)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy bài thi"})
+		return
+	}
+
+	safeQuestions := make([]QuestionItem, len(exam.Questions))
+	for i, q := range exam.Questions {
+		safeQuestions[i] = QuestionItem{
+			QuestionID: q.QuestionID,
+			Question:   q.Question,
+			Options:    q.Options,
+			Points:     q.Points,
+			CorrectAns: -1,
+		}
+	}
+	exam.Questions = safeQuestions
+
+	c.JSON(http.StatusOK, gin.H{"data": exam})
+}
+
+// API: Bắt đầu hoặc Tiếp tục phiên làm bài (Tính giờ thực tế từ Server)
 func startOrResumeSessionHandler(c *gin.Context) {
 	examIDStr := c.Param("exam_id")
 	objID, err := primitive.ObjectIDFromHex(examIDStr)
@@ -69,7 +125,6 @@ func startOrResumeSessionHandler(c *gin.Context) {
 		return
 	}
 
-	// 1. Kiểm tra học sinh đã nộp bài hoàn tất chưa
 	var existingSubmission StudentSubmission
 	err = SubmissionsCol.FindOne(context.Background(), bson.M{
 		"exam_id":    objID,
@@ -83,7 +138,6 @@ func startOrResumeSessionHandler(c *gin.Context) {
 		return
 	}
 
-	// 2. Lấy thông tin đề thi
 	var exam ExamDocument
 	if err := ExamsCol.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&exam); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy đề thi"})
@@ -95,7 +149,6 @@ func startOrResumeSessionHandler(c *gin.Context) {
 		totalDurationSecs = 15 * 60
 	}
 
-	// 3. Tìm phiên làm bài đang diễn ra
 	var session StudentExamSession
 	err = SessionsCol.FindOne(context.Background(), bson.M{
 		"exam_id":    objID,
@@ -105,7 +158,6 @@ func startOrResumeSessionHandler(c *gin.Context) {
 	now := time.Now()
 
 	if err != nil {
-		// Chưa có phiên -> Tạo phiên mới tính giờ từ lúc này
 		session = StudentExamSession{
 			ID:               primitive.NewObjectID(),
 			ExamID:           objID,
@@ -121,7 +173,6 @@ func startOrResumeSessionHandler(c *gin.Context) {
 		SessionsCol.InsertOne(context.Background(), session)
 	}
 
-	// 4. Tính toán thời gian còn lại dựa trên StartedAt (kể cả khi đổi máy)
 	elapsedSecs := int(now.Sub(session.StartedAt).Seconds())
 	remainingSecs := totalDurationSecs - elapsedSecs
 	isExpired := false
@@ -131,7 +182,6 @@ func startOrResumeSessionHandler(c *gin.Context) {
 		isExpired = true
 	}
 
-	// 5. Ẩn đáp án đúng của câu hỏi
 	safeQuestions := make([]QuestionItem, len(exam.Questions))
 	for i, q := range exam.Questions {
 		safeQuestions[i] = QuestionItem{
@@ -157,7 +207,7 @@ func startOrResumeSessionHandler(c *gin.Context) {
 	})
 }
 
-// 🎯 API: Tự động lưu tiến độ làm bài (Đồng bộ đa thiết bị)
+// API: Tự động lưu tiến độ làm bài
 func saveSessionProgressHandler(c *gin.Context) {
 	examIDStr := c.Param("exam_id")
 	objID, err := primitive.ObjectIDFromHex(examIDStr)
@@ -204,7 +254,7 @@ func saveSessionProgressHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Đã lưu tiến độ thành công"})
 }
 
-// Bóc tách xem trước câu hỏi
+// Bóc tách xem trước câu hỏi từ file Word
 func parsePreviewHandler(c *gin.Context) {
 	var req struct {
 		FileDocURL string `json:"file_doc_url" binding:"required"`
@@ -316,37 +366,7 @@ func getExamsByCourseHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": list})
 }
 
-func getExamDetailHandler(c *gin.Context) {
-	examIDStr := c.Param("exam_id")
-	objID, err := primitive.ObjectIDFromHex(examIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
-		return
-	}
-
-	var exam ExamDocument
-	err = ExamsCol.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&exam)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy bài thi"})
-		return
-	}
-
-	safeQuestions := make([]QuestionItem, len(exam.Questions))
-	for i, q := range exam.Questions {
-		safeQuestions[i] = QuestionItem{
-			QuestionID: q.QuestionID,
-			Question:   q.Question,
-			Options:    q.Options,
-			Points:     q.Points,
-			CorrectAns: -1,
-		}
-	}
-	exam.Questions = safeQuestions
-
-	c.JSON(http.StatusOK, gin.H{"data": exam})
-}
-
-// 🎯 Nộp bài thi: Tính điểm và dọn dẹp Session
+// Nộp bài thi
 func submitExamHandler(c *gin.Context) {
 	examIDStr := c.Param("exam_id")
 	objID, err := primitive.ObjectIDFromHex(examIDStr)
@@ -460,8 +480,13 @@ func getStudentSubmissionHandler(c *gin.Context) {
 
 func getAllSubmissionsHandler(c *gin.Context) {
 	examIDStr := c.Param("exam_id")
-	objID, _ := primitive.ObjectIDFromHex(examIDStr)
+	objID, err := primitive.ObjectIDFromHex(examIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
+		return
+	}
 
+	// 1. Lấy danh sách các bài đã hoàn thành nộp
 	cursor, err := SubmissionsCol.Find(context.Background(), bson.M{"exam_id": objID})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi truy vấn danh sách nộp bài"})
@@ -469,8 +494,19 @@ func getAllSubmissionsHandler(c *gin.Context) {
 	}
 	defer cursor.Close(context.Background())
 
-	var list []StudentSubmission
-	cursor.All(context.Background(), &list)
+	var subsList []StudentSubmission
+	cursor.All(context.Background(), &subsList)
 
-	c.JSON(http.StatusOK, gin.H{"data": list})
+	// 2. 🎯 Lấy danh sách các phiên ĐANG LÀM BÀI theo thời gian thực
+	sessCursor, err := SessionsCol.Find(context.Background(), bson.M{"exam_id": objID})
+	var activeSessions []StudentExamSession
+	if err == nil {
+		defer sessCursor.Close(context.Background())
+		sessCursor.All(context.Background(), &activeSessions)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":            subsList,
+		"active_sessions": activeSessions,
+	})
 }

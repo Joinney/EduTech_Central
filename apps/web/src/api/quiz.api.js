@@ -18,12 +18,18 @@ export const quizApi = {
     return res.data?.data || [];
   },
 
+  // Dành cho Học sinh (ẩn đáp án đúng)
   getExamDetail: async (examId) => {
     const res = await axios.get(`${QUIZ_API_URL}/${examId}`);
     return res.data?.data || null;
   },
 
-  // 🎯 Khởi tạo hoặc Tiếp tục phiên làm bài (Lấy giờ thực tế từ Server)
+  // 🎯 Dành cho Giáo viên: Lấy đầy đủ câu hỏi kèm đáp án đúng
+  getExamFullDetail: async (examId) => {
+    const res = await axios.get(`${QUIZ_API_URL}/${examId}/full`);
+    return res.data?.data || null;
+  },
+
   startOrResumeSession: async (examId, studentId, studentName) => {
     const res = await axios.post(`${QUIZ_API_URL}/${examId}/start`, {
       student_id: Number(studentId),
@@ -32,7 +38,6 @@ export const quizApi = {
     return res.data;
   },
 
-  // 🎯 Tự động lưu tiến độ (Answers, Flagged, Violations) lên MongoDB
   saveSessionProgress: async (examId, progressData) => {
     const res = await axios.post(`${QUIZ_API_URL}/${examId}/save-progress`, progressData);
     return res.data;
@@ -50,6 +55,9 @@ export const quizApi = {
 
   getAllSubmissions: async (examId) => {
     const res = await axios.get(`${QUIZ_API_URL}/${examId}/submissions`);
-    return res.data?.data || [];
+    return {
+      submissions: res.data?.data || [],
+      activeSessions: res.data?.active_sessions || []
+    };
   }
 };

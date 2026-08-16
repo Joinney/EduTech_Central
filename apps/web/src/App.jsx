@@ -29,6 +29,7 @@ import QuizBank from "./userdb/pages/teacherpage/nganhangdethi/QuizBank.jsx"
 import Grading from "./userdb/pages/teacherpage/chamdiemdiemso/Grading.jsx"
 import StudentList from "./userdb/pages/teacherpage/danhsachhocvien/StudentList.jsx"
 import Schedule from "./userdb/pages/teacherpage/lichdaymeet/Schedule.jsx"
+import TeacherExamSubmissions from "./userdb/pages/teacherpage/quanlylophoc/TeacherExamSubmissions.jsx"
 
 // ================= ADMIN PAGES =================
 import AdminHome from "./admindb/pages/AdminHome.jsx"
@@ -71,9 +72,13 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/admin/login" element={<AdminLogin />} />
 
-      {/* 🟢 2. PHÒNG THI ĐỘC LẬP TOÀN MÀN HÌNH (Không dính Sidebar/Navbar) */}
+      {/* 🟢 2. CÁC TRANG TOÀN MÀN HÌNH ĐỘC LẬP (Không dính Sidebar/Navbar) */}
       <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
         <Route path="/student/exam/:examId" element={<ExamRoom />} />
+      </Route>
+
+      <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
+        <Route path="/teacher/exam/:examId/submissions" element={<TeacherExamSubmissions />} />
       </Route>
 
       {/* 🟢 3. ROUTE DÀNH CHO ADMIN */}
