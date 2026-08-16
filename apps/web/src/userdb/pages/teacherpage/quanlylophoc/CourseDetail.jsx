@@ -190,7 +190,7 @@ export default function CourseDetail({ course, onBack }) {
   // 🎯 ĐIỀU HƯỚNG SANG TRANG RIÊNG BIỆT ĐỂ XEM DANH SÁCH BÀI LÀM
   const handleOpenExamSubmissions = (quiz) => {
     const examId = quiz.id || quiz._id;
-    navigate(`/teacher/exam/${examId}/submissions`);
+    navigate(`/teacher/exam/${examId}`);
   };
 
   const handleSaveMeet = (e) => {

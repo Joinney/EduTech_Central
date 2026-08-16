@@ -25,6 +25,7 @@ import ExamRoom from "./userdb/pages/studentpage/Monhoccuatoi/ExamRoom.jsx"
 // ================= TEACHER PAGES =================
 import TeacherHome from "./userdb/pages/teacherpage/TeacherHome.jsx"
 import CourseManagement from "./userdb/pages/teacherpage/quanlylophoc/CourseManagement.jsx"
+import TeacherRequestCourse from "./userdb/pages/teacherpage/quanlylophoc/TeacherRequestCourse.jsx"
 import QuizBank from "./userdb/pages/teacherpage/nganhangdethi/QuizBank.jsx"
 import Grading from "./userdb/pages/teacherpage/chamdiemdiemso/Grading.jsx"
 import StudentList from "./userdb/pages/teacherpage/danhsachhocvien/StudentList.jsx"
@@ -78,7 +79,7 @@ export default function App() {
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
-        <Route path="/teacher/exam/:examId/submissions" element={<TeacherExamSubmissions />} />
+        <Route path="/teacher/exam/:examId" element={<TeacherExamSubmissions />} />
       </Route>
 
       {/* 🟢 3. ROUTE DÀNH CHO ADMIN */}
@@ -101,6 +102,7 @@ export default function App() {
           <Route index element={<Navigate to="/teacher/dashboard" replace />} />
           <Route path="dashboard" element={<TeacherHome />} />
           <Route path="courses" element={<CourseManagement />} />
+          <Route path="courses/request" element={<TeacherRequestCourse />} />
           <Route path="quizzes" element={<QuizBank />} />
           <Route path="grading" element={<Grading />} />
           <Route path="students" element={<StudentList />} />

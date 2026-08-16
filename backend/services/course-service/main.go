@@ -446,6 +446,10 @@ func main() {
 		api.GET("/courses/:id/discussions", getCourseDiscussions)
 		api.POST("/courses/:id/discussions", createDiscussion)
 		api.DELETE("/discussions/:id", deleteDiscussion)
+
+		// Trong main.go hoặc routes.go của course-service:
+		api.GET("/teacher-subjects", getTeacherSubjectsHandler)
+		api.GET("/teachers/:teacher_id/subjects", getTeacherSubjectsHandler)
 	}
 
 	port := os.Getenv("PORT")
@@ -1408,4 +1412,41 @@ func deleteDiscussion(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Đã xóa thảo luận thành công"})
+}
+
+func getTeacherSubjectsHandler(c *gin.Context) {
+	teacherID := c.Query("teacher_id")
+	if teacherID == "" {
+		teacherID = c.Param("teacher_id")
+	}
+
+	if teacherID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu teacher_id"})
+		return
+	}
+
+	type TeacherSub struct {
+		ID          uint   `json:"id" gorm:"column:id"`
+		TeacherID   uint   `json:"teacher_id" gorm:"column:teacher_id"`
+		TeacherName string `json:"teacher_name" gorm:"column:teacher_name"`
+		Subject     string `json:"subject" gorm:"column:subject"`
+	}
+
+	var list []TeacherSub
+	// 1. Tìm trong bảng teacher_subjects (Dùng db chữ thường)
+	db.Table("teacher_subjects").Where("teacher_id = ?", teacherID).Find(&list)
+
+	// 2. Nếu chưa có, lấy chuyên môn từ teacher_profiles
+	if len(list) == 0 {
+		var spec string
+		db.Table("teacher_profiles").Select("specialization").Where("user_id = ?", teacherID).Scan(&spec)
+		if spec != "" {
+			list = append(list, TeacherSub{
+				TeacherID: 0,
+				Subject:   spec,
+			})
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": list})
 }
