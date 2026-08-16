@@ -17,6 +17,7 @@ var (
 	QuizDB         *mongo.Database
 	ExamsCol       *mongo.Collection
 	SubmissionsCol *mongo.Collection
+	SessionsCol    *mongo.Collection // 👈 Lưu tiến độ làm bài theo thời gian thực
 )
 
 // 1. Cấu trúc câu hỏi trắc nghiệm
@@ -53,7 +54,21 @@ type TabViolationLog struct {
 	WarningMsg string    `json:"warning_msg" bson:"warning_msg"`
 }
 
-// 4. Cấu trúc Bài làm của học sinh
+// 4. Cấu trúc Phiên làm bài thời gian thực (Lưu tiến độ & Đồng bộ đa thiết bị)
+type StudentExamSession struct {
+	ID               primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	ExamID           primitive.ObjectID `json:"exam_id" bson:"exam_id"`
+	StudentID        uint               `json:"student_id" bson:"student_id"`
+	StudentName      string             `json:"student_name" bson:"student_name"`
+	Answers          map[string]int     `json:"answers" bson:"answers"`
+	FlaggedQuestions []int              `json:"flagged_questions" bson:"flagged_questions"`
+	ViolationsCount  int                `json:"violations_count" bson:"violations_count"`
+	ViolationLogs    []TabViolationLog  `json:"violation_logs" bson:"violation_logs"`
+	StartedAt        time.Time          `json:"started_at" bson:"started_at"`
+	LastUpdatedAt    time.Time          `json:"last_updated_at" bson:"last_updated_at"`
+}
+
+// 5. Cấu trúc Bài nộp hoàn chỉnh
 type StudentSubmission struct {
 	ID              primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	ExamID          primitive.ObjectID `json:"exam_id" bson:"exam_id"`
@@ -93,6 +108,7 @@ func InitMongoDB() {
 	QuizDB = client.Database("edutech_quiz_db")
 	ExamsCol = QuizDB.Collection("exams")
 	SubmissionsCol = QuizDB.Collection("submissions")
+	SessionsCol = QuizDB.Collection("exam_sessions")
 
 	fmt.Println("🍃 [quiz-service] Kết nối thành công tới MongoDB Atlas (edutech_quiz_db)!")
 }

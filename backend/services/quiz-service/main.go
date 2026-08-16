@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func main() {
@@ -33,6 +34,11 @@ func main() {
 		api.POST("/parse-preview", parsePreviewHandler)
 		api.GET("/course/:course_id", getExamsByCourseHandler)
 		api.GET("/:exam_id", getExamDetailHandler)
+
+		// 🎯 CÁC API PHIÊN LÀM BÀI ĐA THIẾT BỊ & THỜI GIAN CHẠY LIÊN TỤC
+		api.POST("/:exam_id/start", startOrResumeSessionHandler)
+		api.POST("/:exam_id/save-progress", saveSessionProgressHandler)
+
 		api.POST("/:exam_id/submit", submitExamHandler)
 		api.GET("/:exam_id/submission/:student_id", getStudentSubmissionHandler)
 		api.GET("/:exam_id/submissions", getAllSubmissionsHandler)
@@ -45,6 +51,160 @@ func main() {
 	r.Run(":" + port)
 }
 
+// 🎯 API: Bắt đầu hoặc Tiếp tục phiên làm bài (Tính giờ thực tế từ Server)
+func startOrResumeSessionHandler(c *gin.Context) {
+	examIDStr := c.Param("exam_id")
+	objID, err := primitive.ObjectIDFromHex(examIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
+		return
+	}
+
+	var req struct {
+		StudentID   uint   `json:"student_id" binding:"required"`
+		StudentName string `json:"student_name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu thông tin học sinh"})
+		return
+	}
+
+	// 1. Kiểm tra học sinh đã nộp bài hoàn tất chưa
+	var existingSubmission StudentSubmission
+	err = SubmissionsCol.FindOne(context.Background(), bson.M{
+		"exam_id":    objID,
+		"student_id": req.StudentID,
+	}).Decode(&existingSubmission)
+	if err == nil {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error":        "Bạn đã hoàn thành bài thi này trước đó!",
+			"is_submitted": true,
+		})
+		return
+	}
+
+	// 2. Lấy thông tin đề thi
+	var exam ExamDocument
+	if err := ExamsCol.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&exam); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy đề thi"})
+		return
+	}
+
+	totalDurationSecs := exam.DurationMins * 60
+	if totalDurationSecs <= 0 {
+		totalDurationSecs = 15 * 60
+	}
+
+	// 3. Tìm phiên làm bài đang diễn ra
+	var session StudentExamSession
+	err = SessionsCol.FindOne(context.Background(), bson.M{
+		"exam_id":    objID,
+		"student_id": req.StudentID,
+	}).Decode(&session)
+
+	now := time.Now()
+
+	if err != nil {
+		// Chưa có phiên -> Tạo phiên mới tính giờ từ lúc này
+		session = StudentExamSession{
+			ID:               primitive.NewObjectID(),
+			ExamID:           objID,
+			StudentID:        req.StudentID,
+			StudentName:      req.StudentName,
+			Answers:          make(map[string]int),
+			FlaggedQuestions: []int{},
+			ViolationsCount:  0,
+			ViolationLogs:    []TabViolationLog{},
+			StartedAt:        now,
+			LastUpdatedAt:    now,
+		}
+		SessionsCol.InsertOne(context.Background(), session)
+	}
+
+	// 4. Tính toán thời gian còn lại dựa trên StartedAt (kể cả khi đổi máy)
+	elapsedSecs := int(now.Sub(session.StartedAt).Seconds())
+	remainingSecs := totalDurationSecs - elapsedSecs
+	isExpired := false
+
+	if remainingSecs <= 0 {
+		remainingSecs = 0
+		isExpired = true
+	}
+
+	// 5. Ẩn đáp án đúng của câu hỏi
+	safeQuestions := make([]QuestionItem, len(exam.Questions))
+	for i, q := range exam.Questions {
+		safeQuestions[i] = QuestionItem{
+			QuestionID: q.QuestionID,
+			Question:   q.Question,
+			Options:    q.Options,
+			Points:     q.Points,
+			CorrectAns: -1,
+		}
+	}
+	exam.Questions = safeQuestions
+
+	c.JSON(http.StatusOK, gin.H{
+		"exam":              exam,
+		"session_id":        session.ID.Hex(),
+		"started_at":        session.StartedAt,
+		"remaining_seconds": remainingSecs,
+		"is_expired":        isExpired,
+		"saved_answers":     session.Answers,
+		"saved_flagged":     session.FlaggedQuestions,
+		"violations_count":  session.ViolationsCount,
+		"violation_logs":    session.ViolationLogs,
+	})
+}
+
+// 🎯 API: Tự động lưu tiến độ làm bài (Đồng bộ đa thiết bị)
+func saveSessionProgressHandler(c *gin.Context) {
+	examIDStr := c.Param("exam_id")
+	objID, err := primitive.ObjectIDFromHex(examIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
+		return
+	}
+
+	var req struct {
+		StudentID        uint              `json:"student_id" binding:"required"`
+		Answers          map[string]int    `json:"answers"`
+		FlaggedQuestions []int             `json:"flagged_questions"`
+		ViolationsCount  int               `json:"violations_count"`
+		ViolationLogs    []TabViolationLog `json:"violation_logs"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu cập nhật không hợp lệ"})
+		return
+	}
+
+	filter := bson.M{
+		"exam_id":    objID,
+		"student_id": req.StudentID,
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"answers":           req.Answers,
+			"flagged_questions": req.FlaggedQuestions,
+			"violations_count":  req.ViolationsCount,
+			"violation_logs":    req.ViolationLogs,
+			"last_updated_at":   time.Now(),
+		},
+	}
+
+	opts := options.Update().SetUpsert(false)
+	_, err = SessionsCol.UpdateOne(context.Background(), filter, update, opts)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu tiến độ"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Đã lưu tiến độ thành công"})
+}
+
+// Bóc tách xem trước câu hỏi
 func parsePreviewHandler(c *gin.Context) {
 	var req struct {
 		FileDocURL string `json:"file_doc_url" binding:"required"`
@@ -66,6 +226,7 @@ func parsePreviewHandler(c *gin.Context) {
 	})
 }
 
+// Tạo đề thi
 func createExamHandler(c *gin.Context) {
 	var req struct {
 		CourseID       uint    `json:"course_id"`
@@ -185,6 +346,7 @@ func getExamDetailHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": exam})
 }
 
+// 🎯 Nộp bài thi: Tính điểm và dọn dẹp Session
 func submitExamHandler(c *gin.Context) {
 	examIDStr := c.Param("exam_id")
 	objID, err := primitive.ObjectIDFromHex(examIDStr)
@@ -263,6 +425,12 @@ func submitExamHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu kết quả bài thi"})
 		return
 	}
+
+	// Xóa phiên làm bài tạm sau khi nộp thành công
+	SessionsCol.DeleteOne(context.Background(), bson.M{
+		"exam_id":    objID,
+		"student_id": req.StudentID,
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Nộp bài thi thành công",

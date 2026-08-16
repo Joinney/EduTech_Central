@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { 
   ArrowLeft, BookOpen, FileText, HelpCircle, Building2,
   Video, PlayCircle, UploadCloud, CheckCircle2, Download, Paperclip, X, Loader2, Eye,
@@ -54,17 +55,9 @@ const uploadDocumentFile = async (file) => {
   }
 };
 
-// Hàm làm sạch chuỗi text đáp án tránh lộ gợi ý
-const cleanOptionText = (text) => {
-  if (!text) return "";
-  return text
-    .replace(/\*+/g, "")
-    .replace(/\[x\]/gi, "")
-    .replace(/\(Đáp án chính xác\)/gi, "")
-    .trim();
-};
-
 export default function StudentCourseDetail({ course, onBack }) {
+  const navigate = useNavigate();
+
   // 1. Thứ tự tab mặc định là "lessons"
   const [activeTab, setActiveTab] = useState("lessons") 
   const [lessons, setLessons] = useState([])
@@ -81,22 +74,13 @@ export default function StudentCourseDetail({ course, onBack }) {
   const [studentFile, setStudentFile] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Làm bài thi MongoDB
-  const [takingQuiz, setTakingQuiz] = useState(null)
-  const [quizQuestions, setQuizQuestions] = useState([])
-  const [quizAnswers, setQuizAnswers] = useState({})
-  const [quizTimeLeft, setQuizTimeLeft] = useState(0)
-  const [isSubmittingQuiz, setIsSubmittingQuiz] = useState(false)
+  // Trạng thái đã nộp các bài thi MongoDB
   const [submissionStatuses, setSubmissionStatuses] = useState({})
 
   // Nộp bài thi tự luận (MongoDB)
   const [takingEssayExam, setTakingEssayExam] = useState(null)
   const [essayFile, setEssayFile] = useState(null)
   const [isSubmittingEssay, setIsSubmittingEssay] = useState(false)
-
-  // Giám sát gian lận chạy ngầm (Silent Tracking)
-  const [violationsCount, setViolationsCount] = useState(0)
-  const [violationLogs, setViolationLogs] = useState([])
 
   const currentUserId = useMemo(() => {
     try {
@@ -236,113 +220,15 @@ export default function StudentCourseDetail({ course, onBack }) {
     }
   };
 
-  // Bắt đầu làm bài thi
-  const handleStartQuiz = async (quiz) => {
+  // 🎯 BẮT ĐẦU LÀM BÀI: CHUYỂN TRANG SANG URL RIÊNG BIỆT
+  const handleStartQuiz = (quiz) => {
     const examId = quiz.id || quiz._id;
     if (submissionStatuses[examId]) {
       alert("Bạn đã hoàn thành bài thi này!");
       return;
     }
-
-    try {
-      const detail = await quizApi.getExamDetail(examId);
-      setTakingQuiz(detail || quiz);
-      setQuizQuestions(detail?.questions || []);
-      setQuizAnswers({});
-      setViolationsCount(0);
-      setViolationLogs([]);
-
-      const totalMins = detail?.duration_mins || quiz.duration_mins || 15;
-      setQuizTimeLeft(totalMins * 60);
-    } catch (err) {
-      console.error("Lỗi lấy đề thi:", err);
-      alert("Không thể tải bài thi lúc này. Vui lòng thử lại!");
-    }
-  };
-
-  // Giám sát chuyển Tab ngầm (Silent Anti-Cheat)
-  useEffect(() => {
-    if (!takingQuiz) return;
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setViolationsCount((prev) => prev + 1);
-        setViolationLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), action: "TAB_SWITCH", warning_msg: "Chuyển sang tab khác" }
-        ]);
-      }
-    };
-
-    const handleWindowBlur = () => {
-      setViolationsCount((prev) => prev + 1);
-      setViolationLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), action: "WINDOW_BLUR", warning_msg: "Rời khỏi cửa sổ bài làm" }
-      ]);
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", handleWindowBlur);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleWindowBlur);
-    };
-  }, [takingQuiz]);
-
-  // Đếm ngược thời gian
-  useEffect(() => {
-    if (!takingQuiz || quizTimeLeft <= 0) return;
-    const timer = setInterval(() => {
-      setQuizTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSubmitQuiz();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [takingQuiz, quizTimeLeft]);
-
-  // Nộp bài thi trắc nghiệm (Không báo điểm ngay)
-  const handleSubmitQuiz = async () => {
-    if (!takingQuiz) return;
-    try {
-      setIsSubmittingQuiz(true);
-      const examId = takingQuiz.id || takingQuiz._id;
-      const totalMins = takingQuiz.duration_mins || 15;
-      const timeSpent = totalMins * 60 - quizTimeLeft;
-
-      const payload = {
-        student_id: currentUserId,
-        student_name: studentName,
-        answers: quizAnswers,
-        violations_count: violationsCount,
-        violation_logs: violationLogs,
-        time_spent_secs: timeSpent > 0 ? timeSpent : 60,
-        essay_file_url: ""
-      };
-
-      const res = await quizApi.submitExam(examId, payload);
-      const resultData = res.data;
-
-      setSubmissionStatuses((prev) => ({
-        ...prev,
-        [examId]: resultData
-      }));
-
-      // Thông báo nhẹ nhàng, không lộ điểm lập tức
-      alert("🎉 Đã nộp bài thi thành công! Kết quả sẽ được công bố khi kết thúc đợt kiểm tra.");
-      setTakingQuiz(null);
-    } catch (err) {
-      console.error("Lỗi nộp bài thi:", err);
-      alert(err.response?.data?.error || "Lỗi khi nộp bài thi!");
-    } finally {
-      setIsSubmittingQuiz(false);
-    }
+    // Chuyển URL sang phòng thi độc lập
+    navigate(`/student/exam/${examId}`);
   };
 
   // Nộp bài tự luận
@@ -466,7 +352,7 @@ export default function StudentCourseDetail({ course, onBack }) {
         </div>
       </div>
 
-      {/* TABS CHỨC NĂNG: ĐẶT BÀI THI Ở VỊ TRÍ SỐ 3 */}
+      {/* Tabs */}
       <div className="flex border-b border-slate-200 space-x-6 overflow-x-auto">
         {[
           { id: "lessons", label: `Nội dung Bài giảng (${lessons.length})`, icon: BookOpen },
@@ -619,7 +505,7 @@ export default function StudentCourseDetail({ course, onBack }) {
         </div>
       )}
 
-      {/* ================= TAB 3: BÀI KIỂM TRA / THI (KHÔNG CHO XEM TRƯỚC ĐỀ) ================= */}
+      {/* ================= TAB 3: BÀI KIỂM TRA / THI ================= */}
       {activeTab === "quizzes" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {quizzes.map((quiz) => {
@@ -689,72 +575,6 @@ export default function StudentCourseDetail({ course, onBack }) {
               Chưa có bài kiểm tra hoặc đề thi nào được mở cho lớp học này.
             </div>
           )}
-        </div>
-      )}
-
-      {/* ================= MODAL LÀM BÀI THI (GIAO DIỆN THÂN THIỆN) ================= */}
-      {takingQuiz && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl border overflow-hidden flex flex-col max-h-[92vh]">
-            
-            {/* Header Làm Bài */}
-            <div className="bg-slate-900 text-white p-4 flex items-center justify-between border-b border-slate-800 shrink-0">
-              <div>
-                <h3 className="font-extrabold text-sm text-white">{takingQuiz.title}</h3>
-                <p className="text-[11px] text-slate-400">Thí sinh: <strong className="text-white">{studentName}</strong></p>
-              </div>
-
-              <div className="flex items-center space-x-2 bg-blue-600/20 border border-blue-500/30 text-blue-300 px-3 py-1.5 rounded-xl font-mono text-xs font-bold">
-                <Clock className="w-4 h-4" />
-                <span>{Math.floor(quizTimeLeft / 60)}:{(quizTimeLeft % 60).toString().padStart(2, "0")}</span>
-              </div>
-            </div>
-
-            {/* Danh sách câu hỏi sạch đẹp */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs select-none">
-              {quizQuestions.map((q, qIdx) => (
-                <div key={q.question_id || qIdx} className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                  <h5 className="font-bold text-slate-900 text-sm leading-relaxed">
-                    {q.question}
-                  </h5>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                    {(q.options || []).map((opt, oIdx) => {
-                      const isSelected = quizAnswers[String(qIdx)] === oIdx;
-                      return (
-                        <label
-                          key={oIdx}
-                          onClick={() => setQuizAnswers((prev) => ({ ...prev, [String(qIdx)]: oIdx }))}
-                          className={`p-3 rounded-xl border flex items-center space-x-2 cursor-pointer transition-all ${
-                            isSelected
-                              ? "bg-blue-600 text-white border-blue-600 font-bold shadow-xs"
-                              : "bg-white text-slate-700 hover:bg-slate-100 border-slate-200 font-medium"
-                          }`}
-                        >
-                          <input type="radio" name={`q_${qIdx}`} checked={isSelected} onChange={() => {}} className="hidden" />
-                          <span>{cleanOptionText(opt)}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Chân Modal Nộp Bài */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
-              <span className="text-xs text-slate-500 font-medium">
-                Đã hoàn thành <strong>{Object.keys(quizAnswers).length}</strong> / <strong>{quizQuestions.length}</strong> câu
-              </span>
-              <button
-                onClick={handleSubmitQuiz}
-                disabled={isSubmittingQuiz}
-                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-xs cursor-pointer active:scale-95"
-              >
-                {isSubmittingQuiz && <Loader2 className="w-4 h-4 animate-spin" />}
-                <span>Nộp Bài Thi</span>
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

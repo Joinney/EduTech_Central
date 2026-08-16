@@ -1,6 +1,6 @@
 ﻿import React from "react"
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"
-import AdminCreateSchoolCourse from "./admindb/pages/AdminCreateSchoolCourse";
+import AdminCreateSchoolCourse from "./admindb/pages/AdminCreateSchoolCourse"
 
 // ================= PUBLIC PAGES =================
 import Home from "./pages/Home.jsx"
@@ -20,6 +20,7 @@ import Library from "./userdb/pages/studentpage/Khohoclieu/Library.jsx"
 import StudentCourses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx"
 import Videos from "./userdb/pages/studentpage/VideoEdu/Videos.jsx"
 import Bookshelf from "./userdb/pages/studentpage/Tusach/Bookshelf.jsx"
+import ExamRoom from "./userdb/pages/studentpage/Monhoccuatoi/ExamRoom.jsx"
 
 // ================= TEACHER PAGES =================
 import TeacherHome from "./userdb/pages/teacherpage/TeacherHome.jsx"
@@ -34,7 +35,6 @@ import AdminHome from "./admindb/pages/AdminHome.jsx"
 import AdminUsers from "./admindb/pages/AdminUsers.jsx" 
 import AdminCourses from "./admindb/pages/AdminCourses.jsx" 
 import AdminReports from "./admindb/pages/AdminReports.jsx"
-// 🟢 ĐÃ THÊM IMPORT TRANG CẤU HÌNH HỆ THỐNG
 import AdminSettings from "./admindb/pages/AdminSettings.jsx"
 
 // ================= SHARED PAGES =================
@@ -46,7 +46,6 @@ const DashboardRedirect = () => {
   const token = localStorage.getItem("adminToken") || localStorage.getItem("token")
   const role = localStorage.getItem("role")?.toLowerCase()
 
-  // 1. Chưa đăng nhập
   if (!token) {
     if (location.pathname.startsWith("/admin")) {
       return <Navigate to="/admin/login" replace />
@@ -54,7 +53,6 @@ const DashboardRedirect = () => {
     return <Navigate to="/login" replace />
   }
 
-  // 2. Đã đăng nhập -> Chuyển về đúng Dashboard theo Role
   if (role === "admin") {
     return <Navigate to="/admin/dashboard" replace />
   }
@@ -73,24 +71,26 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/admin/login" element={<AdminLogin />} />
 
-      {/* 🟢 2. ROUTE DÀNH CHO ADMIN */}
+      {/* 🟢 2. PHÒNG THI ĐỘC LẬP TOÀN MÀN HÌNH (Không dính Sidebar/Navbar) */}
+      <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
+        <Route path="/student/exam/:examId" element={<ExamRoom />} />
+      </Route>
+
+      {/* 🟢 3. ROUTE DÀNH CHO ADMIN */}
       <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<AdminHome />} />
           <Route path="users" element={<AdminUsers />} /> 
           <Route path="courses" element={<AdminCourses />} /> 
+          <Route path="courses/create-school" element={<AdminCreateSchoolCourse />} />
           <Route path="reports" element={<AdminReports />} />
-          
-          {/* 🟢 ĐÃ CẬP NHẬT TRANG SETTINGS TẠI ĐÂY */}
           <Route path="settings" element={<AdminSettings />} />
-          
           <Route path="profile" element={<Profile />} />
-          <Route path="/admin/courses/create-school" element={<AdminCreateSchoolCourse />} />
         </Route>
       </Route>
 
-      {/* 🟢 3. ROUTE DÀNH CHO TEACHER */}
+      {/* 🟢 4. ROUTE DÀNH CHO TEACHER */}
       <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
         <Route path="/teacher" element={<UserLayout />}>
           <Route index element={<Navigate to="/teacher/dashboard" replace />} />
@@ -105,7 +105,7 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* 🟢 4. ROUTE DÀNH CHO STUDENT */}
+      {/* 🟢 5. ROUTE DÀNH CHO STUDENT */}
       <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
         <Route path="/student" element={<UserLayout />}>
           <Route index element={<Navigate to="/student/dashboard" replace />} />
@@ -119,7 +119,7 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* 🟢 5. BẮT ROUTE KHÔNG TỒN TẠI */}
+      {/* 🟢 6. BẮT ROUTE KHÔNG TỒN TẠI */}
       <Route path="*" element={<DashboardRedirect />} />
     </Routes>
   )
