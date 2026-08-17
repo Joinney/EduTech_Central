@@ -20,7 +20,6 @@ services:
       - '8002:8002'
     environment:
       - PORT=8002
-      # Giữ nguyên 100% Supabase cũ:
       - DB_HOST=aws-0-ap-southeast-1.pooler.supabase.com
       - DB_PORT=5432
       - DB_USER=postgres.ieqfabmuxoigwpiwvwmw
@@ -37,8 +36,28 @@ services:
       - '8003:8003'
     environment:
       - PORT=8003
-      # MongoDB Atlas độc lập
       - MONGO_URI=mongodb+srv://thugoodcat_db_user:BVpl3MX7cQ05zEqS@edutech.u4syj9y.mongodb.net/edutech_quiz_db?retryWrites=true&w=majority&appName=EduTech
+
+  payment-service:
+    build:
+      context: ./backend/services/payment-service
+      dockerfile: Dockerfile
+    container_name: edutech-payment-service
+    restart: always
+    ports:
+      - '8004:8004'
+    environment:
+      - PORT=8004
+      - DB_HOST=aws-0-ap-southeast-1.pooler.supabase.com
+      - DB_PORT=5432
+      - DB_USER=postgres.ieqfabmuxoigwpiwvwmw
+      - DB_PASSWORD=edutech@2026
+      - DB_NAME=payment_service
+      - VNP_TMN_CODE=CGXZLS0Z
+      - VNP_HASH_SECRET=XNBCJFAKAZQSGTARRLGCHVZWCIOIGSHN
+      - VNP_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      - VNP_RETURN_URL=http://localhost:5173/student/payment-result
+      - COURSE_SERVICE_URL=http://course-service:8002/api/v1
 
   web:
     build:
@@ -52,10 +71,12 @@ services:
       VITE_API_AUTH_URL: "http://localhost:8001/api/v1"
       VITE_API_COURSE_URL: "http://localhost:8002/api/v1"
       VITE_API_QUIZ_URL: "http://localhost:8003/api/v1/quizzes"
+      VITE_API_PAYMENT_URL: "http://localhost:8004/api/v1/payments"
     depends_on:
       - auth-service
       - course-service
       - quiz-service
+      - payment-service
 
 volumes:
   postgres_data:

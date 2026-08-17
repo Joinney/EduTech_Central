@@ -21,6 +21,7 @@ import StudentCourses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx"
 import Videos from "./userdb/pages/studentpage/VideoEdu/Videos.jsx"
 import Bookshelf from "./userdb/pages/studentpage/Tusach/Bookshelf.jsx"
 import ExamRoom from "./userdb/pages/studentpage/Monhoccuatoi/ExamRoom.jsx"
+import PaymentResult from "./userdb/pages/studentpage/Monhoccuatoi/PaymentResult.jsx"
 
 // ================= TEACHER PAGES =================
 import TeacherHome from "./userdb/pages/teacherpage/TeacherHome.jsx"
@@ -38,6 +39,7 @@ import AdminUsers from "./admindb/pages/AdminUsers.jsx"
 import AdminCourses from "./admindb/pages/AdminCourses.jsx" 
 import AdminReports from "./admindb/pages/AdminReports.jsx"
 import AdminSettings from "./admindb/pages/AdminSettings.jsx"
+import AdminTransactions from "./admindb/pages/AdminTransactions.jsx"
 
 // ================= SHARED PAGES =================
 import Profile from "./userdb/pages/Profile.jsx"
@@ -80,6 +82,7 @@ export default function App() {
 
       <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
         <Route path="/teacher/exam/:examId" element={<TeacherExamSubmissions />} />
+        <Route path="/teacher/exam/:examId/submissions" element={<TeacherExamSubmissions />} />
       </Route>
 
       {/* 🟢 3. ROUTE DÀNH CHO ADMIN */}
@@ -90,6 +93,7 @@ export default function App() {
           <Route path="users" element={<AdminUsers />} /> 
           <Route path="courses" element={<AdminCourses />} /> 
           <Route path="courses/create-school" element={<AdminCreateSchoolCourse />} />
+          <Route path="transactions" element={<AdminTransactions />} />
           <Route path="reports" element={<AdminReports />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="profile" element={<Profile />} />
@@ -120,6 +124,7 @@ export default function App() {
           <Route path="programs" element={<Programs />} />
           <Route path="library" element={<Library />} />
           <Route path="courses" element={<StudentCourses />} />
+          <Route path="payment-result" element={<PaymentResult />} />
           <Route path="videos" element={<Videos />} />
           <Route path="profile" element={<Profile />} />
           <Route path="bookshelf" element={<Bookshelf />} />
