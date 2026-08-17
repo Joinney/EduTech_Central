@@ -439,8 +439,10 @@ exports.getAllUsers = async () => {
       id: true,
       fullName: true,
       email: true,
+      avatar: true, // 👈 THÊM CỘT AVATAR ĐỂ LẤY LINK CLOUDINARY/ẢNH THẬT
       phone: true,
       role: true,
+      status: true, // 👈 THÊM CỘT STATUS
       isOnboarded: true,
       createdAt: true
     },

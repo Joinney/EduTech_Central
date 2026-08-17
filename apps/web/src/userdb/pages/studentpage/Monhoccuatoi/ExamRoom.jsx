@@ -44,35 +44,38 @@ export default function ExamRoom() {
   const [violationsCount, setViolationsCount] = useState(0);
   const [violationLogs, setViolationLogs] = useState([]);
 
-  const currentUserId = useMemo(() => {
+  // 🎯 Lấy thông tin người dùng từ localStorage (khớp bảng users)
+  const currentUser = useMemo(() => {
     try {
       const stored = localStorage.getItem("user");
-      if (!stored) return 1;
-      const parsed = JSON.parse(stored);
-      return Number(parsed.id_users || parsed.id || parsed.user_id || parsed.userId || 1);
+      return stored ? JSON.parse(stored) : null;
     } catch {
-      return 1;
+      return null;
     }
   }, []);
+
+  const currentUserId = useMemo(() => {
+    return Number(currentUser?.id_users || currentUser?.id || currentUser?.user_id || currentUser?.userId || 1);
+  }, [currentUser]);
 
   const studentName = useMemo(() => {
-    try {
-      const stored = localStorage.getItem("user");
-      const parsed = stored ? JSON.parse(stored) : null;
-      return (
-        parsed?.displayName ||
-        parsed?.fullName ||
-        parsed?.name ||
-        parsed?.username ||
-        parsed?.email?.split("@")[0] ||
-        "Học viên"
-      );
-    } catch {
-      return "Học viên";
-    }
-  }, []);
+    return (
+      currentUser?.fullName ||
+      currentUser?.full_name ||
+      currentUser?.displayName ||
+      currentUser?.name ||
+      currentUser?.username ||
+      currentUser?.email?.split("@")[0] ||
+      "Học viên"
+    );
+  }, [currentUser]);
 
-  // 🎯 1. Khởi tạo hoặc khôi phục phiên từ Server (Tính giờ từ Server, không thể hack qua đổi giờ máy)
+  // 🎯 Lấy chính xác avatar từ cột avatar của bảng users
+  const studentAvatar = useMemo(() => {
+    return currentUser?.avatar || currentUser?.avatar_url || "";
+  }, [currentUser]);
+
+  // 1. Khởi tạo hoặc khôi phục phiên từ Server
   useEffect(() => {
     const initOrResumeExam = async () => {
       if (!examId) return;
@@ -88,15 +91,13 @@ export default function ExamRoom() {
         }
 
         setExam(res.exam);
-        setQuestions(res.exam.questions || []);
+        setQuestions(res.exam?.questions || []);
         setTimeLeft(res.remaining_seconds);
 
-        // Khôi phục câu trả lời đã lưu từ Server
         if (res.saved_answers) {
           setAnswers(res.saved_answers);
         }
 
-        // Khôi phục cờ đánh dấu
         if (Array.isArray(res.saved_flagged)) {
           const flagMap = {};
           res.saved_flagged.forEach((idx) => {
@@ -105,7 +106,6 @@ export default function ExamRoom() {
           setFlaggedQuestions(flagMap);
         }
 
-        // Khôi phục nhật ký vi phạm
         if (res.violations_count) {
           setViolationsCount(res.violations_count);
         }
@@ -125,7 +125,7 @@ export default function ExamRoom() {
     initOrResumeExam();
   }, [examId, currentUserId, studentName, navigate]);
 
-  // 🎯 2. Tự động đồng bộ tiến độ lên Server (Debounced Server Sync)
+  // 2. Tự động đồng bộ tiến độ lên Server
   const syncToServer = async (currentAnswers, currentFlagged, vCount, vLogs) => {
     try {
       setIsSyncing(true);
@@ -135,6 +135,8 @@ export default function ExamRoom() {
 
       await quizApi.saveSessionProgress(examId, {
         student_id: currentUserId,
+        student_name: studentName,
+        student_avatar: studentAvatar, // 👈 Gửi avatar khi sync tiến độ
         answers: currentAnswers,
         flagged_questions: flaggedArray,
         violations_count: vCount,
@@ -147,7 +149,7 @@ export default function ExamRoom() {
     }
   };
 
-  // 🎯 3. Giám sát chuyển Tab ngầm & tự lưu lên Server
+  // 3. Giám sát chuyển Tab ngầm
   useEffect(() => {
     if (!exam) return;
 
@@ -188,7 +190,7 @@ export default function ExamRoom() {
     };
   }, [exam, answers, flaggedQuestions, violationLogs]);
 
-  // 🎯 4. Đồng hồ đếm ngược từng giây
+  // 4. Đồng hồ đếm ngược
   useEffect(() => {
     if (!exam || timeLeft <= 0) return;
     const timer = setInterval(() => {
@@ -204,7 +206,7 @@ export default function ExamRoom() {
     return () => clearInterval(timer);
   }, [exam, timeLeft]);
 
-  // 🎯 5. Chọn / Xóa đáp án & đồng bộ ngay lên Server
+  // 5. Chọn / Xóa đáp án
   const handleSelectOption = (qIdxStr, oIdx) => {
     setAnswers((prev) => {
       const updated = { ...prev };
@@ -218,7 +220,6 @@ export default function ExamRoom() {
     });
   };
 
-  // Gắn cờ & đồng bộ
   const handleToggleFlag = (qIdx) => {
     setFlaggedQuestions((prev) => {
       const updated = { ...prev, [qIdx]: !prev[qIdx] };
@@ -243,7 +244,7 @@ export default function ExamRoom() {
     }
   };
 
-  // 🎯 6. Nộp bài thi
+  // 🎯 6. Nộp bài thi (Đã bổ sung student_avatar)
   const handleSubmit = async (isAutoSubmit = false) => {
     if (!exam || isSubmitting) return;
 
@@ -255,6 +256,7 @@ export default function ExamRoom() {
       const payload = {
         student_id: currentUserId,
         student_name: studentName,
+        student_avatar: studentAvatar, // 👈 Truyền đúng avatar từ bảng users
         answers: answers,
         violations_count: violationsCount,
         violation_logs: violationLogs,
@@ -267,7 +269,7 @@ export default function ExamRoom() {
       if (isAutoSubmit) {
         alert("⏱ Đã hết thời gian làm bài! Hệ thống đã tự động thu bài của bạn.");
       } else {
-        alert("🎉 Đã nộp bài thi thành công! Kết quả sẽ được công bố sau khi kết thúc đợt kiểm tra.");
+        alert("🎉 Đã nộp bài thi thành công! Kết quả đã được ghi nhận.");
       }
       navigate(-1);
     } catch (err) {
@@ -295,8 +297,7 @@ export default function ExamRoom() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col text-slate-800 animate-fadeIn">
-      
+    <div className="min-h-screen bg-slate-100 flex flex-col text-slate-800 animate-fadeIn font-sans">
       {/* HEADER CỐ ĐỊNH */}
       <header className="sticky top-0 z-40 bg-slate-900 text-white px-4 sm:px-6 py-3 shadow-md flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center space-x-3">
@@ -340,7 +341,6 @@ export default function ExamRoom() {
 
       {/* THÂN GIAO DIỆN 3 CỘT */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
         {/* CỘT TRÁI: MA TRẬN SỐ CÂU */}
         <aside className="lg:col-span-3 lg:sticky lg:top-20 space-y-4">
           <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
@@ -543,7 +543,6 @@ export default function ExamRoom() {
             </div>
           </div>
         </aside>
-
       </div>
     </div>
   );

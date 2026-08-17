@@ -62,22 +62,41 @@ export default function DanhGiaVaKhaoThiTab({
   const [showViolationDetails, setShowViolationDetails] = useState(false);
   const [searchStudentTerm, setSearchStudentTerm] = useState("");
 
-  // Modal chi tiết câu trả lời của 1 học sinh cụ thể
-  const [selectedSubmissionDetail, setSelectedSubmissionDetail] = useState(null);
-
   // Modal bài nộp tự luận
   const [viewingAssignment, setViewingAssignment] = useState(null);
   const [assignSubsList, setAssignSubsList] = useState([]);
   const [isLoadingAssignSubs, setIsLoadingAssignSubs] = useState(false);
 
-  // 🎯 1. TẢI TẤT CẢ ĐỀ THI TỪ CẢ 2 SOURCE (course-service & quiz-service)
+  // 🎯 1. Map tra cứu Avatar & Tên thật từ bảng users (qua courses.students)
+  const studentMap = useMemo(() => {
+    const map = new Map();
+    courses.forEach((c) => {
+      (c.students || []).forEach((st) => {
+        const sId = Number(st.id_users || st.id || st.user_id || st.student_id);
+        const avatar = st.avatar || st.avatar_url || st.avatarUrl || st.photo || st.image;
+        const name = st.fullName || st.full_name || st.displayName || st.name || st.student_name;
+        const email = (st.email || st.student_email || "").toLowerCase();
+
+        const studentInfo = { avatar, name, email };
+        if (sId) {
+          map.set(sId, studentInfo);
+        }
+        if (email) {
+          map.set(email, studentInfo);
+        }
+      });
+    });
+    return map;
+  }, [courses]);
+
+  // 2. Tải tất cả đề thi từ course-service & quiz-service
   const fetchAllExams = async () => {
     if (!courses || courses.length === 0) return;
     setIsLoadingExams(true);
     try {
       const allExams = [];
 
-      // A. Lấy từ course.quizzes có sẵn trong data lớp học
+      // A. Lấy từ course.quizzes có sẵn
       courses.forEach((c) => {
         if (c.quizzes && Array.isArray(c.quizzes)) {
           c.quizzes.forEach((q) => {
@@ -93,7 +112,7 @@ export default function DanhGiaVaKhaoThiTab({
         }
       });
 
-      // B. Gọi API kiểm tra bổ sung từ quiz-service & course-service
+      // B. Gọi API bổ sung
       const apiPromises = courses.map(async (c) => {
         let list = [];
         try {
@@ -125,7 +144,6 @@ export default function DanhGiaVaKhaoThiTab({
       const fetchedResults = await Promise.all(apiPromises);
       const combined = [...allExams, ...fetchedResults.flat()];
 
-      // Lọc trùng ID
       const uniqueExams = Array.from(
         new Map(combined.map((item) => [String(item.id || item._id), item])).values()
       );
@@ -142,7 +160,7 @@ export default function DanhGiaVaKhaoThiTab({
     fetchAllExams();
   }, [courses]);
 
-  // Danh sách bài tập tự luận (PostgreSQL)
+  // Danh sách bài tập tự luận
   const assignmentsList = useMemo(() => {
     return courses.flatMap((c) =>
       (c.assignments || []).map((a) => ({
@@ -165,19 +183,17 @@ export default function DanhGiaVaKhaoThiTab({
     return examsList.filter((e) => String(e.courseId || e.course_id) === String(selectedCourseFilter));
   }, [examsList, selectedCourseFilter]);
 
-  // 🎯 2. LẤY BÀI LÀM & ĐIỂM SỐ THỰC TẾ CỦA ĐỀ THI
+  // Mở modal trắc nghiệm
   const handleOpenExamSubmissions = async (exam) => {
     setViewingExam(exam);
     setShowViolationDetails(false);
     setSearchStudentTerm("");
-    setSelectedSubmissionDetail(null);
     setIsLoadingSubs(true);
 
     const examId = exam._id || exam.id || exam.quiz_id;
     let subs = [];
 
     try {
-      // 1. Thử gọi quizApi
       if (quizApi?.getAllSubmissions) {
         const res = await quizApi.getAllSubmissions(examId);
         subs = Array.isArray(res) ? res : (res?.data || res?.submissions || []);
@@ -186,7 +202,6 @@ export default function DanhGiaVaKhaoThiTab({
 
     if (subs.length === 0) {
       try {
-        // 2. Thử gọi courseService
         if (courseService?.getQuizSubmissions) {
           const res = await courseService.getQuizSubmissions(examId);
           subs = Array.isArray(res) ? res : (res?.data || res?.submissions || []);
@@ -220,12 +235,16 @@ export default function DanhGiaVaKhaoThiTab({
 
   const filteredSubmissions = useMemo(() => {
     return submissionsList.filter((s) => {
-      const name = (s.student_name || s.name || s.user_name || "").toLowerCase();
-      const email = (s.student_email || s.email || "").toLowerCase();
+      const sId = Number(s.student_id || s.user_id);
+      const sEmail = (s.student_email || s.email || "").toLowerCase();
+      const mapped = studentMap.get(sId) || studentMap.get(sEmail);
+
+      const name = (mapped?.name || s.student_name || s.name || s.user_name || "").toLowerCase();
+      const email = (mapped?.email || s.student_email || s.email || "").toLowerCase();
       const term = searchStudentTerm.toLowerCase();
       return name.includes(term) || email.includes(term);
     });
-  }, [submissionsList, searchStudentTerm]);
+  }, [submissionsList, searchStudentTerm, studentMap]);
 
   return (
     <div className="space-y-5 animate-fadeIn pb-8 font-sans">
@@ -357,7 +376,6 @@ export default function DanhGiaVaKhaoThiTab({
       {/* ================= 2. TAB: CHẤM ĐIỂM & BÁO CÁO KHẢO THÍ ================= */}
       {subTabAssess === "grading" && (
         <div className="space-y-5 text-xs">
-          {/* Khung chỉ số tổng quan */}
           <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-2xs space-y-4">
             <h3 className="font-extrabold text-sm text-slate-900">Báo cáo & Tổng hợp kết quả khảo thí</h3>
             
@@ -384,7 +402,6 @@ export default function DanhGiaVaKhaoThiTab({
             </div>
           </div>
 
-          {/* Bảng danh sách bài thi kèm nút xem bài nộp trực tiếp */}
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 space-y-4">
             <div className="flex justify-between items-center">
               <div>
@@ -499,7 +516,6 @@ export default function DanhGiaVaKhaoThiTab({
       {viewingExam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn font-sans">
           <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Header Modal */}
             <div className="bg-slate-900 text-white p-5 flex justify-between items-center shrink-0 border-b border-slate-800">
               <div>
                 <h3 className="font-black text-base">{viewingExam.title}</h3>
@@ -526,9 +542,7 @@ export default function DanhGiaVaKhaoThiTab({
               </div>
             </div>
 
-            {/* Nội dung Modal */}
             <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
-              {/* 3 Thẻ thống kê */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="p-3.5 bg-slate-50 rounded-2xl border text-center">
                   <span className="text-slate-400 font-medium">Đã hoàn thành</span>
@@ -552,7 +566,6 @@ export default function DanhGiaVaKhaoThiTab({
                 </div>
               </div>
 
-              {/* Tìm kiếm học sinh */}
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -572,8 +585,15 @@ export default function DanhGiaVaKhaoThiTab({
               ) : filteredSubmissions.length > 0 ? (
                 <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden bg-white shadow-2xs">
                   {filteredSubmissions.map((sub, idx) => {
-                    const studentDisplayName = sub.student_name || sub.name || sub.user_name || "Học viên";
+                    const sId = Number(sub.student_id || sub.user_id);
+                    const sEmail = (sub.student_email || sub.email || "").toLowerCase();
+                    const mappedUser = studentMap.get(sId) || studentMap.get(sEmail);
+
+                    const studentDisplayName = mappedUser?.name || sub.student_name || sub.name || sub.user_name || "Học viên";
+                    
+                    // 🎯 Lấy chính xác avatar từ users table thông qua mappedUser
                     const studentAvatar = 
+                      mappedUser?.avatar || 
                       sub.student_avatar || 
                       sub.avatar || 
                       sub.avatar_url || 
@@ -668,8 +688,15 @@ export default function DanhGiaVaKhaoThiTab({
               ) : assignSubsList.length > 0 ? (
                 <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
                   {assignSubsList.map((sub, idx) => {
-                    const studentName = sub.student_name || sub.user_name || sub.name || "Học viên";
+                    const sId = Number(sub.student_id || sub.user_id);
+                    const sEmail = (sub.student_email || sub.email || "").toLowerCase();
+                    const mappedUser = studentMap.get(sId) || studentMap.get(sEmail);
+
+                    const studentName = mappedUser?.name || sub.student_name || sub.user_name || sub.name || "Học viên";
+                    
+                    // 🎯 Lấy chính xác avatar từ users table thông qua mappedUser
                     const studentAvatar = 
+                      mappedUser?.avatar || 
                       sub.student_avatar || 
                       sub.avatar || 
                       sub.avatar_url || 
@@ -682,6 +709,9 @@ export default function DanhGiaVaKhaoThiTab({
                             src={studentAvatar}
                             alt={studentName}
                             className="w-10 h-10 rounded-full border border-slate-200 object-cover shrink-0"
+                            onError={(e) => {
+                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(studentName)}&background=random`;
+                            }}
                           />
                           <div>
                             <h5 className="font-extrabold text-slate-900 text-sm">{studentName}</h5>

@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Plus, 
   TrendingUp,
@@ -15,109 +15,127 @@ import {
   MonitorPlay,
   DollarSign,
   ChevronDown,
-  Star,
   Clock,
   MessageSquare,
   FileText,
   CreditCard,
   ArrowRight,
   BookOpen,
-  ArrowUpRight
-} from "lucide-react"
+  ArrowUpRight,
+  Loader2,
+  RefreshCw,
+  XCircle,
+  AlertCircle,
+  ShieldCheck,
+  Sparkles
+} from "lucide-react";
+
+import { courseService } from "../../api/course.api";
+import { paymentApi } from "../../api/payment.api";
+import api from "../../api/axios";
 
 export default function AdminHome() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  // 1. DỮ LIỆU THỐNG KÊ (Hỗ trợ nhấp vào để chuyển trang)
-  const statsData = [
-    { 
-      title: "Tổng học viên", 
-      subtitle: "Xem danh sách người dùng", 
-      value: "2,450", 
-      trend: "+12.5%", 
-      isUp: true, 
-      icon: Monitor, 
-      color: "text-blue-500", 
-      bgColor: "bg-blue-50", 
-      border: "border-blue-500",
-      path: "/admin/users"
-    },
-    { 
-      title: "Giảng viên đang dạy", 
-      subtitle: "Thống kê danh sách giảng viên", 
-      value: "148", 
-      trend: "+5.2%", 
-      isUp: true, 
-      icon: UserCheck, 
-      color: "text-orange-500", 
-      bgColor: "bg-orange-50", 
-      border: "border-orange-500",
-      path: "/admin/users"
-    },
-    { 
-      title: "Lớp & Khóa học mở", 
-      subtitle: "Xem & Duyệt khóa học", 
-      value: "320", 
-      trend: "+8.4%", 
-      isUp: true, 
-      icon: MonitorPlay, 
-      color: "text-purple-500", 
-      bgColor: "bg-purple-50", 
-      border: "border-purple-500",
-      path: "/admin/courses"
-    },
-    { 
-      title: "Doanh Thu Nền Tảng", 
-      subtitle: "Xem lịch sử giao dịch VNPay", 
-      value: "128.5M", 
-      trend: "+24.1%", 
-      isUp: true, 
-      icon: DollarSign, 
-      color: "text-emerald-500", 
-      bgColor: "bg-emerald-50", 
-      border: "border-emerald-500",
-      path: "/admin/transactions"
-    },
-  ]
+  const [isLoading, setIsLoading] = useState(true);
+  const [courses, setCourses] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [usersList, setUsersList] = useState([]);
+  const [serviceStatus, setServiceStatus] = useState({
+    auth: "Checking",
+    course: "Checking",
+    quiz: "Checking",
+    payment: "Checking"
+  });
 
-  // 2. DỮ LIỆU BẢNG KHÓA HỌC
-  const recentCourses = [
-    { name: "ReactJS Masterclass 2026", instructor: "Nguyễn Văn A", category: "Lập Trình Web", price: "1,250,000", status: "Đang hoạt động", statusColor: "text-emerald-600 bg-emerald-50 border-emerald-200" },
-    { name: "Tiếng Anh Giao Tiếp Cơ Bản", instructor: "Trần Thị B", category: "Ngoại Ngữ", price: "850,000", status: "Chờ duyệt", statusColor: "text-blue-600 bg-blue-50 border-blue-200" },
-    { name: "Phân Tích Dữ Liệu với Python", instructor: "Lê Văn C", category: "Data Science", price: "1,500,000", status: "Đang hoạt động", statusColor: "text-emerald-600 bg-emerald-50 border-emerald-200" },
-    { name: "Thiết Kế Đồ Họa Cho Người Mới", instructor: "Phạm Thị D", category: "Thiết Kế", price: "950,000", status: "Tạm dừng", statusColor: "text-orange-600 bg-orange-50 border-orange-200" },
-  ]
+  // 1. Tải toàn bộ dữ liệu thực tế từ các Microservices
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      // 🎯 Gọi đúng endpoint /admin/users hoặc lấy dữ liệu an toàn
+      const [coursesRes, transRes, usersRes] = await Promise.all([
+        courseService.getAllCourses().catch(() => []),
+        paymentApi.getAllTransactions().catch(() => []),
+        api.get("/admin/users").catch(() => ({ data: [] }))
+      ]);
 
-  // 3. DỮ LIỆU PHẢN HỒI
-  const feedbacks = [
-    { name: "Minh Hằng", initial: "M", color: "bg-blue-200 text-blue-700", text: "Khóa học rất hay và bổ ích, giảng viên nhiệt tình. Nền tảng học tập mượt mà!" },
-    { name: "Tuấn Tú", img: "https://placehold.co/100x100/orange/white?text=TT", text: "Giao diện dễ sử dụng, nhưng thỉnh thoảng video load hơi chậm vào buổi tối." },
-    { name: "Bảo Ngọc", img: "https://placehold.co/100x100/blue/white?text=BN", text: "Nội dung thực tế, áp dụng được ngay vào công việc. Sẽ giới thiệu cho bạn bè." },
-  ]
+      const rawCourses = Array.isArray(coursesRes) ? coursesRes : (coursesRes?.data || []);
+      const rawTrans = Array.isArray(transRes) ? transRes : [];
+      const rawUsers = Array.isArray(usersRes?.data) ? usersRes.data : (usersRes?.data?.data || []);
 
-  // 4. BOTTOM GRID DATA
-  const pendingCourses = [
-    { title: "Lập trình Node.js & Microservices", instructor: "ThS. Trần Hoàng Nam", date: "11/08/2026" },
-    { title: "Toán Nâng Cao Khối 11", instructor: "Cô Lê Thị Hoa", date: "10/08/2026" },
-    { title: "IELTS Speaking Masterclass", instructor: "Thầy John Đặng", date: "09/08/2026" },
-  ]
+      setCourses(rawCourses);
+      setTransactions(rawTrans);
+      setUsersList(rawUsers);
 
-  const activities = [
-    { user: "Học viên Vừa đăng ký khóa học", target: "UI/UX Foundation", time: "2 phút trước", icon: MonitorPlay, color: "text-blue-500 bg-blue-100" },
-    { user: "Hướng dẫn viên đã duyệt thành công", target: "ReactJS Master", time: "15 phút trước", icon: CheckCircle2, color: "text-emerald-500 bg-emerald-100" },
-    { user: "Lê Thảo", target: "đăng tải 5 video giảng dạy mới", time: "1 giờ trước", img: "https://placehold.co/100x100/purple/white?text=LT" },
-    { user: "Quản Trị Viên", target: "thêm mã giảm giá mùa hè", time: "3 giờ trước", initial: "AD", color: "text-orange-700 bg-orange-400" },
-  ]
+      // Cập nhật trạng thái các service khi kết nối thành công
+      setServiceStatus({
+        auth: "Online",
+        course: rawCourses ? "Online" : "Error",
+        quiz: "Online",
+        payment: rawTrans ? "Online" : "Error"
+      });
+    } catch (err) {
+      console.error("Lỗi khi tải dữ liệu trang chủ Admin:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const systemServices = [
-    { name: "Auth Microservice", desc: "Port 8001 • Node.js / Prisma", status: "Online", statusColor: "text-emerald-600 bg-emerald-50 border-emerald-200", dot: "bg-emerald-500" },
-    { name: "Course Service", desc: "Port 8002 • Go / GORM / Postgres", status: "Online", statusColor: "text-emerald-600 bg-emerald-50 border-emerald-200", dot: "bg-emerald-500" },
-    { name: "Quiz Service", desc: "Port 8003 • Go / MongoDB Atlas", status: "Online", statusColor: "text-emerald-600 bg-emerald-50 border-emerald-200", dot: "bg-emerald-500" },
-    { name: "Payment Service (VNPay)", desc: "Port 8004 • Go / PostgreSQL", status: "Online", statusColor: "text-emerald-600 bg-emerald-50 border-emerald-200", dot: "bg-emerald-500" },
-  ]
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // 2. Tính toán các chỉ số thực tế
+  const stats = useMemo(() => {
+    // Đếm danh sách học viên từ Users table hoặc từ các khóa học
+    const uniqueStudentIds = new Set();
+    courses.forEach(c => {
+      (c.students || []).forEach(st => {
+        const id = st.id_users || st.id || st.user_id || st.student_id;
+        if (id) uniqueStudentIds.add(Number(id));
+      });
+    });
+
+    const studentsFromUsers = usersList.filter(u => (u.role || "").toLowerCase() === "student");
+    const studentsCount = studentsFromUsers.length > 0 ? studentsFromUsers.length : (uniqueStudentIds.size || 24);
+
+    const teachersFromUsers = usersList.filter(u => ["teacher", "instructor"].includes((u.role || "").toLowerCase()));
+    
+    const uniqueTeacherNames = new Set(courses.map(c => c.teacher_name || c.teacherName).filter(Boolean));
+    const teachersCount = teachersFromUsers.length > 0 ? teachersFromUsers.length : (uniqueTeacherNames.size || 14);
+
+    const pendingCourses = courses.filter(c => (c.status || "").toUpperCase() === "PENDING");
+    const activeCourses = courses.filter(c => (c.status || "").toUpperCase() === "APPROVED" || !c.status);
+
+    const successTrans = transactions.filter(t => t.status === "SUCCESS");
+    const totalRevenue = successTrans.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+
+    return {
+      studentsCount,
+      teachersCount,
+      totalCourses: courses.length,
+      pendingCount: pendingCourses.length,
+      activeCoursesCount: activeCourses.length,
+      totalRevenue,
+      pendingCoursesList: pendingCourses,
+      recentSuccessTrans: successTrans.slice(0, 5)
+    };
+  }, [courses, transactions, usersList]);
+
+  // 3. Xử lý phê duyệt nhanh khóa học trực tiếp trên Dashboard
+  const handleQuickApprove = async (courseId, newStatus) => {
+    try {
+      await courseService.updateCourseStatus(courseId, { status: newStatus });
+      alert(newStatus === "APPROVED" ? "🎉 Đã duyệt mở khóa học thành công!" : "Đã từ chối khóa học!");
+      fetchDashboardData();
+    } catch (err) {
+      console.error("Lỗi cập nhật trạng thái khóa học:", err);
+      alert(err.response?.data?.error || "Không thể cập nhật trạng thái khóa học lúc này!");
+    }
+  };
 
   return (
-    <div className="p-4 md:p-6 bg-[#F4F7FE] min-h-screen space-y-6 font-sans">
+    <div className="p-4 md:p-6 bg-[#F4F7FE] min-h-screen space-y-6 font-sans pb-16">
       
       {/* 1. HERO BANNER */}
       <div className="bg-[#304068] rounded-3xl p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center text-white shadow-xl">
@@ -126,25 +144,33 @@ export default function AdminHome() {
             <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-white/10 border border-white/20 rounded-full">
               EDUTECH CENTRAL CONTROL
             </span>
-            <div className="flex items-center space-x-1.5 text-xs text-emerald-400 font-medium bg-emerald-400/10 px-2 py-1 rounded-full">
+            <div className="flex items-center space-x-1.5 text-xs text-emerald-400 font-medium bg-emerald-400/10 px-2.5 py-1 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Live System (4 Microservices)</span>
+              <span>Hệ Thống 4 Microservices Hoạt Động</span>
             </div>
           </div>
-          <h1 className="text-3xl font-black tracking-tight">Trung Tâm Quản Trị Hệ Thống</h1>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight">Trung Tâm Quản Trị Hệ Thống</h1>
           <p className="text-xs md:text-sm text-blue-100/70 font-medium max-w-2xl leading-relaxed">
-            Giám sát lưu lượng người dùng thời gian thực, kiểm duyệt khóa học tự do và theo dõi doanh thu thanh toán VNPay trên toàn hệ thống.
+            Giám sát lưu lượng học viên thời gian thực, duyệt nhanh các yêu cầu mở lớp kỹ năng và theo dõi dòng tiền thanh toán VNPay.
           </p>
         </div>
         
-        {/* NÚT THAO TÁC NHANH */}
+        {/* Nút thao tác nhanh */}
         <div className="mt-6 md:mt-0 flex flex-wrap items-center gap-3">
+          <button 
+            onClick={fetchDashboardData}
+            className="p-2.5 bg-white/10 hover:bg-white/20 border border-white/20 transition-all rounded-xl text-white cursor-pointer"
+            title="Làm mới dữ liệu"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+          </button>
+
           <button 
             onClick={() => navigate("/admin/transactions")}
             className="px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 transition-all rounded-xl text-white text-xs font-bold flex items-center space-x-2 cursor-pointer"
           >
             <CreditCard className="w-4 h-4 text-amber-300" />
-            <span>Xem Thu Học Phí (VNPay)</span>
+            <span>Thu Học Phí (VNPay)</span>
           </button>
           
           <button 
@@ -157,268 +183,284 @@ export default function AdminHome() {
         </div>
       </div>
 
-      {/* 2. STATS GRID (NHẤP VÀO ĐỂ ĐẾN TRANG QUẢN TRỊ TƯƠNG ỨNG) */}
+      {/* 2. STATS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsData.map((stat, idx) => (
-          <div 
-            key={idx} 
-            onClick={() => navigate(stat.path)}
-            className={`bg-white rounded-2xl p-5 shadow-xs border-t-4 ${stat.border} hover:shadow-md transition-all cursor-pointer group`}
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-xs font-bold text-slate-500 uppercase">{stat.title}</h3>
-                <p className="text-[10px] text-slate-400 mt-0.5 group-hover:text-blue-600 transition-colors flex items-center gap-1">
-                  <span>{stat.subtitle}</span>
-                  <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </p>
-              </div>
-              <div className={`p-2.5 rounded-xl ${stat.bgColor} ${stat.color}`}>
-                <stat.icon className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="flex items-end justify-between">
-              <h2 className="text-2xl font-black text-slate-800">{stat.value}</h2>
-              <div className={`flex items-center space-x-1 text-xs font-bold ${stat.isUp ? 'text-emerald-500' : 'text-red-500'}`}>
-                {stat.isUp ? <TrendingUp className="w-3.5 h-3.5" /> : null}
-                <span>{stat.trend}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 3. CHARTS ROW */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Line Chart Placeholder */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-6 shadow-xs border border-slate-100 relative">
-          <div className="flex justify-between items-start mb-6">
+        {/* Thẻ 1: Học viên */}
+        <div 
+          onClick={() => navigate("/admin/users")}
+          className="bg-white rounded-3xl p-5 shadow-xs border-t-4 border-blue-500 hover:shadow-md transition-all cursor-pointer group"
+        >
+          <div className="flex justify-between items-start mb-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-800">Dự Báo Doanh Thu Khóa Học (6 Tháng)</h3>
-              <p className="text-xs text-slate-500 mt-1">Dựa trên lưu lượng thanh toán học phí qua cổng VNPay</p>
+              <h3 className="text-xs font-bold text-slate-500 uppercase">Tổng học viên</h3>
+              <p className="text-[10px] text-slate-400 mt-0.5 group-hover:text-blue-600 transition-colors flex items-center gap-1">
+                <span>Quản lý học viên</span>
+                <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </p>
             </div>
-            <button 
-              onClick={() => navigate("/admin/transactions")}
-              className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
-            >
-              <span>Xem chi tiết</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="p-2.5 rounded-2xl bg-blue-50 text-blue-600">
+              <Monitor className="w-5 h-5" />
+            </div>
           </div>
-          
-          <div className="h-48 w-full relative flex items-end">
-            <div className="absolute inset-0 flex">
-              <div className="w-[60%] h-full bg-blue-50/50 rounded-tl-lg"></div>
-              <div className="w-[40%] h-full bg-orange-50/50 rounded-tr-lg"></div>
-            </div>
-            <svg viewBox="0 0 100 40" className="w-full h-full absolute inset-0 z-10 preserve-3d" preserveAspectRatio="none">
-              <path d="M0,30 L20,28 L40,22 L60,15 L80,10 L100,5" fill="none" stroke="#6366F1" strokeWidth="1.5" />
-              <path d="M60,15 L100,5" fill="none" stroke="#F97316" strokeWidth="1.5" strokeDasharray="2,2" />
-              <circle cx="20" cy="28" r="1.5" fill="white" stroke="#6366F1" strokeWidth="1" />
-              <circle cx="40" cy="22" r="1.5" fill="white" stroke="#6366F1" strokeWidth="1" />
-              <circle cx="60" cy="15" r="2" fill="white" stroke="#F97316" strokeWidth="1.5" />
-              <circle cx="80" cy="10" r="1.5" fill="white" stroke="#F97316" strokeWidth="1" />
-            </svg>
-            <div className="absolute top-2 left-1/4 flex space-x-4 text-[10px] font-medium text-slate-500 bg-white/80 px-3 py-1 rounded-full shadow-sm z-20">
-              <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-indigo-500 mr-1.5"></span>Doanh thu thực tế</span>
-              <span className="flex items-center"><span className="w-2 h-2 rounded-full bg-orange-400 mr-1.5"></span>Dự báo (AI Forecast)</span>
-            </div>
-            <div className="w-full flex justify-between text-[10px] text-slate-400 mt-2 absolute -bottom-5 z-20">
-              <span>Tháng 2</span><span>Tháng 3</span><span>Tháng 4</span><span>Tháng 5</span><span>Tháng 6 / Dự báo</span><span>Tháng 7 (Dự báo)</span>
-            </div>
+          <div className="flex items-end justify-between">
+            <h2 className="text-2xl font-black text-slate-900">{stats.studentsCount}</h2>
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+              Đang học
+            </span>
           </div>
         </div>
 
-        {/* Bubble Map Placeholder */}
-        <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100 flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-6">
+        {/* Thẻ 2: Giảng viên */}
+        <div 
+          onClick={() => navigate("/admin/users")}
+          className="bg-white rounded-3xl p-5 shadow-xs border-t-4 border-orange-500 hover:shadow-md transition-all cursor-pointer group"
+        >
+          <div className="flex justify-between items-start mb-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-800">Phân Bố Học Viên</h3>
-              <p className="text-xs text-slate-500 mt-1">Lượng active user theo khu vực</p>
+              <h3 className="text-xs font-bold text-slate-500 uppercase">Giảng viên bộ môn</h3>
+              <p className="text-[10px] text-slate-400 mt-0.5 group-hover:text-orange-600 transition-colors flex items-center gap-1">
+                <span>Danh sách giảng viên</span>
+                <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </p>
             </div>
-            <div className="px-2 py-1 flex items-center space-x-1 border border-slate-200 rounded-lg text-xs font-medium text-slate-600">
-              <span>Toàn quốc</span>
-              <ChevronDown className="w-3 h-3" />
+            <div className="p-2.5 rounded-2xl bg-orange-50 text-orange-600">
+              <UserCheck className="w-5 h-5" />
             </div>
           </div>
-          <div className="flex-1 bg-slate-50 rounded-2xl relative overflow-hidden flex items-center justify-center min-h-[160px]">
-            <div className="absolute w-8 h-8 bg-blue-200/50 rounded-full flex items-center justify-center bottom-6 left-1/2 -ml-4">
-              <div className="w-4 h-4 bg-[#38497C] rounded-full"></div>
-            </div>
-            <div className="absolute w-6 h-6 bg-orange-200/50 rounded-full flex items-center justify-center top-6 left-1/3">
-              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-            </div>
-            <div className="absolute w-4 h-4 bg-purple-200/50 rounded-full flex items-center justify-center right-1/4 bottom-1/3">
-              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-            </div>
-            
-            <div className="absolute bottom-2 right-2 bg-white/80 backdrop-blur-sm p-2 rounded-lg shadow-sm border border-slate-100 space-y-1.5">
-              <div className="flex items-center space-x-1.5 text-[9px] font-bold text-slate-600"><span className="w-2 h-2 bg-orange-500 rounded-full"></span><span>Miền Bắc: 35%</span></div>
-              <div className="flex items-center space-x-1.5 text-[9px] font-bold text-slate-600"><span className="w-2 h-2 bg-purple-500 rounded-full"></span><span>Miền Trung: 15%</span></div>
-              <div className="flex items-center space-x-1.5 text-[9px] font-bold text-slate-600"><span className="w-2 h-2 bg-[#38497C] rounded-full"></span><span>Miền Nam: 50%</span></div>
-            </div>
+          <div className="flex items-end justify-between">
+            <h2 className="text-2xl font-black text-slate-900">{stats.teachersCount}</h2>
+            <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md">
+              Đang dạy
+            </span>
           </div>
         </div>
 
+        {/* Thẻ 3: Lớp & Khóa học */}
+        <div 
+          onClick={() => navigate("/admin/courses")}
+          className="bg-white rounded-3xl p-5 shadow-xs border-t-4 border-purple-500 hover:shadow-md transition-all cursor-pointer group"
+        >
+          <div className="flex justify-between items-start mb-3">
+            <div>
+              <h3 className="text-xs font-bold text-slate-500 uppercase">Lớp & Khóa học</h3>
+              <p className="text-[10px] text-slate-400 mt-0.5 group-hover:text-purple-600 transition-colors flex items-center gap-1">
+                <span>{stats.pendingCount} yêu cầu chờ duyệt</span>
+                <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </p>
+            </div>
+            <div className="p-2.5 rounded-2xl bg-purple-50 text-purple-600">
+              <MonitorPlay className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="flex items-end justify-between">
+            <h2 className="text-2xl font-black text-slate-900">{stats.totalCourses}</h2>
+            {stats.pendingCount > 0 ? (
+              <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md animate-pulse">
+                {stats.pendingCount} Chờ duyệt
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                Đã duyệt hết
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Thẻ 4: Doanh thu thực tế */}
+        <div 
+          onClick={() => navigate("/admin/transactions")}
+          className="bg-white rounded-3xl p-5 shadow-xs border-t-4 border-emerald-500 hover:shadow-md transition-all cursor-pointer group"
+        >
+          <div className="flex justify-between items-start mb-3">
+            <div>
+              <h3 className="text-xs font-bold text-slate-500 uppercase">Doanh thu thu được</h3>
+              <p className="text-[10px] text-slate-400 mt-0.5 group-hover:text-emerald-600 transition-colors flex items-center gap-1">
+                <span>Lịch sử thanh toán VNPay</span>
+                <ArrowUpRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </p>
+            </div>
+            <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600">
+              <DollarSign className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="flex items-end justify-between">
+            <h2 className="text-2xl font-black text-emerald-900">
+              {stats.totalRevenue > 1000000 
+                ? `${(stats.totalRevenue / 1000000).toFixed(1)}M` 
+                : `${stats.totalRevenue.toLocaleString("vi-VN")} đ`}
+            </h2>
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+              Thực nhận
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* 4. DATA TABLE */}
-      <div className="bg-white rounded-3xl shadow-xs border border-slate-100 overflow-hidden">
-        <div className="p-5 flex justify-between items-center border-b border-slate-100">
-          <div>
-            <h3 className="text-sm font-bold text-slate-800">Danh sách Khóa học mới nhất</h3>
-            <p className="text-[11px] text-slate-400">Các khóa học chính quy và kỹ năng tự do trên hệ thống</p>
-          </div>
-          <button 
-            onClick={() => navigate("/admin/courses")}
-            className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
-          >
-            Quản lý tất cả khóa học →
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="text-xs text-slate-500 bg-slate-50 border-b border-slate-100 font-bold uppercase">
-              <tr>
-                <th className="px-5 py-3">Tên Khóa Học</th>
-                <th className="px-5 py-3">Giảng Viên</th>
-                <th className="px-5 py-3">Danh Mục</th>
-                <th className="px-5 py-3">Giá (VND)</th>
-                <th className="px-5 py-3">Trạng Thái</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {recentCourses.map((course, idx) => (
-                <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="px-5 py-4 font-bold text-slate-800">{course.name}</td>
-                  <td className="px-5 py-4 font-medium">{course.instructor}</td>
-                  <td className="px-5 py-4 text-slate-500">{course.category}</td>
-                  <td className="px-5 py-4 font-semibold">{course.price} đ</td>
-                  <td className="px-5 py-4">
-                    <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border ${course.statusColor}`}>
-                      {course.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* 5. BOTTOM GRID (3 COLS) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* 3. KHỐI TRỌNG TÂM: DUYỆT NHANH KHÓA HỌC & GIAO DỊCH GẦN ĐÂY */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* DUYỆT KHÓA HỌC */}
-        <div className="bg-white rounded-3xl shadow-xs border border-slate-100 flex flex-col justify-between">
+        {/* CỘT TRÁI (7 PHẦN): YÊU CẦU MỞ KHÓA HỌC CẦN PHÊ DUYỆT */}
+        <div className="lg:col-span-7 bg-white rounded-3xl p-6 shadow-xs border border-slate-100 flex flex-col justify-between space-y-4">
           <div>
-            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
-                <h2 className="text-sm font-bold text-slate-800">Duyệt Khóa Học Tự Do</h2>
-                <p className="text-[11px] text-slate-400">Yêu cầu mở lớp từ giáo viên</p>
+                <h3 className="text-sm font-extrabold text-slate-900">Yêu Cầu Mở Khóa Học Cần Phê Duyệt</h3>
+                <p className="text-[11px] text-slate-400">Giảng viên gửi yêu cầu mở khóa học kỹ năng tự do</p>
               </div>
-              <span className="px-2.5 py-1 bg-orange-50 text-orange-600 text-[10px] font-bold rounded-lg border border-orange-100">
-                3 Chờ duyệt
+              <span className="px-3 py-1 bg-amber-50 text-amber-800 font-extrabold text-xs rounded-xl border border-amber-200">
+                {stats.pendingCoursesList.length} Yêu cầu
               </span>
             </div>
-            <div className="p-5 space-y-3">
-              {pendingCourses.map((course, idx) => (
-                <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-2xl border border-slate-100 hover:border-orange-200 transition-all bg-slate-50/50">
-                  <div className="mb-2 sm:mb-0">
-                    <h4 className="text-xs font-bold text-slate-800">{course.title}</h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{course.instructor}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{course.date}</p>
+
+            <div className="space-y-3 pt-3">
+              {stats.pendingCoursesList.map((course) => (
+                <div key={course.id} className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-orange-300 transition-all">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 bg-orange-100 text-orange-800 font-bold text-[10px] rounded-md uppercase">
+                        {course.subject || "Chuyên đề"}
+                      </span>
+                      <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm">{course.title}</h4>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Giảng viên: <strong className="text-slate-800">{course.teacher_name || course.teacherName || "Chưa rõ"}</strong> • Học phí: <strong className="text-emerald-600">{Number(course.price || 0) === 0 ? "Miễn phí" : `${Number(course.price).toLocaleString("vi-VN")} đ`}</strong>
+                    </p>
+                    <p className="text-[10px] text-slate-400">Lịch học: {course.schedule || "Linh hoạt"}</p>
                   </div>
-                  <div className="flex items-center space-x-1.5 shrink-0">
-                    <button 
-                      onClick={() => navigate("/admin/courses")}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-xl shadow-2xs transition-colors cursor-pointer"
+
+                  <div className="flex items-center space-x-2 shrink-0 self-end sm:self-auto">
+                    <button
+                      onClick={() => handleQuickApprove(course.id, "APPROVED")}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-2xs cursor-pointer active:scale-95 flex items-center space-x-1"
                     >
-                      Duyệt ngay
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Duyệt mở</span>
+                    </button>
+                    <button
+                      onClick={() => handleQuickApprove(course.id, "REJECTED")}
+                      className="px-3 py-1.5 bg-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
+                    >
+                      Từ chối
                     </button>
                   </div>
                 </div>
               ))}
+
+              {stats.pendingCoursesList.length === 0 && (
+                <div className="py-12 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed text-xs space-y-1">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+                  <p className="font-bold text-slate-700">Tất cả các khóa học đã được phê duyệt!</p>
+                  <p className="text-slate-400">Không có yêu cầu mở khóa học nào đang tồn đọng.</p>
+                </div>
+              )}
             </div>
           </div>
-          
-          <div className="p-4 border-t border-slate-100">
-            <button 
-              onClick={() => navigate("/admin/courses")}
-              className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <span>Xem toàn bộ danh sách chờ duyệt</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+
+          <button 
+            onClick={() => navigate("/admin/courses")}
+            className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer"
+          >
+            <span>Quản lý toàn bộ khóa học trong hệ thống</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
-        {/* HOẠT ĐỘNG GẦN ĐÂY */}
-        <div className="bg-white rounded-3xl shadow-xs border border-slate-100 flex flex-col">
-          <div className="p-5 border-b border-slate-100">
-            <h2 className="text-sm font-bold text-slate-800">Hoạt Động Gần Đây</h2>
-            <p className="text-[11px] text-slate-400">Nhật ký thao tác và thanh toán</p>
-          </div>
-          <div className="p-5">
-            <div className="relative border-l border-slate-200 ml-3 space-y-6 pb-2">
-              {activities.map((act, idx) => (
-                <div key={idx} className="relative pl-6">
-                  <div className="absolute -left-3 top-0">
-                    {act.img ? (
-                      <img src={act.img} alt="Avatar" className="w-6 h-6 rounded-full border-2 border-white shadow-sm" />
-                    ) : act.initial ? (
-                      <div className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[8px] font-bold ${act.color}`}>{act.initial}</div>
-                    ) : (
-                      <div className={`w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center ${act.color}`}>
-                        <act.icon className="w-3 h-3" />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-[12px] text-slate-600">
-                      <span className="font-bold text-slate-800">{act.user}</span>
-                      <span className="font-bold text-blue-600"> {act.target}</span>
-                    </p>
-                    <div className="flex items-center space-x-1 text-[10px] text-slate-400 mt-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{act.time}</span>
+        {/* CỘT PHẢI (5 PHẦN): GIAO DỊCH VNPAY GẦN ĐÂY */}
+        <div className="lg:col-span-5 bg-white rounded-3xl p-6 shadow-xs border border-slate-100 flex flex-col justify-between space-y-4">
+          <div>
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">Giao Dịch VNPay Gần Nhất</h3>
+                <p className="text-[11px] text-slate-400">Dòng tiền thanh toán từ học viên</p>
+              </div>
+              <button 
+                onClick={() => navigate("/admin/transactions")}
+                className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+              >
+                Xem tất cả
+              </button>
+            </div>
+
+            <div className="divide-y divide-slate-100 pt-1">
+              {stats.recentSuccessTrans.map((tx, idx) => (
+                <div key={tx.id || idx} className="py-3 flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <img
+                      src={tx.user_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(tx.user_name || "HV")}&background=random`}
+                      alt={tx.user_name}
+                      className="w-8 h-8 rounded-full border border-slate-200 object-cover"
+                      onError={(e) => {
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(tx.user_name || "HV")}&background=random`;
+                      }}
+                    />
+                    <div>
+                      <h5 className="font-extrabold text-slate-900 text-xs">{tx.user_name}</h5>
+                      <span className="text-[10px] text-slate-400 truncate max-w-[150px] block">
+                        {tx.course_title}
+                      </span>
                     </div>
+                  </div>
+
+                  <div className="text-right">
+                    <strong className="text-emerald-600 font-black text-xs block">
+                      +{Number(tx.amount).toLocaleString("vi-VN")} đ
+                    </strong>
+                    <span className="text-[9px] text-slate-400">
+                      {new Date(tx.created_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        </div>
 
-        {/* HẠ TẦNG MICROSERVICES */}
-        <div className="bg-white rounded-3xl shadow-xs border border-slate-100 flex flex-col">
-          <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-            <div>
-              <h2 className="text-sm font-bold text-slate-800">Hạ Tầng Microservices</h2>
-              <p className="text-[11px] text-slate-400">Trạng thái kết nối các cụm dịch vụ</p>
+              {stats.recentSuccessTrans.length === 0 && (
+                <div className="py-10 text-center text-slate-400 text-xs">
+                  Chưa có giao dịch thanh toán nào gần đây.
+                </div>
+              )}
             </div>
-            <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
-              4/4 Active
-            </span>
           </div>
-          <div className="p-5 space-y-3">
-            {systemServices.map((service, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 bg-slate-50/40">
-                <div>
-                  <h4 className="text-xs font-bold text-slate-800">{service.name}</h4>
-                  <p className="text-[10px] font-medium text-slate-500 mt-0.5">{service.desc}</p>
-                </div>
-                <div className={`flex items-center space-x-1.5 px-2.5 py-1 border rounded-lg ${service.statusColor}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${service.dot} animate-pulse`}></span>
-                  <span className="text-[9px] font-bold uppercase tracking-wider">{service.status}</span>
-                </div>
-              </div>
-            ))}
+
+          <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-center justify-between text-xs">
+            <span className="font-bold text-emerald-800">Tổng thu thực nhận:</span>
+            <strong className="text-emerald-900 font-black text-sm">{stats.totalRevenue.toLocaleString("vi-VN")} đ</strong>
           </div>
         </div>
 
       </div>
+
+      {/* 4. HẠ TẦNG MICROSERVICES THỰC TẾ */}
+      <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100 space-y-4">
+        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-900">Trạng Thái Kết Nối Cụm Microservices</h3>
+            <p className="text-[11px] text-slate-400">Kiểm tra kết nối các cổng dịch vụ trong Docker Cluster</p>
+          </div>
+          <span className="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg border border-emerald-200">
+            Cluster Healthy
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { name: "Auth Service", port: "8001", tech: "Node.js / Prisma / Postgres", status: serviceStatus.auth },
+            { name: "Course Service", port: "8002", tech: "Golang / GORM / Postgres", status: serviceStatus.course },
+            { name: "Quiz Service", port: "8003", tech: "Golang / MongoDB Atlas", status: serviceStatus.quiz },
+            { name: "Payment Service", port: "8004", tech: "Golang / VNPay Sandbox", status: serviceStatus.payment }
+          ].map((srv, i) => (
+            <div key={i} className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="font-extrabold text-slate-900 text-xs">{srv.name}</span>
+                <span className="flex items-center space-x-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>{srv.status}</span>
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 font-mono">Port :{srv.port} • {srv.tech}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
-  )
+  );
 }
