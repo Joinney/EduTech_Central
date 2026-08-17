@@ -1,4 +1,6 @@
-import React from "react"
+/* eslint-disable react/prop-types */
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Upload, 
   Plus, 
@@ -13,256 +15,426 @@ import {
   Pencil, 
   UserPlus, 
   CloudUpload,
-  ArrowRight
-} from "lucide-react"
+  ArrowRight,
+  Download,
+  Eye,
+  Search,
+  Filter,
+  BookOpen,
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  X
+} from "lucide-react";
+
+import { courseService } from "../../../../api/course.api";
 
 export default function Library() {
+  const [courses, setCourses] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedType, setSelectedType] = useState("all"); // "all" | "pdf" | "video" | "assignment"
+  const [selectedSubject, setSelectedSubject] = useState("all");
+  const [previewItem, setPreviewItem] = useState(null);
+
+  // 🎯 1. TẢI TOÀN BỘ KHÓA HỌC & HỌC LIỆU THỰC TẾ
+  const fetchLibraryData = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Lấy danh sách toàn bộ khóa học
+      const rawCourses = await courseService.getAllCourses().catch(() => []);
+      const coursesList = Array.isArray(rawCourses) ? rawCourses : (rawCourses?.data || []);
+      setCourses(coursesList);
+
+      const allMaterialsList = [];
+
+      // 2. Lấy toàn bộ bài giảng (lessons) và bài tập (assignments) của từng khóa
+      await Promise.all(
+        coursesList.map(async (course) => {
+          const cId = course.id || course.id_course;
+
+          // A. Lấy bài giảng (lessons)
+          try {
+            const lessonsRes = await courseService.getLessonsByCourse(cId);
+            const lessons = Array.isArray(lessonsRes) ? lessonsRes : (lessonsRes?.data || []);
+
+            lessons.forEach((l, idx) => {
+              const fileUrl = l.fileUrl || l.file_url || l.videoUrl || l.video_url;
+              const isVideo = fileUrl && (fileUrl.includes("youtube") || fileUrl.includes("video") || fileUrl.endsWith(".mp4"));
+
+              if (fileUrl || l.content) {
+                allMaterialsList.push({
+                  id: `lesson-${l.id || idx}`,
+                  title: l.title || `Bài học ${idx + 1}`,
+                  courseName: course.title,
+                  courseSubject: course.subject || "Chính quy",
+                  teacherName: course.teacher_name || course.teacherName || "Giảng viên",
+                  type: isVideo ? "video" : "pdf",
+                  fileUrl: fileUrl || "#",
+                  fileName: l.fileName || l.file_name || (isVideo ? "Video bài giảng" : "Tài liệu học tập PDF"),
+                  date: l.duration || l.created_at ? new Date(l.duration || l.created_at).toLocaleDateString("vi-VN") : "Gần đây",
+                  description: l.content || l.description || "Tài liệu học tập chính khóa"
+                });
+              }
+            });
+          } catch (_) {}
+
+          // B. Lấy tài liệu bài tập (assignments)
+          try {
+            const assignmentsRes = await courseService.getAssignmentsByCourse(cId);
+            const assignments = Array.isArray(assignmentsRes) ? assignmentsRes : (assignmentsRes?.data || []);
+
+            assignments.forEach((a, idx) => {
+              if (a.fileUrl || a.file_url || a.description) {
+                allMaterialsList.push({
+                  id: `assign-${a.id || idx}`,
+                  title: a.title || `Bài tập ${idx + 1}`,
+                  courseName: course.title,
+                  courseSubject: course.subject || "Chính quy",
+                  teacherName: course.teacher_name || course.teacherName || "Giảng viên",
+                  type: "assignment",
+                  fileUrl: a.fileUrl || a.file_url || "#",
+                  fileName: a.fileName || a.file_name || "Đề bài & Hướng dẫn",
+                  date: a.dueDate || a.due_date ? new Date(a.dueDate || a.due_date).toLocaleDateString("vi-VN") : "Hạn nộp mở",
+                  description: a.description || "Tài liệu và bài tập thực hành"
+                });
+              }
+            });
+          } catch (_) {}
+        })
+      );
+
+      setMaterials(allMaterialsList);
+    } catch (err) {
+      console.error("Lỗi khi tải kho học liệu:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLibraryData();
+  }, []);
+
+  // 🎯 2. LỌC HỌC LIỆU
+  const filteredMaterials = useMemo(() => {
+    return materials.filter((item) => {
+      const term = searchTerm.toLowerCase();
+      const matchSearch =
+        item.title.toLowerCase().includes(term) ||
+        item.courseName.toLowerCase().includes(term) ||
+        item.fileName.toLowerCase().includes(term);
+
+      const matchType = selectedType === "all" || item.type === selectedType;
+      const matchSubject = selectedSubject === "all" || item.courseSubject.toLowerCase() === selectedSubject.toLowerCase();
+
+      return matchSearch && matchType && matchSubject;
+    });
+  }, [materials, searchTerm, selectedType, selectedSubject]);
+
+  // Thống kê phân loại
+  const stats = useMemo(() => {
+    const pdfCount = materials.filter(m => m.type === "pdf").length;
+    const videoCount = materials.filter(m => m.type === "video").length;
+    const assignCount = materials.filter(m => m.type === "assignment").length;
+    return { pdfCount, videoCount, assignCount, total: materials.length };
+  }, [materials]);
+
+  // Danh sách môn học có sẵn
+  const availableSubjects = useMemo(() => {
+    return Array.from(new Set(courses.map(c => c.subject).filter(Boolean)));
+  }, [courses]);
+
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-10">
+    <div className="max-w-7xl mx-auto space-y-8 pb-12 font-sans">
       
-      {/* Page Header + Top Action Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* 1. Page Header + Top Action Buttons */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/90 shadow-2xs">
         <div className="space-y-1">
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Quản lý Khóa học & Học liệu AI
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
+            <span>Kho Học Liệu & Thư Viện Bài Giảng</span>
+            <span className="px-2.5 py-0.5 text-xs font-black bg-blue-100 text-blue-700 rounded-full">
+              {stats.total} Tài nguyên
+            </span>
           </h1>
           <p className="text-xs font-medium text-slate-500">
-            Tổng quan hoạt động giảng dạy và quản lý tài nguyên học tập.
+            Tra cứu toàn bộ tài liệu PDF, Slide bài học, video giảng dạy và bài tập từ các khóa học đang tham gia.
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer">
-            <Upload className="w-4 h-4" />
-            <span>Tải tài liệu lên</span>
+        <div className="flex items-center space-x-2.5">
+          <button
+            onClick={fetchLibraryData}
+            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition cursor-pointer"
+            title="Làm mới thư viện"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           </button>
-          <button className="flex items-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm shadow-blue-500/20 cursor-pointer">
-            <Plus className="w-4 h-4" />
-            <span>Tạo khóa học mới</span>
-          </button>
+
+          <a
+            href="#ai-assistant"
+            className="flex items-center space-x-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm shadow-blue-500/20 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300 fill-amber-300" />
+            <span>Trợ Lý Tóm Tắt AI</span>
+          </a>
         </div>
       </div>
 
-      {/* Main Grid: Left Content (2/3) + Right Widgets (1/3) */}
+      {/* 2. Main Grid: Left Content (2/3) + Right Widgets (1/3) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Column */}
+        {/* Left Column (2/3) */}
         <div className="lg:col-span-2 space-y-6">
           
           {/* AI Content Generator Banner */}
-          <div className="relative rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-400 p-6 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden">
+          <div id="ai-assistant" className="relative rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 p-6 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden">
             <div className="space-y-2 max-w-md relative z-10">
               <div className="flex items-center space-x-2 font-extrabold text-base">
                 <Sparkles className="w-5 h-5 text-amber-300 fill-amber-300" />
-                <span>AI Content Generator</span>
+                <span>Trợ lý Học Liệu & Hỏi Đáp AI</span>
               </div>
               <p className="text-xs leading-relaxed font-medium text-blue-50">
-                Tự động tạo dàn ý bài giảng, câu hỏi trắc nghiệm và tóm tắt tài liệu chỉ với vài từ khóa. Tiết kiệm 60% thời gian soạn bài.
+                Tự động tóm tắt tài liệu PDF dài, giải thích công thức phức tạp và tạo Flashcard ôn thi nhanh chóng từ bài giảng.
               </p>
             </div>
 
-            <button className="relative z-10 shrink-0 flex items-center space-x-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer self-start sm:self-center">
-              <span>Soạn bài ngay</span>
+            <button 
+              onClick={() => alert("Trợ lý AI đang kết nối vào kho bài giảng của bạn!")}
+              className="relative z-10 shrink-0 flex items-center space-x-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer self-start sm:self-center active:scale-95"
+            >
+              <span>Học cùng AI</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Khóa học đang giảng dạy */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-base text-slate-900">Khóa học đang giảng dạy</h3>
-              <a href="#all" className="text-xs font-bold text-blue-600 hover:underline">
-                Xem tất cả &gt;
-              </a>
-            </div>
-
-            <div className="space-y-4">
-              
-              {/* Course Item 1 */}
-              <div className="p-4 rounded-xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-white transition flex flex-col md:flex-row items-start md:items-center gap-4">
-                <div className="relative w-full md:w-44 h-28 rounded-lg overflow-hidden shrink-0 bg-slate-200">
-                  <img 
-                    src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=500&auto=format&fit=crop&q=80" 
-                    alt="Web Frontend" 
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
-                    Lập trình
-                  </span>
-                </div>
-
-                <div className="flex-1 space-y-2 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-slate-800 truncate">
-                      Lập trình Web Frontend Nâng cao
-                    </h4>
-                    <span className="bg-blue-100 text-blue-700 text-[10px] font-extrabold px-2 py-0.5 rounded shrink-0">
-                      ĐANG DIỄN RA
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 line-clamp-2 font-medium">
-                    Khóa học chuyên sâu về ReactJS, state management và tối ưu hóa hiệu suất cho ứng dụng web.
-                  </p>
-
-                  <div className="flex items-center justify-between pt-1 text-[11px] font-semibold text-slate-500">
-                    <div className="flex items-center space-x-4">
-                      <span className="flex items-center space-x-1">
-                        <Users className="w-3.5 h-3.5 text-slate-400" />
-                        <span>124 Học viên</span>
-                      </span>
-                      <span className="flex items-center space-x-1">
-                        <FileCode2 className="w-3.5 h-3.5 text-slate-400" />
-                        <span>8/12 Bài giảng</span>
-                      </span>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <button className="p-1.5 hover:bg-slate-100 rounded text-slate-600 transition cursor-pointer">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button className="p-1.5 hover:bg-slate-100 rounded text-slate-600 transition cursor-pointer">
-                        <UserPlus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+          {/* Thanh Tìm Kiếm & Bộ Lọc Học Liệu */}
+          <div className="bg-white p-4 rounded-3xl border border-slate-200/90 shadow-2xs space-y-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Tìm tài liệu, video, tên bài giảng..."
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
               </div>
 
-              {/* Course Item 2 */}
-              <div className="p-4 rounded-xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-white transition flex flex-col md:flex-row items-start md:items-center gap-4">
-                <div className="relative w-full md:w-44 h-28 rounded-lg overflow-hidden shrink-0 bg-slate-200">
-                  <img 
-                    src="https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?w=500&auto=format&fit=crop&q=80" 
-                    alt="UI/UX Design" 
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
-                    Thiết kế
-                  </span>
-                </div>
-
-                <div className="flex-1 space-y-2 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-slate-800 truncate">
-                      UI/UX Design Masterclass
-                    </h4>
-                    <span className="bg-slate-200 text-slate-700 text-[10px] font-extrabold px-2 py-0.5 rounded shrink-0">
-                      BẢN NHÁP
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 line-clamp-2 font-medium">
-                    Nắm vững quy trình thiết kế lấy người dùng làm trung tâm, từ wireframe đến prototype...
-                  </p>
-
-                  <div className="flex items-center justify-between pt-1 text-[11px] font-semibold text-slate-500">
-                    <div className="flex items-center space-x-4">
-                      <span className="flex items-center space-x-1">
-                        <Users className="w-3.5 h-3.5 text-slate-400" />
-                        <span>-- Học viên</span>
-                      </span>
-                      <span className="flex items-center space-x-1">
-                        <FileCode2 className="w-3.5 h-3.5 text-slate-400" />
-                        <span>3/10 Bài giảng</span>
-                      </span>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <button className="p-1.5 hover:bg-slate-100 rounded text-slate-600 transition cursor-pointer">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
+              <select
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                className="w-full sm:w-48 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+              >
+                <option value="all">Tất cả bộ môn</option>
+                {availableSubjects.map((s, idx) => (
+                  <option key={idx} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
+
+            {/* Tabs phân loại tài nguyên */}
+            <div className="flex items-center space-x-1.5 overflow-x-auto pt-1">
+              {[
+                { id: "all", label: `Tất cả (${stats.total})` },
+                { id: "pdf", label: `Tài liệu PDF / Slide (${stats.pdfCount})` },
+                { id: "video", label: `Video bài giảng (${stats.videoCount})` },
+                { id: "assignment", label: `Bài tập & Đề cương (${stats.assignCount})` }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedType(tab.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    selectedType === tab.id
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200/60"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Danh Sách Tài Liệu / Học Liệu Đang Có */}
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-sm text-slate-900">Danh Mục Tài Liệu Mở</h3>
+              <span className="text-[11px] text-slate-400 font-medium">
+                Hiển thị {filteredMaterials.length} tài nguyên
+              </span>
+            </div>
+
+            {isLoading ? (
+              <div className="py-16 text-center text-slate-400 space-y-2">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" />
+                <p className="text-xs font-medium">Đang tập hợp tài liệu từ các khóa học...</p>
+              </div>
+            ) : filteredMaterials.length === 0 ? (
+              <div className="py-16 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed text-xs space-y-1">
+                <p className="font-bold text-slate-600">Không tìm thấy tài liệu phù hợp.</p>
+                <p className="text-slate-400">Thử thay đổi từ khóa tìm kiếm hoặc lọc theo bộ môn khác.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredMaterials.map((item) => (
+                  <div 
+                    key={item.id}
+                    className="p-4 rounded-2xl border border-slate-100 hover:border-blue-200 bg-slate-50/50 hover:bg-white transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group"
+                  >
+                    <div className="flex items-center space-x-3.5 min-w-0">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
+                        item.type === "video" 
+                          ? "bg-blue-100 text-blue-600" 
+                          : item.type === "assignment"
+                          ? "bg-purple-100 text-purple-600"
+                          : "bg-red-100 text-red-600"
+                      }`}>
+                        {item.type === "video" ? <PlayCircle className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                      </div>
+
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-extrabold text-xs text-slate-900 truncate group-hover:text-blue-600 transition">
+                            {item.title}
+                          </h4>
+                          <span className="px-2 py-0.5 bg-slate-200/80 text-slate-700 text-[9px] font-black uppercase rounded">
+                            {item.courseSubject}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-medium truncate">
+                          {item.courseName} • GV: {item.teacherName}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+                      <span className="text-[10px] text-slate-400 font-mono hidden md:inline">
+                        {item.date}
+                      </span>
+
+                      {item.fileUrl && item.fileUrl !== "#" && (
+                        <>
+                          <a
+                            href={item.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer"
+                            title="Xem trực tiếp"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </a>
+
+                          <a
+                            href={item.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download
+                            className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition cursor-pointer"
+                            title="Tải về máy"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
         </div>
 
-        {/* Right Column: Kho Học liệu & Upload Box */}
+        {/* Right Column (1/3): Thống Kê Dung Lượng & Danh Mục */}
         <div className="space-y-6">
           
-          {/* Kho Học liệu Storage Card */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+          {/* Kho Học Liệu Storage Card */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-2xs space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2 text-slate-900 font-bold text-base">
+              <div className="flex items-center space-x-2 text-slate-900 font-black text-sm">
                 <Folder className="w-5 h-5 text-blue-600" />
-                <span>Kho Học liệu</span>
+                <span>Phân Loại Học Liệu</span>
               </div>
-              <button className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition cursor-pointer">
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Storage Progress Bar */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs font-bold">
-                <span className="text-slate-600">Dung lượng lưu trữ</span>
-                <span className="text-blue-600">45GB / 100GB</span>
-              </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-blue-600 h-full w-[45%]" />
-              </div>
+              <span className="text-xs font-bold text-slate-400">{stats.total} tệp</span>
             </div>
 
             {/* Folder Items */}
-            <div className="space-y-2 pt-2">
+            <div className="space-y-2.5 pt-1">
               
               {/* Item 1: PDF */}
-              <div className="p-3 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/80 transition flex items-center justify-between cursor-pointer group">
+              <button 
+                onClick={() => setSelectedType("pdf")}
+                className={`w-full p-3.5 rounded-2xl border transition flex items-center justify-between cursor-pointer text-left ${
+                  selectedType === "pdf" ? "bg-blue-50/70 border-blue-300" : "bg-slate-50/60 border-slate-100 hover:bg-slate-100"
+                }`}
+              >
                 <div className="flex items-center space-x-3">
-                  <div className="w-9 h-9 rounded-lg bg-red-100 text-red-500 flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-red-100 text-red-500 flex items-center justify-center shrink-0">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
-                    <h5 className="font-bold text-xs text-slate-800">Tài liệu PDF</h5>
-                    <p className="text-[10px] text-slate-400 font-medium">120 tệp • 1.2GB</p>
+                    <h5 className="font-extrabold text-xs text-slate-800">Tài liệu PDF & Slide</h5>
+                    <p className="text-[10px] text-slate-400 font-medium">{stats.pdfCount} tệp bài giảng</p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
-              </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </button>
 
               {/* Item 2: Video */}
-              <div className="p-3 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/80 transition flex items-center justify-between cursor-pointer group">
+              <button 
+                onClick={() => setSelectedType("video")}
+                className={`w-full p-3.5 rounded-2xl border transition flex items-center justify-between cursor-pointer text-left ${
+                  selectedType === "video" ? "bg-blue-50/70 border-blue-300" : "bg-slate-50/60 border-slate-100 hover:bg-slate-100"
+                }`}
+              >
                 <div className="flex items-center space-x-3">
-                  <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-500 flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-500 flex items-center justify-center shrink-0">
                     <PlayCircle className="w-5 h-5" />
                   </div>
                   <div>
-                    <h5 className="font-bold text-xs text-slate-800">Video Bài giảng</h5>
-                    <p className="text-[10px] text-slate-400 font-medium">45 tệp • 42GB</p>
+                    <h5 className="font-extrabold text-xs text-slate-800">Video Bài Giảng</h5>
+                    <p className="text-[10px] text-slate-400 font-medium">{stats.videoCount} video bài học</p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
-              </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </button>
 
-              {/* Item 3: SCORM */}
-              <div className="p-3 rounded-xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50/80 transition flex items-center justify-between cursor-pointer group">
+              {/* Item 3: Bài tập */}
+              <button 
+                onClick={() => setSelectedType("assignment")}
+                className={`w-full p-3.5 rounded-2xl border transition flex items-center justify-between cursor-pointer text-left ${
+                  selectedType === "assignment" ? "bg-blue-50/70 border-blue-300" : "bg-slate-50/60 border-slate-100 hover:bg-slate-100"
+                }`}
+              >
                 <div className="flex items-center space-x-3">
-                  <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-500 flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-500 flex items-center justify-center shrink-0">
                     <Box className="w-5 h-5" />
                   </div>
                   <div>
-                    <h5 className="font-bold text-xs text-slate-800">Gói SCORM</h5>
-                    <p className="text-[10px] text-slate-400 font-medium">12 tệp • 1.8GB</p>
+                    <h5 className="font-extrabold text-xs text-slate-800">Đề Bài & Hướng Dẫn</h5>
+                    <p className="text-[10px] text-slate-400 font-medium">{stats.assignCount} tệp thực hành</p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
-              </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </button>
 
             </div>
           </div>
 
-          {/* Drag & Drop File Area */}
-          <div className="border-2 border-dashed border-slate-200/80 hover:border-blue-400 rounded-2xl p-8 bg-white hover:bg-blue-50/20 transition text-center space-y-3 cursor-pointer group">
-            <div className="w-12 h-12 bg-slate-100 group-hover:bg-blue-100 text-slate-400 group-hover:text-blue-600 rounded-full flex items-center justify-center mx-auto transition">
-              <CloudUpload className="w-6 h-6" />
+          {/* Quick Learning Note Widget */}
+          <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-3xl p-6 text-white space-y-3 shadow-md">
+            <div className="flex items-center space-x-2 text-amber-300 font-bold text-xs">
+              <Sparkles className="w-4 h-4" />
+              <span>Ghi chú học tập thông minh</span>
             </div>
-            <div>
-              <h5 className="font-bold text-sm text-slate-800">Kéo thả tệp vào đây</h5>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">hoặc nhấn để duyệt tệp</p>
-            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+              Bạn có thể tải tài liệu về để học ngoại tuyến hoặc sử dụng tính năng xem trực tiếp trên mọi thiết bị.
+            </p>
           </div>
 
         </div>
@@ -270,5 +442,5 @@ export default function Library() {
       </div>
 
     </div>
-  )
+  );
 }
