@@ -708,48 +708,71 @@ export default function CourseDetail({ course, onBack }) {
       )}
 
       {/* ================= TAB 4: DANH SÁCH HỌC VIÊN ================= */}
-      {activeTab === "students" && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-slate-800">Học viên đang tham gia lớp</h3>
-          </div>
+{activeTab === "students" && (
+  <div className="space-y-4">
+    <div className="flex justify-between items-center">
+      <h3 className="text-sm font-bold text-slate-800">Học viên đang tham gia lớp</h3>
+    </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div className="grid grid-cols-1 divide-y divide-slate-100">
-              {students.map((student, idx) => (
-                <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <img 
-                      src={student.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name || "Học viên")}&background=random`} 
-                      alt="Avatar" 
-                      className="w-10 h-10 rounded-full border border-slate-200"
-                    />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">{student.name || student.email?.split('@')[0] || "Chưa cập nhật tên"}</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{student.email}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-3">
-                    <span className="text-[11px] font-medium text-slate-400">
-                      Tham gia: {student.joined_at ? new Date(student.joined_at).toLocaleDateString("vi-VN") : "--"}
-                    </span>
-                    <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer" title="Mời khỏi lớp">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+      <div className="grid grid-cols-1 divide-y divide-slate-100">
+        {students.map((student, idx) => {
+          const studentAvatar = 
+            student.avatar || 
+            student.avatar_url || 
+            student.avatarUrl || 
+            student.user_avatar || 
+            student.photo || 
+            student.image || 
+            student.user?.avatar || 
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name || student.displayName || student.fullName || "HV")}&background=random`;
+
+          const studentDisplayName = 
+            student.name || 
+            student.displayName || 
+            student.fullName || 
+            student.student_name || 
+            student.email?.split("@")[0] || 
+            "Chưa cập nhật tên";
+
+          return (
+            <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+              <div className="flex items-center space-x-3">
+                <img 
+                  src={studentAvatar} 
+                  alt={studentDisplayName} 
+                  className="w-10 h-10 rounded-full border border-slate-200 object-cover shrink-0"
+                  onError={(e) => {
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(studentDisplayName)}&background=random`;
+                  }}
+                />
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900">{studentDisplayName}</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{student.email || student.student_email}</p>
                 </div>
-              ))}
+              </div>
               
-              {students.length === 0 && (
-                <div className="p-8 text-center text-xs text-slate-500 font-medium">
-                  Chưa có học viên nào tham gia lớp học này.
-                </div>
-              )}
+              <div className="flex items-center space-x-3">
+                <span className="text-[11px] font-medium text-slate-400">
+                  Tham gia: {student.joined_at || student.created_at ? new Date(student.joined_at || student.created_at).toLocaleDateString("vi-VN") : "--"}
+                </span>
+                <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer" title="Mời khỏi lớp">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
+          );
+        })}
+        
+        {students.length === 0 && (
+          <div className="p-8 text-center text-xs text-slate-500 font-medium">
+            Chưa có học viên nào tham gia lớp học này.
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
       {/* ================= MODAL TẠO ĐỀ THI & XEM TRƯỚC CÂU HỎI THẬT ================= */}
       {modalType === "create" && formCategory === "quiz" && (

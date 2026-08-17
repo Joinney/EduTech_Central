@@ -22,6 +22,7 @@ import Videos from "./userdb/pages/studentpage/VideoEdu/Videos.jsx"
 import Bookshelf from "./userdb/pages/studentpage/Tusach/Bookshelf.jsx"
 import ExamRoom from "./userdb/pages/studentpage/Monhoccuatoi/ExamRoom.jsx"
 import PaymentResult from "./userdb/pages/studentpage/Monhoccuatoi/PaymentResult.jsx"
+import StudentTransactions from "./userdb/pages/studentpage/StudentTransactions.jsx"
 
 // ================= TEACHER PAGES =================
 import TeacherHome from "./userdb/pages/teacherpage/TeacherHome.jsx"
@@ -44,7 +45,6 @@ import AdminTransactions from "./admindb/pages/AdminTransactions.jsx"
 // ================= SHARED PAGES =================
 import Profile from "./userdb/pages/Profile.jsx"
 
-// ================= 🟢 ĐIỀU HƯỚNG MẶC ĐỊNH =================
 const DashboardRedirect = () => {
   const location = useLocation()
   const token = localStorage.getItem("adminToken") || localStorage.getItem("token")
@@ -75,7 +75,7 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/admin/login" element={<AdminLogin />} />
 
-      {/* 🟢 2. CÁC TRANG TOÀN MÀN HÌNH ĐỘC LẬP (Không dính Sidebar/Navbar) */}
+      {/* 🟢 2. CÁC TRANG TOÀN MÀN HÌNH ĐỘC LẬP */}
       <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
         <Route path="/student/exam/:examId" element={<ExamRoom />} />
       </Route>
@@ -124,6 +124,7 @@ export default function App() {
           <Route path="programs" element={<Programs />} />
           <Route path="library" element={<Library />} />
           <Route path="courses" element={<StudentCourses />} />
+          <Route path="transactions" element={<StudentTransactions />} />
           <Route path="payment-result" element={<PaymentResult />} />
           <Route path="videos" element={<Videos />} />
           <Route path="profile" element={<Profile />} />

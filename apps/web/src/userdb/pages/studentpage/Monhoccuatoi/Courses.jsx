@@ -186,6 +186,7 @@ export default function Courses() {
         user_id: Number(studentId),
         user_name: studentName,
         user_email: studentEmail,
+        user_avatar: currentUser?.avatar || currentUser?.avatar_url || currentUser?.avatarUrl || "", // 👈 Truyền avatar thật
         course_id: Number(course.id),
         course_title: course.title,
         amount: Number(course.price)

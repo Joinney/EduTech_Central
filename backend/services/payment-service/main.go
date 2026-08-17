@@ -115,6 +115,7 @@ func createVNPayURLHandler(c *gin.Context) {
 		UserID      uint    `json:"user_id" binding:"required"`
 		UserName    string  `json:"user_name"`
 		UserEmail   string  `json:"user_email"`
+		UserAvatar  string  `json:"user_avatar"` // 👈 Nhận avatar thật
 		CourseID    uint    `json:"course_id" binding:"required"`
 		CourseTitle string  `json:"course_title" binding:"required"`
 		Amount      float64 `json:"amount" binding:"required"`
@@ -126,21 +127,20 @@ func createVNPayURLHandler(c *gin.Context) {
 		return
 	}
 
-	// Tạo mã giao dịch duy nhất
 	txnRef := fmt.Sprintf("EDUPAY_%d_%d_%d", req.UserID, req.CourseID, time.Now().Unix())
 	orderInfo := fmt.Sprintf("Thanh toan khoa hoc: %s", req.CourseTitle)
 
 	clientIP := c.ClientIP()
 	if clientIP == "::1" || clientIP == "127.0.0.1" {
-		clientIP = "13.160.92.202" // IP public hợp lệ cho VNPay Sandbox
+		clientIP = "127.0.0.1"
 	}
 
-	// Lưu giao dịch trạng thái PENDING
 	tx := PaymentTransaction{
 		TxnRef:      txnRef,
 		UserID:      req.UserID,
 		UserName:    req.UserName,
 		UserEmail:   req.UserEmail,
+		UserAvatar:  req.UserAvatar, // 👈 Lưu avatar
 		CourseID:    req.CourseID,
 		CourseTitle: req.CourseTitle,
 		Amount:      req.Amount,
@@ -157,7 +157,6 @@ func createVNPayURLHandler(c *gin.Context) {
 	}
 
 	paymentURL := vnpayHelper.CreatePaymentURL(txnRef, req.Amount, orderInfo, clientIP)
-	log.Printf("🔗 [VNPay] Generated URL (TMN: %s): %s", vnpayHelper.TmnCode, paymentURL)
 
 	c.JSON(http.StatusOK, gin.H{
 		"payment_url": paymentURL,

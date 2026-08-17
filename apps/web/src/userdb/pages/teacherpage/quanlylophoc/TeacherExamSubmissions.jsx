@@ -92,7 +92,7 @@ export default function TeacherExamSubmissions() {
     return { label: "Chưa đạt", color: "bg-rose-100 text-rose-800 border-rose-200" };
   };
 
-  // 3. 🎯 Ghép nối danh sách CẢ LỚP với ĐÃ NỘP BÀI / ĐANG LÀM BÀI / CHƯA LÀM BÀI
+  // 3. Ghép nối danh sách CẢ LỚP với ĐÃ NỘP BÀI / ĐANG LÀM BÀI / CHƯA LÀM BÀI
   const fullClassList = useMemo(() => {
     const subMap = new Map();
     submissions.forEach((sub) => {
@@ -110,18 +110,33 @@ export default function TeacherExamSubmissions() {
         const sub = subMap.get(studentId);
         const session = sessionMap.get(studentId);
 
-        let status = "not_started"; // "submitted" | "in_progress" | "not_started"
+        let status = "not_started";
         if (sub) {
           status = "submitted";
         } else if (session) {
-          status = "in_progress"; // 👈 Đang làm bài thời gian thực
+          status = "in_progress";
         }
+
+        const rawName = st.displayName || st.fullName || st.name || st.student_name || sub?.student_name || session?.student_name || st.email?.split("@")[0] || "Học viên";
+        
+        // 🎯 Lấy avatar thật từ tất cả các trường dữ liệu có thể có
+        const rawAvatar = 
+          st.avatar || 
+          st.avatar_url || 
+          st.avatarUrl || 
+          st.user_avatar || 
+          st.photo || 
+          st.image || 
+          st.user?.avatar || 
+          sub?.student_avatar || 
+          sub?.avatar || 
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=random`;
 
         return {
           student_id: studentId,
-          student_name: st.displayName || st.fullName || st.name || sub?.student_name || session?.student_name || st.email?.split("@")[0] || "Học viên",
-          email: st.email || "",
-          avatar_url: st.avatar_url || st.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(st.displayName || st.name || "HV")}&background=random`,
+          student_name: rawName,
+          email: st.email || st.student_email || "",
+          avatar_url: rawAvatar,
           status,
           submission: sub || null,
           session: session || null,
@@ -135,22 +150,25 @@ export default function TeacherExamSubmissions() {
       });
     }
 
-    // Fallback
-    return submissions.map((sub) => ({
-      student_id: sub.student_id,
-      student_name: sub.student_name,
-      email: "",
-      avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(sub.student_name || "HV")}&background=random`,
-      status: "submitted",
-      submission: sub,
-      session: null,
-      score: sub.score,
-      time_spent_secs: sub.time_spent_secs,
-      submitted_at: sub.submitted_at || sub.created_at,
-      violations_count: sub.violations_count,
-      total_correct: sub.total_correct,
-      in_progress_count: 0
-    }));
+    return submissions.map((sub) => {
+      const rawName = sub.student_name || "Học viên";
+      const rawAvatar = sub.student_avatar || sub.avatar || sub.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(rawName)}&background=random`;
+      return {
+        student_id: sub.student_id,
+        student_name: rawName,
+        email: sub.student_email || "",
+        avatar_url: rawAvatar,
+        status: "submitted",
+        submission: sub,
+        session: null,
+        score: sub.score,
+        time_spent_secs: sub.time_spent_secs,
+        submitted_at: sub.submitted_at || sub.created_at,
+        violations_count: sub.violations_count,
+        total_correct: sub.total_correct,
+        in_progress_count: 0
+      };
+    });
   }, [courseStudents, submissions, activeSessions]);
 
   // 4. Lọc & Sắp xếp dữ liệu

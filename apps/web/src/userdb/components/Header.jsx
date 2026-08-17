@@ -1,15 +1,17 @@
-﻿import React, { useState, useEffect, useRef } from "react"
+﻿/* eslint-disable no-unused-vars */
+import React, { useState, useEffect, useRef } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { 
   Search, 
   Bot, 
   GraduationCap, 
   Star, 
-  Bell, 
   Settings,
   LogOut,
   User as UserIcon,
-  LayoutDashboard
+  LayoutDashboard,
+  Receipt,
+  CreditCard
 } from "lucide-react"
 
 import api from "../../api/axios.js"
@@ -85,7 +87,6 @@ export default function Header() {
     return parts.map(p => p[0]).join("").substring(0, 3).toUpperCase()
   }
 
-  // Định nghĩa màu sắc theo vai trò
   const theme = {
     primary: isTeacher ? "orange" : "blue",
     bgLight: isTeacher ? "bg-orange-50" : "bg-blue-50",
@@ -116,7 +117,7 @@ export default function Header() {
       </div>
 
       <div className="flex items-center space-x-3 shrink-0">
-        {/* Nút Trợ lý AI - Đổi màu theo role */}
+        {/* Nút Trợ lý AI */}
         <button type="button" className={`flex items-center space-x-1.5 px-3 py-1.5 ${theme.bgLight} ${theme.hoverBg} ${theme.textPrimary} rounded-full text-xs font-bold transition cursor-pointer`}>
           <Bot className="w-4 h-4" />
           <span>Trợ lý AI</span>
@@ -128,7 +129,7 @@ export default function Header() {
           <span>{isTeacher ? "Giảng viên" : "Lớp 12A1"}</span>
         </div>
 
-        {/* Điểm (Chỉ hiển thị cho Student) */}
+        {/* Điểm học tập */}
         {!isTeacher && (
           <div className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-amber-50 border border-amber-200/80 text-amber-600 rounded-full text-xs font-extrabold">
             <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
@@ -159,7 +160,7 @@ export default function Header() {
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="px-4 py-2.5 border-b border-slate-100">
                 <p className="text-xs font-extrabold text-slate-900 truncate">{fullName}</p>
                 {email && <p className="text-[10px] font-medium text-slate-400 truncate mt-0.5">{email}</p>}
@@ -173,10 +174,23 @@ export default function Header() {
                   <LayoutDashboard className="w-4 h-4 text-slate-400" />
                   <span>Bảng điều khiển</span>
                 </button>
+
                 <button onClick={() => { setShowDropdown(false); navigate(profilePath) }} className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer">
                   <UserIcon className="w-4 h-4 text-slate-400" />
                   <span>Trang cá nhân</span>
                 </button>
+
+                {/* 🎯 NÚT LỊCH SỬ GIAO DỊCH DÀNH CHO HỌC SINH */}
+                {!isTeacher && (
+                  <button 
+                    onClick={() => { setShowDropdown(false); navigate("/student/transactions") }} 
+                    className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+                  >
+                    <Receipt className="w-4 h-4 text-blue-500" />
+                    <span>Lịch sử thanh toán (VNPay)</span>
+                  </button>
+                )}
+
                 <button onClick={handleLogout} className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 border-t border-slate-100 mt-1 transition cursor-pointer">
                   <LogOut className="w-4 h-4 text-red-500" />
                   <span>Đăng xuất tài khoản</span>

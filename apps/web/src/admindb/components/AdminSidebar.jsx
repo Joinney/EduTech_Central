@@ -24,7 +24,9 @@ import {
   HelpCircle,
   FileCheck,
   BarChart3,
-  Sparkles
+  Sparkles,
+  CreditCard,
+  Receipt
 } from "lucide-react"
 
 export default function AdminSidebar() {
@@ -33,13 +35,11 @@ export default function AdminSidebar() {
   
   const [isCollapsed, setIsCollapsed] = useState(false)
 
-  // Hàm xác định tab hiện tại từ URL query params
   const getCurrentTabFromUrl = () => {
     const searchParams = new URLSearchParams(location.search)
     return searchParams.get("tab") || "content"
   }
 
-  // Quản lý trạng thái mở/đóng: Chỉ mở nhóm tương ứng với URL hiện tại
   const [openMenus, setOpenMenus] = useState(() => {
     const currentTab = new URLSearchParams(location.search).get("tab") || "content"
     return {
@@ -50,7 +50,6 @@ export default function AdminSidebar() {
     }
   })
 
-  // Tự động đóng các tab khác và chỉ mở tab tương ứng khi URL thay đổi
   useEffect(() => {
     const currentTab = getCurrentTabFromUrl()
     setOpenMenus({
@@ -63,7 +62,6 @@ export default function AdminSidebar() {
 
   const toggleMenu = (key) => {
     if (isCollapsed) setIsCollapsed(false)
-    // Khi bấm vào menu cha, chỉ mở menu đó và đóng các menu còn lại (Accordian behavior)
     setOpenMenus((prev) => ({
       content: key === "content" ? !prev.content : false,
       students: key === "students" ? !prev.students : false,
@@ -72,7 +70,6 @@ export default function AdminSidebar() {
     }))
   }
 
-  // 4 TRỤ CỘT LCMS CORE & CÁC TAB CON ĐỒNG BỘ CHUẨN XÁC
   const lcmsGroups = [
     {
       id: "content",
@@ -121,7 +118,6 @@ export default function AdminSidebar() {
     navigate("/admin/login")
   }
 
-  // Kiểm tra tab con có đang active hay không
   const isSubItemActive = (tab, sub) => {
     if (location.pathname !== "/admin/courses") return false
     const searchParams = new URLSearchParams(location.search)
@@ -145,7 +141,6 @@ export default function AdminSidebar() {
         {isCollapsed ? <ChevronRight size={16} strokeWidth={3} /> : <ChevronLeft size={16} strokeWidth={3} />}
       </button>
 
-      {/* Hiệu ứng ánh sáng nền phía trên */}
       <div className="absolute top-0 left-0 w-full h-48 bg-white/10 blur-[80px] pointer-events-none" />
 
       <div className="space-y-4 relative z-10 overflow-y-auto max-h-[calc(100vh-100px)] pr-1 custom-scrollbar">
@@ -199,6 +194,20 @@ export default function AdminSidebar() {
             <Users className="w-4 h-4 shrink-0" />
             {!isCollapsed && <span>Quản lý người dùng</span>}
           </Link>
+
+          {/* 🎯 NÚT TRUY CẬP TRANG LỊCH SỬ GIAO DỊCH & DOANH THU VNPAY */}
+          <Link
+            to="/admin/transactions"
+            title={isCollapsed ? "Giao dịch & Doanh thu" : ""}
+            className={`group flex items-center px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              location.pathname === "/admin/transactions"
+                ? "bg-orange-500 text-white shadow-md shadow-orange-500/20"
+                : "text-blue-100/70 hover:bg-white/10 hover:text-white"
+            } ${isCollapsed ? "justify-center" : "space-x-3"}`}
+          >
+            <Receipt className="w-4 h-4 shrink-0 text-amber-300" />
+            {!isCollapsed && <span>Giao dịch & Doanh thu</span>}
+          </Link>
         </div>
 
         {/* ================= 4 TRỤ CỘT LCMS CORE ================= */}
@@ -216,7 +225,6 @@ export default function AdminSidebar() {
 
             return (
               <div key={group.id} className="space-y-1">
-                {/* Nút Nhóm Cha */}
                 <button
                   type="button"
                   onClick={() => toggleMenu(group.id)}
@@ -234,7 +242,6 @@ export default function AdminSidebar() {
                   )}
                 </button>
 
-                {/* Danh sách các Tab con */}
                 {!isCollapsed && isOpen && (
                   <div className="pl-4 pr-1 py-1 space-y-1 border-l-2 border-orange-500/40 ml-4 animate-fadeIn">
                     {group.subItems.map((sub) => {
