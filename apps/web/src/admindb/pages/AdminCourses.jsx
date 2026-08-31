@@ -13,11 +13,11 @@ import {
 import { courseService } from "../../api/course.api";
 
 // 🟢 Import các Tab và Modal theo tên Tiếng Việt chuẩn hóa
-import ImportHocSinhModal from "../components/lcms/modals/ImportHocSinhModal";
-import KhoaHocVaBaiGiangTab from "../components/lcms/tabs/KhoaHocVaBaiGiangTab";
-import LopHocVaHocVienTab from "../components/lcms/tabs/LopHocVaHocVienTab";
-import DayOnlineVaLichLiveTab from "../components/lcms/tabs/DayOnlineVaLichLiveTab";
-import DanhGiaVaKhaoThiTab from "../components/lcms/tabs/DanhGiaVaKhaoThiTab";
+import ImportHocSinhModal from "./lophochocvien/modals/ImportHocSinhModal";
+import KhoaHocVaBaiGiangTab from "./khoahocbaigiang/KhoaHocVaBaiGiangTab";
+import LopHocVaHocVienTab from "./lophochocvien/LopHocVaHocVienTab";
+import DayOnlineVaLichLiveTab from "./dayonlinelichlive/DayOnlineVaLichLiveTab";
+import DanhGiaVaKhaoThiTab from "./danhgiakhaothi/DanhGiaVaKhaoThiTab";
 
 export default function AdminCourses() {
   const location = useLocation();

@@ -21,7 +21,7 @@ import {
   ArrowUpDown,
   RefreshCw
 } from "lucide-react"
-import { paymentApi } from "../../api/payment.api"
+import { paymentApi } from "../../../api/payment.api"
 
 export default function AdminTransactions() {
   const [transactions, setTransactions] = useState([])

@@ -27,8 +27,8 @@ import {
   BookOpen,
   RefreshCw
 } from "lucide-react";
-import { quizApi } from "../../../../api/quiz.api";
-import { courseService } from "../../../../api/course.api";
+import { quizApi } from "../../../api/quiz.api";
+import { courseService } from "../../../api/course.api";
 
 const formatDateTime = (val) => {
   if (!val) return "Chưa cập nhật";

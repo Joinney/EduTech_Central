@@ -20,7 +20,7 @@ import {
   ShieldCheck, 
   Clock
 } from "lucide-react";
-import { courseService } from "../../../../api/course.api";
+import { courseService } from "../../../api/course.api";
 
 export default function LopHocVaHocVienTab({
   courses,

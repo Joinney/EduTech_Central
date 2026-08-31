@@ -15,7 +15,7 @@ import {
   FileText,
   Download
 } from "lucide-react";
-import { formatStatusBadge } from "../constants";
+import { formatStatusBadge } from "../../components/lcms/constants";
 
 export default function KhoaHocVaBaiGiangTab({
   courses,

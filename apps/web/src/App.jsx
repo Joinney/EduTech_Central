@@ -36,11 +36,11 @@ import TeacherExamSubmissions from "./userdb/pages/teacherpage/quanlylophoc/Teac
 
 // ================= ADMIN PAGES =================
 import AdminHome from "./admindb/pages/AdminHome.jsx"
-import AdminUsers from "./admindb/pages/AdminUsers.jsx" 
+import AdminUsers from "./admindb/pages/quanlynguoidung/AdminUsers.jsx" 
 import AdminCourses from "./admindb/pages/AdminCourses.jsx" 
 import AdminReports from "./admindb/pages/AdminReports.jsx"
 import AdminSettings from "./admindb/pages/AdminSettings.jsx"
-import AdminTransactions from "./admindb/pages/AdminTransactions.jsx"
+import AdminTransactions from "./admindb/pages/giaodichdanhthu/AdminTransactions.jsx"
 
 // ================= SHARED PAGES =================
 import Profile from "./userdb/pages/Profile.jsx"
