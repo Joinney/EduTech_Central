@@ -25,7 +25,6 @@ import {
   FileCheck,
   BarChart3,
   Sparkles,
-  CreditCard,
   Receipt
 } from "lucide-react"
 
@@ -134,6 +133,7 @@ export default function AdminSidebar() {
     >
       {/* Nút Thu gọn/Mở rộng Sidebar */}
       <button
+        type="button"
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="absolute -right-3 top-8 bg-orange-500 text-white rounded-full p-1 shadow-md z-50 hover:bg-orange-600 transition-all cursor-pointer"
         title={isCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn"}
@@ -143,7 +143,18 @@ export default function AdminSidebar() {
 
       <div className="absolute top-0 left-0 w-full h-48 bg-white/10 blur-[80px] pointer-events-none" />
 
-      <div className="space-y-4 relative z-10 overflow-y-auto max-h-[calc(100vh-100px)] pr-1 custom-scrollbar">
+      {/* KHU VỰC CUỘN NỘI DUNG:
+          - overflow-y-hidden hover:overflow-y-auto
+          - Thêm [scrollbar-gutter:stable] để tránh giật giao diện khi thanh cuộn xuất hiện
+      */}
+      <div 
+        className="space-y-4 relative z-10 overflow-y-hidden hover:overflow-y-auto max-h-[calc(100vh-100px)] pr-1.5 [scrollbar-gutter:stable]
+          [&::-webkit-scrollbar]:w-1.5
+          [&::-webkit-scrollbar-track]:bg-transparent
+          [&::-webkit-scrollbar-thumb]:bg-transparent
+          hover:[&::-webkit-scrollbar-thumb]:bg-white/30
+          [&::-webkit-scrollbar-thumb]:rounded-full"
+      >
         
         {/* LOGO TRANG */}
         <Link 
@@ -195,7 +206,6 @@ export default function AdminSidebar() {
             {!isCollapsed && <span>Quản lý người dùng</span>}
           </Link>
 
-          {/* 🎯 NÚT TRUY CẬP TRANG LỊCH SỬ GIAO DỊCH & DOANH THU VNPAY */}
           <Link
             to="/admin/transactions"
             title={isCollapsed ? "Giao dịch & Doanh thu" : ""}
