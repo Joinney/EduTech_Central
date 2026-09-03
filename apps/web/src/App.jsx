@@ -42,8 +42,9 @@ import AdminReports from "./admindb/pages/AdminReports.jsx"
 import AdminSettings from "./admindb/pages/AdminSettings.jsx"
 import AdminTransactions from "./admindb/pages/giaodichdanhthu/AdminTransactions.jsx"
 
-// ================= SHARED PAGES =================
+// ================= SHARED PAGES & COMPONENTS =================
 import Profile from "./userdb/pages/Profile.jsx"
+import AIChatWidget from "./components/AIChatWidget.jsx"
 
 const DashboardRedirect = () => {
   const location = useLocation()
@@ -68,72 +69,77 @@ const DashboardRedirect = () => {
 
 export default function App() {
   return (
-    <Routes>
-      {/* 🟢 1. CÁC TRANG CÔNG KHAI */}
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/admin/login" element={<AdminLogin />} />
+    <>
+      <Routes>
+        {/* 🟢 1. CÁC TRANG CÔNG KHAI */}
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
 
-      {/* 🟢 2. CÁC TRANG TOÀN MÀN HÌNH ĐỘC LẬP */}
-      <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
-        <Route path="/student/exam/:examId" element={<ExamRoom />} />
-      </Route>
-
-      <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
-        <Route path="/teacher/exam/:examId" element={<TeacherExamSubmissions />} />
-        <Route path="/teacher/exam/:examId/submissions" element={<TeacherExamSubmissions />} />
-      </Route>
-
-      {/* 🟢 3. ROUTE DÀNH CHO ADMIN */}
-      <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="dashboard" element={<AdminHome />} />
-          <Route path="users" element={<AdminUsers />} /> 
-          <Route path="courses" element={<AdminCourses />} /> 
-          <Route path="courses/create-school" element={<AdminCreateSchoolCourse />} />
-          <Route path="transactions" element={<AdminTransactions />} />
-          <Route path="reports" element={<AdminReports />} />
-          <Route path="settings" element={<AdminSettings />} />
-          <Route path="profile" element={<Profile />} />
+        {/* 🟢 2. CÁC TRANG TOÀN MÀN HÌNH ĐỘC LẬP */}
+        <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
+          <Route path="/student/exam/:examId" element={<ExamRoom />} />
         </Route>
-      </Route>
 
-      {/* 🟢 4. ROUTE DÀNH CHO TEACHER */}
-      <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
-        <Route path="/teacher" element={<UserLayout />}>
-          <Route index element={<Navigate to="/teacher/dashboard" replace />} />
-          <Route path="dashboard" element={<TeacherHome />} />
-          <Route path="courses" element={<CourseManagement />} />
-          <Route path="courses/request" element={<TeacherRequestCourse />} />
-          <Route path="quizzes" element={<QuizBank />} />
-          <Route path="grading" element={<Grading />} />
-          <Route path="students" element={<StudentList />} />
-          <Route path="schedule" element={<Schedule />} />
-          <Route path="library" element={<Library />} />
-          <Route path="profile" element={<Profile />} />
+        <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
+          <Route path="/teacher/exam/:examId" element={<TeacherExamSubmissions />} />
+          <Route path="/teacher/exam/:examId/submissions" element={<TeacherExamSubmissions />} />
         </Route>
-      </Route>
 
-      {/* 🟢 5. ROUTE DÀNH CHO STUDENT */}
-      <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
-        <Route path="/student" element={<UserLayout />}>
-          <Route index element={<Navigate to="/student/dashboard" replace />} />
-          <Route path="dashboard" element={<StudentHome />} />
-          <Route path="programs" element={<Programs />} />
-          <Route path="library" element={<Library />} />
-          <Route path="courses" element={<StudentCourses />} />
-          <Route path="transactions" element={<StudentTransactions />} />
-          <Route path="payment-result" element={<PaymentResult />} />
-          <Route path="videos" element={<Videos />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="bookshelf" element={<Bookshelf />} />
+        {/* 🟢 3. ROUTE DÀNH CHO ADMIN */}
+        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminHome />} />
+            <Route path="users" element={<AdminUsers />} /> 
+            <Route path="courses" element={<AdminCourses />} /> 
+            <Route path="courses/create-school" element={<AdminCreateSchoolCourse />} />
+            <Route path="transactions" element={<AdminTransactions />} />
+            <Route path="reports" element={<AdminReports />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="profile" element={<Profile />} />
+          </Route>
         </Route>
-      </Route>
 
-      {/* 🟢 6. BẮT ROUTE KHÔNG TỒN TẠI */}
-      <Route path="*" element={<DashboardRedirect />} />
-    </Routes>
+        {/* 🟢 4. ROUTE DÀNH CHO TEACHER */}
+        <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
+          <Route path="/teacher" element={<UserLayout />}>
+            <Route index element={<Navigate to="/teacher/dashboard" replace />} />
+            <Route path="dashboard" element={<TeacherHome />} />
+            <Route path="courses" element={<CourseManagement />} />
+            <Route path="courses/request" element={<TeacherRequestCourse />} />
+            <Route path="quizzes" element={<QuizBank />} />
+            <Route path="grading" element={<Grading />} />
+            <Route path="students" element={<StudentList />} />
+            <Route path="schedule" element={<Schedule />} />
+            <Route path="library" element={<Library />} />
+            <Route path="profile" element={<Profile />} />
+          </Route>
+        </Route>
+
+        {/* 🟢 5. ROUTE DÀNH CHO STUDENT */}
+        <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
+          <Route path="/student" element={<UserLayout />}>
+            <Route index element={<Navigate to="/student/dashboard" replace />} />
+            <Route path="dashboard" element={<StudentHome />} />
+            <Route path="programs" element={<Programs />} />
+            <Route path="library" element={<Library />} />
+            <Route path="courses" element={<StudentCourses />} />
+            <Route path="transactions" element={<StudentTransactions />} />
+            <Route path="payment-result" element={<PaymentResult />} />
+            <Route path="videos" element={<Videos />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="bookshelf" element={<Bookshelf />} />
+          </Route>
+        </Route>
+
+        {/* 🟢 6. BẮT ROUTE KHÔNG TỒN TẠI */}
+        <Route path="*" element={<DashboardRedirect />} />
+      </Routes>
+
+      {/* 🟢 WIDGET AI NỔI CỐ ĐỊNH Ở GÓC DƯỚI BÊN PHẢI */}
+      <AIChatWidget />
+    </>
   )
 }
