@@ -15,6 +15,7 @@ import ProtectedRoute from "./userdb/components/ProtectedRoute.jsx"
 
 // ================= STUDENT PAGES =================
 import StudentHome from "./userdb/pages/studentpage/StudentHome.jsx"
+import StudentDashboard from "./userdb/pages/studentpage/dashboard/StudentDashboard.jsx"
 import Programs from "./userdb/pages/studentpage/Chuongtrinhkhoilop/Programs.jsx"
 import Library from "./userdb/pages/studentpage/Khohoclieu/Library.jsx"
 import StudentCourses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx"
@@ -62,9 +63,9 @@ const DashboardRedirect = () => {
     return <Navigate to="/admin/dashboard" replace />
   }
   if (role === "teacher" || role === "instructor") {
-    return <Navigate to="/teacher/dashboard" replace />
+    return <Navigate to="/teacher/home" replace />
   }
-  return <Navigate to="/student/dashboard" replace />
+  return <Navigate to="/student/home" replace />
 }
 
 export default function App() {
@@ -105,7 +106,8 @@ export default function App() {
         {/* 🟢 4. ROUTE DÀNH CHO TEACHER */}
         <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
           <Route path="/teacher" element={<UserLayout />}>
-            <Route index element={<Navigate to="/teacher/dashboard" replace />} />
+            <Route index element={<Navigate to="/teacher/home" replace />} />
+            <Route path="home" element={<TeacherHome />} />
             <Route path="dashboard" element={<TeacherHome />} />
             <Route path="courses" element={<CourseManagement />} />
             <Route path="courses/request" element={<TeacherRequestCourse />} />
@@ -121,8 +123,9 @@ export default function App() {
         {/* 🟢 5. ROUTE DÀNH CHO STUDENT */}
         <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
           <Route path="/student" element={<UserLayout />}>
-            <Route index element={<Navigate to="/student/dashboard" replace />} />
-            <Route path="dashboard" element={<StudentHome />} />
+            <Route index element={<Navigate to="/student/home" replace />} />
+            <Route path="home" element={<StudentHome />} />
+            <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="programs" element={<Programs />} />
             <Route path="library" element={<Library />} />
             <Route path="courses" element={<StudentCourses />} />

@@ -67,24 +67,20 @@ export default function Login() {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + posters.length) % posters.length)
   }
 
- // 🟢 Điều hướng chuẩn:
-// - Lần đầu đăng nhập (isOnboarded == false hoặc chưa onboard): Đưa vào trang /welcome
-// - Đã onboard trước đó (isOnboarded == true): Đưa thẳng vào Dashboard tương ứng
-const getRedirectPath = (role, isOnboarded) => {
-  const normalizedRole = role ? role.toLowerCase() : "student"
+  // Điều hướng chuẩn: Student & Teacher vào trang Home
+  const getRedirectPath = (role, isOnboarded) => {
+    const normalizedRole = role ? role.toLowerCase() : "student"
+    const isAlreadyOnboarded = isOnboarded === true || isOnboarded === "true"
 
-  // Kiểm tra trạng thái đã onboard chưa (Lưu ý: false hoặc "false" nghĩa là chưa onboard)
-  const isAlreadyOnboarded = isOnboarded === true || isOnboarded === "true"
+    if (!isAlreadyOnboarded) {
+      return "/welcome"
+    }
 
-  if (!isAlreadyOnboarded) {
-    return "/welcome" // Đăng nhập lần đầu -> Qua trang Onboarding Welcome Modal
+    if (normalizedRole === "teacher" || normalizedRole === "instructor") {
+      return "/teacher/home"
+    }
+    return "/student/home"
   }
-
-  // Đã onboard rồi -> Đưa thẳng vào Dashboard theo Role
-  return normalizedRole === "teacher" || normalizedRole === "instructor"
-    ? "/teacher/dashboard"
-    : "/student/dashboard"
-}
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -113,7 +109,6 @@ const getRedirectPath = (role, isOnboarded) => {
       // 3. Xử lý User Data & Trạng thái isOnboarded
       const userData = result.data?.user || result.data
       if (userData) {
-        // Đọc giá trị isOnboarded (true: Lần đầu, false: Đã onboard)
         const isOnboardedVal = userData.isOnboarded ?? userData.is_onboarded ?? true
 
         userData.isOnboarded = isOnboardedVal
@@ -124,10 +119,8 @@ const getRedirectPath = (role, isOnboarded) => {
         const userRole = userData.role || userData.user_type || "student"
         localStorage.setItem("role", userRole)
 
-        // Phát sự kiện cập nhật UI cho Header
         window.dispatchEvent(new Event("user-profile-updated"))
 
-        // 🟢 ĐIỀU HƯỚNG
         navigate(getRedirectPath(userRole, isOnboardedVal))
       } else {
         navigate("/welcome")

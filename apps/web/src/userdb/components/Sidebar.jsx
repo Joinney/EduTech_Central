@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { 
+  Home as HomeIcon,
   LayoutDashboard, 
   GraduationCap, 
   Library, 
@@ -25,7 +26,6 @@ export default function Sidebar() {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState("student")
 
-  // Đọc thông tin người dùng & vai trò từ localStorage
   useEffect(() => {
     const loadUserData = () => {
       const storedUser = localStorage.getItem("user")
@@ -61,8 +61,9 @@ export default function Sidebar() {
     return parts.map(p => p[0]).join("").substring(0, 3).toUpperCase()
   }
 
-  // 1. Danh sách menu cho Học viên
+  // 1. Danh sách menu cho Học viên (Đã thêm Trang chủ lên đầu)
   const studentNavItems = [
+    { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
     { name: "Bảng điều khiển", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Chương trình & Khối lớp", path: `/${role}/programs`, icon: GraduationCap },
     { name: "Kho Học liệu & Thư viện", path: `/${role}/library`, icon: Library },
@@ -71,8 +72,9 @@ export default function Sidebar() {
     { name: "Tủ sách & Bộ sưu tập", path: `/${role}/bookshelf`, icon: Bookmark },
   ]
 
-  // 2. Danh sách menu đầy đủ cho Giảng viên (Chuẩn LMS)
+  // 2. Danh sách menu cho Giảng viên (Đã thêm Trang chủ lên đầu)
   const teacherNavItems = [
+    { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
     { name: "Bảng quản lý Giảng viên", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Quản lý Lớp & Khóa học", path: `/${role}/courses`, icon: FolderPlus },
     { name: "Ngân hàng Đề & Bài kiểm tra", path: `/${role}/quizzes`, icon: HelpCircle },
@@ -165,8 +167,8 @@ export default function Sidebar() {
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = location.pathname === item.path || (item.path === `/${role}/dashboard` && location.pathname === "/")
-              
+              const isActive = location.pathname === item.path
+
               return (
                 <Link
                   key={item.path}
