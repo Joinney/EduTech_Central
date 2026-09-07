@@ -168,6 +168,7 @@ type CourseDiscussion struct {
 	UserRole   string    `gorm:"size:50;default:'student'" json:"user_role"`
 	AvatarURL  string    `gorm:"type:text" json:"avatar_url"`
 	Content    string    `gorm:"type:text;not null" json:"content"`
+	IsPinned   bool      `gorm:"default:false" json:"is_pinned"` 
 	IsApproved bool      `gorm:"default:true" json:"is_approved"`
 	CreatedAt  time.Time `json:"created_at"`
 }
@@ -1131,23 +1132,54 @@ func getAllAttendanceLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": logs})
 }
 
+// API lấy danh sách: Tự động đưa bài được Ghim lên đầu, sau đó sắp xếp theo thời gian
 func getCourseDiscussions(c *gin.Context) {
 	courseID := c.Param("id")
 	var discussions []CourseDiscussion
-	db.Where("course_id = ?", courseID).Order("created_at desc").Find(&discussions)
+	db.Where("course_id = ?", courseID).Order("is_pinned desc, created_at desc").Find(&discussions)
 	c.JSON(http.StatusOK, gin.H{"data": discussions})
 }
 
+// API đăng bài mới: Hứng dữ liệu từ React và check quyền để ghim bài
 func createDiscussion(c *gin.Context) {
 	courseID, _ := strconv.Atoi(c.Param("id"))
-	var discussion CourseDiscussion
-	if err := c.ShouldBindJSON(&discussion); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	
+	// Hứng dữ liệu chuẩn từ Frontend gửi lên
+	var req struct {
+		UserID    uint   `json:"user_id"`
+		UserName  string `json:"user_name"`
+		UserRole  string `json:"user_role"`
+		AvatarURL string `json:"avatar_url"`
+		Content   string `json:"content"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
 		return
 	}
-	discussion.CourseID = uint(courseID)
-	discussion.CreatedAt = time.Now()
-	db.Create(&discussion)
+
+	// Logic tự động: Nếu người đăng là "admin" hoặc "teacher" thì ghim bài viết
+	isPinned := false
+	if req.UserRole == "admin" || req.UserRole == "teacher" {
+		isPinned = true
+	}
+
+	discussion := CourseDiscussion{
+		CourseID:   uint(courseID),
+		UserID:     req.UserID,
+		UserName:   req.UserName,
+		UserRole:   req.UserRole,
+		AvatarURL:  req.AvatarURL,
+		Content:    req.Content,
+		IsPinned:   isPinned,
+		CreatedAt:  time.Now(),
+	}
+
+	if err := db.Create(&discussion).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu thảo luận"})
+		return
+	}
+
 	c.JSON(http.StatusCreated, gin.H{"message": "Đăng thảo luận thành công", "data": discussion})
 }
 

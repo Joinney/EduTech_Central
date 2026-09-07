@@ -1,24 +1,25 @@
 /* eslint-disable react/prop-types */
 import React, { useState, useEffect } from "react";
-import { 
-  Users, 
-  TrendingUp, 
+import {
+  Users,
+  TrendingUp,
   MessageSquare,
-  Download, 
-  Eye, 
-  Search, 
-  X, 
-  GraduationCap, 
-  Loader2, 
-  CheckCircle2, 
-  AlertTriangle, 
-  School, 
-  Sparkles, 
-  FileCheck, 
-  Send, 
-  Trash2, 
-  ShieldCheck, 
-  Clock
+  Download,
+  Eye,
+  Search,
+  X,
+  GraduationCap,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  School,
+  Sparkles,
+  FileCheck,
+  Send,
+  Trash2,
+  ShieldCheck,
+  Clock,
+  Pin, // Đã thêm icon Pin (Ghim)
 } from "lucide-react";
 import { courseService } from "../../../api/course.api";
 
@@ -26,7 +27,7 @@ export default function LopHocVaHocVienTab({
   courses,
   subTabStudent,
   onSwitchSubTab,
-  onOpenImportModal
+  onOpenImportModal,
 }) {
   // ================= TAB 1: MODAL XEM DANH SÁCH HỌC SINH =================
   const [selectedCourseForView, setSelectedCourseForView] = useState(null);
@@ -35,7 +36,9 @@ export default function LopHocVaHocVienTab({
   const [searchTerm, setSearchTerm] = useState("");
 
   // ================= TAB 2: TIẾN ĐỘ HỌC TẬP TRỰC TIẾP =================
-  const [selectedProgressCourseId, setSelectedProgressCourseId] = useState(courses[0]?.id || "");
+  const [selectedProgressCourseId, setSelectedProgressCourseId] = useState(
+    courses[0]?.id || "",
+  );
   const [progressData, setProgressData] = useState([]);
   const [isLoadingProgress, setIsLoadingProgress] = useState(false);
   const [filterLowProgressOnly, setFilterLowProgressOnly] = useState(false);
@@ -43,7 +46,9 @@ export default function LopHocVaHocVienTab({
   const [courseCategoryFilter, setCourseCategoryFilter] = useState("all");
 
   // ================= TAB 3: DIỄN ĐÀN & HỎI ĐÁP =================
-  const [selectedDiscussionCourseId, setSelectedDiscussionCourseId] = useState(courses[0]?.id || "");
+  const [selectedDiscussionCourseId, setSelectedDiscussionCourseId] = useState(
+    courses[0]?.id || "",
+  );
   const [discussions, setDiscussions] = useState([]);
   const [isLoadingDiscussions, setIsLoadingDiscussions] = useState(false);
   const [adminReplyText, setAdminReplyText] = useState("");
@@ -56,7 +61,8 @@ export default function LopHocVaHocVienTab({
   useEffect(() => {
     if (courses.length > 0) {
       if (!selectedProgressCourseId) setSelectedProgressCourseId(courses[0].id);
-      if (!selectedDiscussionCourseId) setSelectedDiscussionCourseId(courses[0].id);
+      if (!selectedDiscussionCourseId)
+        setSelectedDiscussionCourseId(courses[0].id);
     }
   }, [courses, selectedProgressCourseId, selectedDiscussionCourseId]);
 
@@ -74,16 +80,20 @@ export default function LopHocVaHocVienTab({
   const fetchCourseLiveProgress = async (courseId) => {
     try {
       setIsLoadingProgress(true);
-      const [studentsRes, lessonsRes, assignmentsRes, quizzesRes] = await Promise.all([
-        courseService.getStudentsByCourse(courseId),
-        courseService.getLessonsByCourse(courseId).catch(() => []),
-        courseService.getAssignmentsByCourse(courseId).catch(() => []),
-        courseService.getQuizzesByCourse(courseId).catch(() => [])
-      ]);
+      const [studentsRes, lessonsRes, assignmentsRes, quizzesRes] =
+        await Promise.all([
+          courseService.getStudentsByCourse(courseId),
+          courseService.getLessonsByCourse(courseId).catch(() => []),
+          courseService.getAssignmentsByCourse(courseId).catch(() => []),
+          courseService.getQuizzesByCourse(courseId).catch(() => []),
+        ]);
 
-      const students = studentsRes?.data || (Array.isArray(studentsRes) ? studentsRes : []);
+      const students =
+        studentsRes?.data || (Array.isArray(studentsRes) ? studentsRes : []);
       const totalLessons = Array.isArray(lessonsRes) ? lessonsRes.length : 0;
-      const totalAssignments = Array.isArray(assignmentsRes) ? assignmentsRes.length : 0;
+      const totalAssignments = Array.isArray(assignmentsRes)
+        ? assignmentsRes.length
+        : 0;
       const totalQuizzes = Array.isArray(quizzesRes) ? quizzesRes.length : 0;
 
       const progressPromises = students.map(async (student) => {
@@ -91,16 +101,33 @@ export default function LopHocVaHocVienTab({
         let completedLessons = 0;
 
         try {
-          const progRes = await courseService.getStudentCourseProgress(courseId, student.id);
+          const progRes = await courseService.getStudentCourseProgress(
+            courseId,
+            student.id,
+          );
           percent = Math.round(progRes?.percent || 0);
           completedLessons = progRes?.completed_count || 0;
         } catch {
-          percent = totalLessons > 0 ? Math.min(100, Math.floor(Math.random() * 50) + 45) : 0;
+          percent =
+            totalLessons > 0
+              ? Math.min(100, Math.floor(Math.random() * 50) + 45)
+              : 0;
           completedLessons = Math.round((percent / 100) * totalLessons);
         }
 
-        const submittedAssignments = totalAssignments > 0 ? Math.min(totalAssignments, Math.ceil((percent / 100) * totalAssignments)) : 0;
-        const avgQuizScore = totalQuizzes > 0 ? (percent >= 50 ? (7.0 + (percent / 100) * 2.5).toFixed(1) : (4.5 + (percent / 100) * 2.0).toFixed(1)) : "--";
+        const submittedAssignments =
+          totalAssignments > 0
+            ? Math.min(
+                totalAssignments,
+                Math.ceil((percent / 100) * totalAssignments),
+              )
+            : 0;
+        const avgQuizScore =
+          totalQuizzes > 0
+            ? percent >= 50
+              ? (7.0 + (percent / 100) * 2.5).toFixed(1)
+              : (4.5 + (percent / 100) * 2.0).toFixed(1)
+            : "--";
 
         return {
           ...student,
@@ -110,7 +137,12 @@ export default function LopHocVaHocVienTab({
           submittedAssignments,
           totalAssignments,
           avgQuizScore,
-          status: percent >= 80 ? "XUAT_SAC" : percent >= 50 ? "DAT_CHUAN" : "CAN_CO_GANG"
+          status:
+            percent >= 80
+              ? "XUAT_SAC"
+              : percent >= 50
+                ? "DAT_CHUAN"
+                : "CAN_CO_GANG",
         };
       });
 
@@ -123,39 +155,14 @@ export default function LopHocVaHocVienTab({
     }
   };
 
-  // 🎯 Lấy dữ liệu Thảo luận (Tab 3)
+  // 🎯 Lấy dữ liệu Thảo luận (Tab 3) - ĐÃ DÙNG DỮ LIỆU THẬT TỪ DATABASE
   const fetchDiscussions = async (courseId) => {
     try {
       setIsLoadingDiscussions(true);
       const res = await courseService.getCourseDiscussions(courseId);
-      const list = res?.data || (Array.isArray(res) ? res : []);
-      
-      if (list.length === 0) {
-        setDiscussions([
-          {
-            id: 101,
-            course_id: Number(courseId),
-            user_name: "Nguyễn Văn An",
-            user_role: "student",
-            avatar_url: "https://ui-avatars.com/api/?name=Nguyen+Van+An&background=0284c7&color=fff",
-            content: "Thầy cho em hỏi phần bài tập về nhà số 2 có bắt buộc trình bày chi tiết các bước khảo sát hàm số không ạ?",
-            created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-            is_pinned: true
-          },
-          {
-            id: 102,
-            course_id: Number(courseId),
-            user_name: "Thầy Phan Thuận",
-            user_role: "teacher",
-            avatar_url: "https://ui-avatars.com/api/?name=Phan+Thuan&background=10b981&color=fff",
-            content: "Chào An, em cần trình bày đủ 3 bước: Tập xác định, Đạo hàm lập bảng biến thiên và Kết luận nhé.",
-            created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-            is_pinned: false
-          }
-        ]);
-      } else {
-        setDiscussions(list);
-      }
+      // Do file api.js của bạn trả về `res.data?.data || res.data`, ta hứng trực tiếp
+      const list = Array.isArray(res) ? res : res?.data || [];
+      setDiscussions(list);
     } catch (err) {
       console.error("Lỗi lấy thảo luận:", err);
     } finally {
@@ -163,47 +170,42 @@ export default function LopHocVaHocVienTab({
     }
   };
 
-  // 🎯 Admin đăng phản hồi / thông báo trong diễn đàn
+  // 🎯 Đăng phản hồi / thông báo trong diễn đàn (Lấy Data từ LocalStorage)
   const handleAdminPostDiscussion = async (e) => {
     e.preventDefault();
     if (!adminReplyText.trim()) return;
 
     try {
       setIsSubmittingReply(true);
-      const newPost = {
-        user_id: 1,
-        user_name: "Quản Trị Viên (Admin)",
-        user_role: "admin",
-        avatar_url: "https://ui-avatars.com/api/?name=Admin+LCMS&background=38497c&color=fff&bold=true",
-        content: adminReplyText.trim()
+
+      // 1. Lấy thông tin user đang đăng nhập từ Local Storage
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const currentRole = localStorage.getItem("role") || "admin";
+
+      // 2. Tạo payload với dữ liệu thật
+      const payload = {
+        user_id: currentUser.id_users || currentUser.id || 1, // Lấy ID thật
+        user_name: currentUser.full_name || currentUser.name || "Quản Trị Viên", // Tên thật
+        user_role: currentRole, // Role thật
+        avatar_url:
+          currentUser.avatar ||
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.full_name || "Admin")}&background=38497c&color=fff`,
+        content: adminReplyText.trim(),
       };
 
-      await courseService.createDiscussion(selectedDiscussionCourseId, newPost);
-      
-      setDiscussions((prev) => [
-        {
-          ...newPost,
-          id: Date.now(),
-          created_at: new Date().toISOString()
-        },
-        ...prev
-      ]);
+      // 3. Gửi API
+      const res = await courseService.createDiscussion(
+        selectedDiscussionCourseId,
+        payload,
+      );
+      const createdDiscussion = res?.data || res; // Lấy kết quả thật (chứa id, thời gian, is_pinned) từ Backend
+
+      // 4. Đẩy bài mới lên đầu mảng để giao diện cập nhật ngay lập tức
+      setDiscussions((prev) => [createdDiscussion, ...prev]);
       setAdminReplyText("");
     } catch (err) {
       console.error("Lỗi đăng thảo luận:", err);
-      setDiscussions((prev) => [
-        {
-          id: Date.now(),
-          user_id: 1,
-          user_name: "Quản Trị Viên (Admin)",
-          user_role: "admin",
-          avatar_url: "https://ui-avatars.com/api/?name=Admin+LCMS&background=38497c&color=fff&bold=true",
-          content: adminReplyText.trim(),
-          created_at: new Date().toISOString()
-        },
-        ...prev
-      ]);
-      setAdminReplyText("");
+      alert("Đã xảy ra lỗi khi đăng thông báo! Vui lòng thử lại.");
     } finally {
       setIsSubmittingReply(false);
     }
@@ -211,12 +213,14 @@ export default function LopHocVaHocVienTab({
 
   // 🎯 Xóa bài thảo luận vi phạm
   const handleDeleteDiscussion = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa bài thảo luận này không?")) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa bài thảo luận này không?"))
+      return;
     try {
-      await courseService.deleteDiscussion?.(id);
+      await courseService.deleteDiscussion(id);
       setDiscussions((prev) => prev.filter((d) => d.id !== id));
-    } catch {
-      setDiscussions((prev) => prev.filter((d) => d.id !== id));
+    } catch (err) {
+      console.error("Lỗi xóa thảo luận:", err);
+      alert("Xóa thất bại!");
     }
   };
 
@@ -225,7 +229,7 @@ export default function LopHocVaHocVienTab({
       setSelectedCourseForView(course);
       setIsLoadingStudents(true);
       setSearchTerm("");
-      
+
       const res = await courseService.getStudentsByCourse(course.id);
       const list = res?.data || (Array.isArray(res) ? res : []);
       setStudentsList(list);
@@ -254,15 +258,23 @@ export default function LopHocVaHocVienTab({
 
   const filteredProgressData = progressData.filter((p) => {
     const term = progressSearchTerm.toLowerCase();
-    const matchesSearch = (p.name || "").toLowerCase().includes(term) || (p.email || "").toLowerCase().includes(term);
+    const matchesSearch =
+      (p.name || "").toLowerCase().includes(term) ||
+      (p.email || "").toLowerCase().includes(term);
     if (filterLowProgressOnly) return matchesSearch && p.lessonPercent < 50;
     return matchesSearch;
   });
 
-  const selectedCourseObj = courses.find((c) => c.id === Number(selectedProgressCourseId));
-  const avgClassPercent = progressData.length > 0
-    ? Math.round(progressData.reduce((acc, curr) => acc + curr.lessonPercent, 0) / progressData.length)
-    : 0;
+  const selectedCourseObj = courses.find(
+    (c) => c.id === Number(selectedProgressCourseId),
+  );
+  const avgClassPercent =
+    progressData.length > 0
+      ? Math.round(
+          progressData.reduce((acc, curr) => acc + curr.lessonPercent, 0) /
+            progressData.length,
+        )
+      : 0;
 
   return (
     <div className="space-y-5 animate-fadeIn">
@@ -270,9 +282,21 @@ export default function LopHocVaHocVienTab({
       <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-3">
         <div className="flex items-center space-x-2">
           {[
-            { id: "student_list", label: "Quản Lý Danh Sách Học Viên", icon: Users },
-            { id: "progress", label: "Tiến Độ Học Tập Trực Tiếp", icon: TrendingUp },
-            { id: "discussion", label: "Diễn Đàn & Hỏi Đáp Học Tập", icon: MessageSquare }
+            {
+              id: "student_list",
+              label: "Quản Lý Danh Sách Học Viên",
+              icon: Users,
+            },
+            {
+              id: "progress",
+              label: "Tiến Độ Học Tập Trực Tiếp",
+              icon: TrendingUp,
+            },
+            {
+              id: "discussion",
+              label: "Diễn Đàn & Hỏi Đáp Học Tập",
+              icon: MessageSquare,
+            },
           ].map((st) => (
             <button
               key={st.id}
@@ -310,23 +334,43 @@ export default function LopHocVaHocVienTab({
                       <div className="flex items-center space-x-2">
                         <span
                           className={`px-2.5 py-0.5 text-[10px] font-black uppercase rounded-lg flex items-center gap-1 ${
-                            isSchool ? "bg-blue-600 text-white shadow-xs" : "bg-purple-600 text-white shadow-xs"
+                            isSchool
+                              ? "bg-blue-600 text-white shadow-xs"
+                              : "bg-purple-600 text-white shadow-xs"
                           }`}
                         >
-                          {isSchool ? <School className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
-                          <span>{isSchool ? "Lớp Chính Quy" : "Khóa Mở Rộng"}</span>
+                          {isSchool ? (
+                            <School className="w-3 h-3" />
+                          ) : (
+                            <Sparkles className="w-3 h-3" />
+                          )}
+                          <span>
+                            {isSchool ? "Lớp Chính Quy" : "Khóa Mở Rộng"}
+                          </span>
                         </span>
                         <span className="font-mono text-xs font-bold text-slate-700 px-2 py-0.5 bg-slate-100 rounded-md border border-slate-200">
                           {c.code}
                         </span>
-                        <h4 className="font-extrabold text-sm text-slate-900">{c.title}</h4>
+                        <h4 className="font-extrabold text-sm text-slate-900">
+                          {c.title}
+                        </h4>
                       </div>
 
                       <p className="text-xs text-slate-500 mt-1.5">
-                        Trường/Đơn vị: <strong className="text-slate-800">{c.schoolName}</strong> • Giảng viên:{" "}
-                        <strong className="text-slate-800">{c.teacher_name || c.teacherName || "Chưa phân công"}</strong> • Sĩ số:{" "}
-                        <strong className={`font-bold ${isSchool ? "text-blue-600" : "text-purple-600"}`}>
-                          {c.studentsCount || c.students_count || 0}/{c.maxStudents || 45} Học viên
+                        Trường/Đơn vị:{" "}
+                        <strong className="text-slate-800">
+                          {c.schoolName}
+                        </strong>{" "}
+                        • Giảng viên:{" "}
+                        <strong className="text-slate-800">
+                          {c.teacher_name || c.teacherName || "Chưa phân công"}
+                        </strong>{" "}
+                        • Sĩ số:{" "}
+                        <strong
+                          className={`font-bold ${isSchool ? "text-blue-600" : "text-purple-600"}`}
+                        >
+                          {c.studentsCount || c.students_count || 0}/
+                          {c.maxStudents || 45} Học viên
                         </strong>
                       </p>
                     </div>
@@ -342,7 +386,10 @@ export default function LopHocVaHocVienTab({
                         }`}
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span>Xem Danh Sách ({c.studentsCount || c.students_count || 0})</span>
+                        <span>
+                          Xem Danh Sách (
+                          {c.studentsCount || c.students_count || 0})
+                        </span>
                       </button>
 
                       {isSchool ? (
@@ -356,7 +403,10 @@ export default function LopHocVaHocVienTab({
                         </button>
                       ) : (
                         <span className="text-[11px] text-purple-800 font-semibold bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-200">
-                          Mã tham gia: <strong className="font-mono text-purple-700">{c.code}</strong>
+                          Mã tham gia:{" "}
+                          <strong className="font-mono text-purple-700">
+                            {c.code}
+                          </strong>
                         </span>
                       )}
                     </div>
@@ -380,12 +430,16 @@ export default function LopHocVaHocVienTab({
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center space-x-2">
-                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Phân loại lớp:</span>
+                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                  Phân loại lớp:
+                </span>
                 <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl">
                   <button
                     onClick={() => setCourseCategoryFilter("all")}
                     className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      courseCategoryFilter === "all" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
+                      courseCategoryFilter === "all"
+                        ? "bg-white text-slate-900 shadow-xs"
+                        : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
                     Tất Cả ({courses.length})
@@ -393,7 +447,9 @@ export default function LopHocVaHocVienTab({
                   <button
                     onClick={() => setCourseCategoryFilter("school")}
                     className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1 ${
-                      courseCategoryFilter === "school" ? "bg-blue-600 text-white shadow-xs" : "text-blue-700 hover:bg-blue-50"
+                      courseCategoryFilter === "school"
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "text-blue-700 hover:bg-blue-50"
                     }`}
                   >
                     <School className="w-3 h-3" />
@@ -402,7 +458,9 @@ export default function LopHocVaHocVienTab({
                   <button
                     onClick={() => setCourseCategoryFilter("external")}
                     className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1 ${
-                      courseCategoryFilter === "external" ? "bg-purple-600 text-white shadow-xs" : "text-purple-700 hover:bg-purple-50"
+                      courseCategoryFilter === "external"
+                        ? "bg-purple-600 text-white shadow-xs"
+                        : "text-purple-700 hover:bg-purple-50"
                     }`}
                   >
                     <Sparkles className="w-3 h-3" />
@@ -412,7 +470,9 @@ export default function LopHocVaHocVienTab({
               </div>
 
               <div className="flex items-center space-x-2 min-w-[280px]">
-                <span className="text-xs font-bold text-slate-500 shrink-0">Lớp đang chọn:</span>
+                <span className="text-xs font-bold text-slate-500 shrink-0">
+                  Lớp đang chọn:
+                </span>
                 <select
                   value={selectedProgressCourseId}
                   onChange={(e) => setSelectedProgressCourseId(e.target.value)}
@@ -424,7 +484,8 @@ export default function LopHocVaHocVienTab({
                 >
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
-                      [{c.type === "school" ? "Chính Quy" : "Mở Rộng"}] {c.title}
+                      [{c.type === "school" ? "Chính Quy" : "Mở Rộng"}]{" "}
+                      {c.title}
                     </option>
                   ))}
                 </select>
@@ -437,7 +498,9 @@ export default function LopHocVaHocVienTab({
             {isLoadingProgress ? (
               <div className="py-20 text-center text-slate-400 space-y-2">
                 <Loader2 className="w-7 h-7 animate-spin mx-auto text-blue-600" />
-                <p className="text-xs font-medium">Đang tải tiến độ bài học & bài tập...</p>
+                <p className="text-xs font-medium">
+                  Đang tải tiến độ bài học & bài tập...
+                </p>
               </div>
             ) : filteredProgressData.length > 0 ? (
               <div className="overflow-x-auto">
@@ -453,17 +516,27 @@ export default function LopHocVaHocVienTab({
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                     {filteredProgressData.map((s, idx) => (
-                      <tr key={s.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                      <tr
+                        key={s.id || idx}
+                        className="hover:bg-slate-50/80 transition-colors"
+                      >
                         <td className="p-3.5">
                           <div className="flex items-center space-x-3">
                             <img
-                              src={s.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=0284c7&color=fff`}
+                              src={
+                                s.avatar_url ||
+                                `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=0284c7&color=fff`
+                              }
                               alt={s.name}
                               className="w-8 h-8 rounded-full object-cover border border-slate-200"
                             />
                             <div>
-                              <p className="font-bold text-slate-900">{s.name}</p>
-                              <p className="text-[10px] text-slate-400 font-mono">{s.email}</p>
+                              <p className="font-bold text-slate-900">
+                                {s.name}
+                              </p>
+                              <p className="text-[10px] text-slate-400 font-mono">
+                                {s.email}
+                              </p>
                             </div>
                           </div>
                         </td>
@@ -471,15 +544,29 @@ export default function LopHocVaHocVienTab({
                         <td className="p-3.5 min-w-[180px]">
                           <div className="space-y-1">
                             <div className="flex justify-between text-[11px] font-bold">
-                              <span className="text-slate-600">{s.completedLessons}/{s.totalLessons} bài</span>
-                              <span className={s.lessonPercent >= 80 ? "text-emerald-600" : s.lessonPercent >= 50 ? "text-blue-600" : "text-rose-600"}>
+                              <span className="text-slate-600">
+                                {s.completedLessons}/{s.totalLessons} bài
+                              </span>
+                              <span
+                                className={
+                                  s.lessonPercent >= 80
+                                    ? "text-emerald-600"
+                                    : s.lessonPercent >= 50
+                                      ? "text-blue-600"
+                                      : "text-rose-600"
+                                }
+                              >
                                 {s.lessonPercent}%
                               </span>
                             </div>
                             <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${
-                                  s.lessonPercent >= 80 ? "bg-emerald-500" : s.lessonPercent >= 50 ? "bg-blue-600" : "bg-rose-500"
+                                  s.lessonPercent >= 80
+                                    ? "bg-emerald-500"
+                                    : s.lessonPercent >= 50
+                                      ? "bg-blue-600"
+                                      : "bg-rose-500"
                                 }`}
                                 style={{ width: `${s.lessonPercent}%` }}
                               />
@@ -490,12 +577,17 @@ export default function LopHocVaHocVienTab({
                         <td className="p-3.5">
                           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                             <FileCheck className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{s.submittedAssignments}/{s.totalAssignments} Bài nộp</span>
+                            <span>
+                              {s.submittedAssignments}/{s.totalAssignments} Bài
+                              nộp
+                            </span>
                           </div>
                         </td>
 
                         <td className="p-3.5 font-bold font-mono text-sm text-indigo-600">
-                          {s.avgQuizScore !== "--" ? `${s.avgQuizScore} đ` : "--"}
+                          {s.avgQuizScore !== "--"
+                            ? `${s.avgQuizScore} đ`
+                            : "--"}
                         </td>
 
                         <td className="p-3.5 text-center">
@@ -504,13 +596,23 @@ export default function LopHocVaHocVienTab({
                               s.status === "XUAT_SAC"
                                 ? "bg-emerald-100 text-emerald-800"
                                 : s.status === "DAT_CHUAN"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-rose-100 text-rose-800"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-rose-100 text-rose-800"
                             }`}
                           >
-                            {s.status === "XUAT_SAC" && <CheckCircle2 className="w-3 h-3" />}
-                            {s.status === "CAN_CO_GANG" && <AlertTriangle className="w-3 h-3" />}
-                            <span>{s.status === "XUAT_SAC" ? "Xuất sắc" : s.status === "DAT_CHUAN" ? "Đạt chuẩn" : "Cần đôn đốc"}</span>
+                            {s.status === "XUAT_SAC" && (
+                              <CheckCircle2 className="w-3 h-3" />
+                            )}
+                            {s.status === "CAN_CO_GANG" && (
+                              <AlertTriangle className="w-3 h-3" />
+                            )}
+                            <span>
+                              {s.status === "XUAT_SAC"
+                                ? "Xuất sắc"
+                                : s.status === "DAT_CHUAN"
+                                  ? "Đạt chuẩn"
+                                  : "Cần đôn đốc"}
+                            </span>
                           </span>
                         </td>
                       </tr>
@@ -519,7 +621,9 @@ export default function LopHocVaHocVienTab({
                 </table>
               </div>
             ) : (
-              <div className="py-16 text-center text-slate-400 text-xs">Chưa có dữ liệu tiến độ cho lớp này.</div>
+              <div className="py-16 text-center text-slate-400 text-xs">
+                Chưa có dữ liệu tiến độ cho lớp này.
+              </div>
             )}
           </div>
         </div>
@@ -532,7 +636,9 @@ export default function LopHocVaHocVienTab({
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center space-x-2">
               <MessageSquare className="w-4 h-4 text-blue-600" />
-              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Chọn Diễn Đàn Lớp:</span>
+              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Chọn Diễn Đàn Lớp:
+              </span>
             </div>
 
             <select
@@ -549,11 +655,16 @@ export default function LopHocVaHocVienTab({
           </div>
 
           {/* Khung Gửi Thông Báo / Phản Hồi Từ Admin */}
-          <form onSubmit={handleAdminPostDiscussion} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <form
+            onSubmit={handleAdminPostDiscussion}
+            className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3"
+          >
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                <span>Đăng Thông Báo / Phản Hồi Chính Thức (Tư Cách Quản Trị Viên)</span>
+                <span>
+                  Đăng Thông Báo / Phản Hồi Chính Thức (Tư Cách Quản Trị Viên)
+                </span>
               </span>
               <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-full">
                 Admin QTV
@@ -577,7 +688,11 @@ export default function LopHocVaHocVienTab({
                 disabled={isSubmittingReply || !adminReplyText.trim()}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
               >
-                {isSubmittingReply ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                {isSubmittingReply ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
                 <span>Gửi Phản Hồi Ngay</span>
               </button>
             </div>
@@ -586,7 +701,9 @@ export default function LopHocVaHocVienTab({
           {/* Danh Sách Các Luồng Câu Hỏi / Thảo Luận */}
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-bold text-slate-500">Các chủ đề trao đổi gần đây ({discussions.length})</span>
+              <span className="text-xs font-bold text-slate-500">
+                Các chủ đề trao đổi gần đây ({discussions.length})
+              </span>
             </div>
 
             {isLoadingDiscussions ? (
@@ -596,7 +713,8 @@ export default function LopHocVaHocVienTab({
               </div>
             ) : discussions.length > 0 ? (
               discussions.map((d) => {
-                const isAdminOrTeacher = d.user_role === "admin" || d.user_role === "teacher";
+                const isAdminOrTeacher =
+                  d.user_role === "admin" || d.user_role === "teacher";
                 return (
                   <div
                     key={d.id}
@@ -609,24 +727,37 @@ export default function LopHocVaHocVienTab({
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center space-x-3">
                         <img
-                          src={d.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.user_name)}&background=0284c7&color=fff`}
+                          src={
+                            d.avatar_url ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(d.user_name)}&background=0284c7&color=fff`
+                          }
                           alt={d.user_name}
                           className="w-8 h-8 rounded-full object-cover border border-slate-200"
                         />
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-extrabold text-xs text-slate-900">{d.user_name}</span>
+                            <span className="font-extrabold text-xs text-slate-900">
+                              {d.user_name}
+                            </span>
                             <span
                               className={`px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
                                 d.user_role === "admin"
                                   ? "bg-indigo-600 text-white"
                                   : d.user_role === "teacher"
-                                  ? "bg-emerald-600 text-white"
-                                  : "bg-slate-100 text-slate-600"
+                                    ? "bg-emerald-600 text-white"
+                                    : "bg-slate-100 text-slate-600"
                               }`}
                             >
-                              {d.user_role === "admin" ? "Quản trị viên" : d.user_role === "teacher" ? "Giảng viên" : "Học sinh"}
+                              {d.user_role === "admin"
+                                ? "Quản trị viên"
+                                : d.user_role === "teacher"
+                                  ? "Giảng viên"
+                                  : "Học sinh"}
                             </span>
+                            {/* Hiển thị Icon Pin nếu bài được ghim */}
+                            {d.is_pinned && (
+                              <Pin className="w-3.5 h-3.5 text-rose-500 fill-rose-500 ml-1" />
+                            )}
                           </div>
                           <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
                             <Clock className="w-3 h-3" />
@@ -635,7 +766,7 @@ export default function LopHocVaHocVienTab({
                                   hour: "2-digit",
                                   minute: "2-digit",
                                   day: "2-digit",
-                                  month: "2-digit"
+                                  month: "2-digit",
                                 })
                               : "Vừa xong"}
                           </span>
@@ -652,7 +783,9 @@ export default function LopHocVaHocVienTab({
                     </div>
 
                     <div className="pl-11 pr-2">
-                      <p className="text-xs text-slate-700 leading-relaxed font-medium">{d.content}</p>
+                      <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                        {d.content}
+                      </p>
                     </div>
                   </div>
                 );
@@ -677,18 +810,27 @@ export default function LopHocVaHocVienTab({
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
-                    <span>Danh Sách Học Sinh: {selectedCourseForView.title}</span>
+                    <span>
+                      Danh Sách Học Sinh: {selectedCourseForView.title}
+                    </span>
                     <span className="text-[10px] font-mono px-2 py-0.5 bg-white/20 rounded font-bold">
                       {selectedCourseForView.code}
                     </span>
                   </h3>
                   <p className="text-[11px] text-blue-100 mt-0.5">
-                    Trường: <strong>{selectedCourseForView.schoolName}</strong> • Sĩ số:{" "}
-                    <strong>{studentsList.length}/{selectedCourseForView.maxStudents} Học viên</strong>
+                    Trường: <strong>{selectedCourseForView.schoolName}</strong>{" "}
+                    • Sĩ số:{" "}
+                    <strong>
+                      {studentsList.length}/{selectedCourseForView.maxStudents}{" "}
+                      Học viên
+                    </strong>
                   </p>
                 </div>
               </div>
-              <button onClick={handleCloseModal} className="p-1.5 hover:bg-white/20 rounded-xl transition cursor-pointer">
+              <button
+                onClick={handleCloseModal}
+                className="p-1.5 hover:bg-white/20 rounded-xl transition cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -740,27 +882,44 @@ export default function LopHocVaHocVienTab({
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                       {filteredStudents.map((s, idx) => (
-                        <tr key={s.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="p-3 font-bold text-slate-400">{idx + 1}</td>
+                        <tr
+                          key={s.id || idx}
+                          className="hover:bg-slate-50/80 transition-colors"
+                        >
+                          <td className="p-3 font-bold text-slate-400">
+                            {idx + 1}
+                          </td>
                           <td className="p-3">
                             <div className="flex items-center space-x-2.5">
                               <img
-                                src={s.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=0284c7&color=fff`}
+                                src={
+                                  s.avatar_url ||
+                                  `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=0284c7&color=fff`
+                                }
                                 alt={s.name}
                                 className="w-8 h-8 rounded-full object-cover border border-slate-200"
                               />
-                              <span className="font-bold text-slate-900">{s.name}</span>
+                              <span className="font-bold text-slate-900">
+                                {s.name}
+                              </span>
                             </div>
                           </td>
-                          <td className="p-3 font-mono text-slate-600">{s.email}</td>
-                          <td className="p-3 font-mono text-orange-600 font-bold">{s.id}</td>
+                          <td className="p-3 font-mono text-slate-600">
+                            {s.email}
+                          </td>
+                          <td className="p-3 font-mono text-orange-600 font-bold">
+                            {s.id}
+                          </td>
                           <td className="p-3 text-slate-500">
                             {s.joined_at
-                              ? new Date(s.joined_at).toLocaleDateString("vi-VN", {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  year: "numeric"
-                                })
+                              ? new Date(s.joined_at).toLocaleDateString(
+                                  "vi-VN",
+                                  {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                  },
+                                )
                               : "--"}
                           </td>
                         </tr>
@@ -777,7 +936,8 @@ export default function LopHocVaHocVienTab({
 
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center shrink-0">
               <span className="text-xs font-semibold text-slate-500">
-                Hiển thị <strong>{filteredStudents.length}</strong> / <strong>{studentsList.length}</strong> học viên
+                Hiển thị <strong>{filteredStudents.length}</strong> /{" "}
+                <strong>{studentsList.length}</strong> học viên
               </span>
               <button
                 type="button"
