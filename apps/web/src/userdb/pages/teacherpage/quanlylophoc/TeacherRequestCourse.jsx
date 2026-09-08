@@ -20,7 +20,8 @@ import {
   Send,
   BookOpen,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  UserCheck
 } from "lucide-react"
 
 const PRESET_IMAGES = [
@@ -28,6 +29,23 @@ const PRESET_IMAGES = [
   { name: "Toán Học", url: "https://images.unsplash.com/photo-1509228468518-180dd4864904?q=80&w=600&auto=format&fit=crop" },
   { name: "Hóa Học", url: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=600&auto=format&fit=crop" },
   { name: "Ngoại Ngữ / Tiếng Anh", url: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=600&auto=format&fit=crop" }
+]
+
+// 🎯 Danh sách Logo trường chọn mẫu nhanh
+const PRESET_SCHOOL_LOGOS = [
+  { name: "EduTech Academy", logo: "/thekhoahoc/logo.png" },
+  { name: "ĐH Bách Khoa TP.HCM", logo: "https://upload.wikimedia.org/wikipedia/vi/thumb/9/91/FC_B%C3%A1ch_Khoa_logo.png/200px-FC_B%C3%A1ch_Khoa_logo.png" },
+  { name: "ĐH Công nghệ Thông tin", logo: "https://upload.wikimedia.org/wikipedia/vi/thumb/e/e0/Logo_UIT.svg/200px-Logo_UIT.svg.png" },
+  { name: "Đại học FPT", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/FPT_logo_2010.svg/200px-FPT_logo_2010.svg.png" },
+  { name: "Đại học Văn Lang", logo: "https://upload.wikimedia.org/wikipedia/vi/thumb/0/07/Logo_V%C4%83n_Lang.svg/200px-Logo_V%C4%83n_Lang.svg.png" },
+  { name: "ĐH Nguyễn Tất Thành", logo: "/thekhoahoc/logo.png" }
+]
+
+// 🎯 Danh sách Ảnh Thẻ Đứng chọn mẫu nhanh
+const PRESET_TEACHER_IMGS = [
+  { name: "Thầy giáo mẫu 1 (Mặc định)", url: "/thekhoahoc/thaygiao.png" },
+  { name: "Thầy giáo mẫu 2", url: "https://png.pngtree.com/png-clipart/20230913/original/pngtree-teacher-clipart-male-teacher-with-glasses-and-a-blue-shirt-vector-png-image_11068804.png" },
+  { name: "Cô giáo mẫu", url: "https://png.pngtree.com/png-clipart/20230913/original/pngtree-female-teacher-clipart-character-cartoon-character-cute-teacher-standing-smiling-vector-png-image_11068779.png" }
 ]
 
 const EXTENDED_SCHOOLS = [
@@ -164,10 +182,13 @@ export default function TeacherRequestCourse() {
     return currentUser?.displayName || currentUser?.fullName || currentUser?.name || currentUser?.full_name || "Phan Thuận (GV)"
   }, [currentUser])
 
+  // Giữ nguyên toàn bộ các trường cũ + Thêm 2 trường mới: schoolLogo và teacherImg
   const [formData, setFormData] = useState({
     title: "",
     subject: "",
     schoolName: "EduTech Skill Academy",
+    schoolLogo: "/thekhoahoc/logo.png", // 🎯 Trường mới 1
+    teacherImg: "/thekhoahoc/thaygiao.png", // 🎯 Trường mới 2
     grade: "Mọi lứa tuổi",
     maxStudents: 50,
     price: 0,
@@ -175,7 +196,7 @@ export default function TeacherRequestCourse() {
     description: ""
   })
 
-  // 2. Tải danh sách môn học từ PostgreSQL kèm Fallback từ LocalStorage / Database Schema
+  // 2. Tải danh sách môn học từ PostgreSQL
   useEffect(() => {
     const fetchAssignedSubjects = async () => {
       if (!teacherId) return
@@ -188,7 +209,6 @@ export default function TeacherRequestCourse() {
           list = subjectsData.map(s => typeof s === "string" ? s : s.subject).filter(Boolean)
         }
 
-        // Fallback: Nếu API 404 hoặc chưa có dữ liệu, lấy từ chuyên môn của User Profile
         if (list.length === 0) {
           if (currentUser?.subjects && Array.isArray(currentUser.subjects)) {
             list = currentUser.subjects
@@ -197,7 +217,6 @@ export default function TeacherRequestCourse() {
           } else if (currentUser?.subject) {
             list = [currentUser.subject]
           } else {
-            // Mặc định dựa trên dữ liệu bảng teacher_subjects thực tế cho ID 14
             list = ["Toán Học", "Hóa Học", "Tin Học", "Lập trình Web"]
           }
         }
@@ -246,23 +265,32 @@ export default function TeacherRequestCourse() {
       : "Chưa xếp lịch"
 
     const payload = {
-      teacher_id: teacherId,
-      teacher_name: teacherName,
-      type: "external",
-      title: formData.title,
-      code: `SKILL-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-      subject: formData.subject,
-      schoolName: formData.schoolName,
-      grade: formData.grade,
-      maxStudents: Number(formData.maxStudents) || 50,
-      price: Number(formData.price) || 0,
-      schedule: scheduleStr,
-      thumbnail: formData.thumbnail.trim() || defaultImg,
-      description: formData.description || "Chưa có mô tả.",
-      status: "PENDING",
-      is_published: false
-    }
+  teacher_id: teacherId,
+  teacher_name: teacherName,
+  type: "external",
+  title: formData.title,
+  code: `SKILL-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+  subject: formData.subject,
+  schoolName: formData.schoolName,
+  school_name: formData.schoolName,
+  
+  // 🎯 Đưa link ảnh thật vào thumbnail để DB lưu chắc chắn 100%
+  thumbnail: formData.teacherImg.trim() || formData.thumbnail.trim() || defaultImg,
+  teacher_img: formData.teacherImg.trim() || defaultImg,
+  teacherImg: formData.teacherImg.trim() || defaultImg,
+  
+  // Lưu logo trường vào trường mô tả mở rộng hoặc trường school_logo
+  school_logo: formData.schoolLogo.trim() || "/thekhoahoc/logo.png",
+  schoolLogo: formData.schoolLogo.trim() || "/thekhoahoc/logo.png",
 
+  grade: formData.grade,
+  maxStudents: Number(formData.maxStudents) || 50,
+  price: Number(formData.price) || 0,
+  schedule: scheduleStr,
+  description: formData.description || "Chưa có mô tả.",
+  status: "PENDING",
+  is_published: false
+}
     try {
       setIsSubmitting(true)
       await courseService.createCourse(payload)
@@ -326,6 +354,8 @@ export default function TeacherRequestCourse() {
 
       {/* Form tạo khóa học */}
       <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-2xs space-y-6">
+        
+        {/* MỤC 1: THÔNG TIN CHUNG */}
         <div className="space-y-4">
           <h3 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-2.5 flex items-center space-x-2">
             <BookOpen className="w-4 h-4 text-orange-600" />
@@ -373,9 +403,56 @@ export default function TeacherRequestCourse() {
               </select>
             </div>
           </div>
+
+          {/* 🎯 TRƯỜNG MỚI 1: Ô NHẬP + CHỌN MẪU LOGO TRƯỜNG */}
+          <div className="space-y-2 pt-1 p-3.5 bg-slate-50/70 border border-slate-200 rounded-2xl">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                <span>Logo Trường / Cơ sở đào tạo (URL Ảnh) *</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-normal">Hiển thị góc trên thẻ</span>
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl border border-slate-200 bg-white p-1 flex items-center justify-center shrink-0">
+                <img 
+                  src={formData.schoolLogo || "/thekhoahoc/logo.png"} 
+                  alt="Logo preview" 
+                  className="w-full h-full object-contain"
+                  onError={(e) => { e.currentTarget.src = "/thekhoahoc/logo.png" }}
+                />
+              </div>
+              <input
+                type="url"
+                required
+                value={formData.schoolLogo}
+                onChange={(e) => setFormData({ ...formData, schoolLogo: e.target.value })}
+                placeholder="Dán link ảnh logo trường hoặc bấm chọn nhanh bên dưới..."
+                className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <span className="text-[10px] font-bold text-slate-400 self-center">Chọn nhanh:</span>
+              {PRESET_SCHOOL_LOGOS.map((item, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, schoolLogo: item.logo }))}
+                  className={`px-2.5 py-1 text-[11px] rounded-lg border font-bold transition cursor-pointer flex items-center gap-1 ${
+                    formData.schoolLogo === item.logo
+                      ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <img src={item.logo} alt="" className="w-3 h-3 object-contain" />
+                  <span>{item.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Lịch giảng dạy */}
+        {/* MỤC 2: LỊCH GIẢNG DẠY */}
         <div className="space-y-4 pt-2">
           <h3 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-2.5 flex items-center space-x-2">
             <Calendar className="w-4 h-4 text-orange-600" />
@@ -439,7 +516,7 @@ export default function TeacherRequestCourse() {
           </div>
         </div>
 
-        {/* Quy mô & Học phí */}
+        {/* MỤC 3: QUY MÔ & HỌC PHÍ */}
         <div className="space-y-4 pt-2">
           <h3 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-2.5 flex items-center space-x-2">
             <Users className="w-4 h-4 text-orange-600" />
@@ -478,16 +555,17 @@ export default function TeacherRequestCourse() {
           </div>
         </div>
 
-        {/* Ảnh bìa & Mô tả */}
+        {/* MỤC 4: HÌNH ẢNH & MÔ TẢ */}
         <div className="space-y-4 pt-2">
           <h3 className="text-sm font-extrabold text-slate-900 border-b border-slate-100 pb-2.5 flex items-center space-x-2">
             <ImageIcon className="w-4 h-4 text-orange-600" />
-            <span>4. Hình ảnh bìa & Nội dung khóa học</span>
+            <span>4. Hình ảnh bìa, ảnh thẻ giáo viên & Nội dung khóa học</span>
           </h3>
 
+          {/* Ô 1 CŨ: ĐƯỜNG DẪN ẢNH BÌA (THUMBNAIL) */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
-              <span>Đường dẫn ảnh bìa (URL)</span>
+              <span>Đường dẫn ảnh bìa (Thumbnail URL)</span>
               <span className="text-[11px] text-slate-400 font-normal">(Không bắt buộc)</span>
             </label>
             <input
@@ -515,6 +593,54 @@ export default function TeacherRequestCourse() {
             </div>
           </div>
 
+          {/* 🎯 TRƯỜNG MỚI 2: Ô NHẬP + CHỌN MẪU ẢNH THẺ GIẢNG VIÊN (DÁNG ĐỨNG) */}
+          <div className="space-y-2 pt-1 p-3.5 bg-orange-50/50 border border-orange-200 rounded-2xl">
+            <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-orange-600" />
+                <span>Ảnh Thẻ Giảng Viên (Dáng Đứng Toàn Thân) *</span>
+              </span>
+              <span className="text-[10px] text-orange-600 font-bold">Hiển thị trong khung thẻ</span>
+            </label>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-12 rounded-xl border border-orange-200 bg-white p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                <img 
+                  src={formData.teacherImg || "/thekhoahoc/thaygiao.png"} 
+                  alt="Teacher preview" 
+                  className="w-full h-full object-contain object-bottom"
+                  onError={(e) => { e.currentTarget.src = "/thekhoahoc/thaygiao.png" }}
+                />
+              </div>
+              <input
+                type="url"
+                required
+                value={formData.teacherImg}
+                onChange={(e) => setFormData({ ...formData, teacherImg: e.target.value })}
+                placeholder="VD: /thekhoahoc/thaygiao.png hoặc link ảnh tách nền..."
+                className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              <span className="text-[10px] font-bold text-slate-400 self-center">Chọn nhanh:</span>
+              {PRESET_TEACHER_IMGS.map((item, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, teacherImg: item.url }))}
+                  className={`px-2.5 py-1 text-[11px] rounded-lg border font-bold transition cursor-pointer ${
+                    formData.teacherImg === item.url
+                      ? "bg-orange-500 text-white border-orange-500 shadow-2xs"
+                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  {item.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
               Mô tả chi tiết khóa học
@@ -529,7 +655,7 @@ export default function TeacherRequestCourse() {
           </div>
         </div>
 
-        {/* Nút Submit */}
+        {/* NÚT SUBMIT */}
         <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
           <button
             type="button"

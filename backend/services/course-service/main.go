@@ -39,6 +39,8 @@ type Course struct {
 	Code          string       `gorm:"size:50;unique;not null" json:"code"`
 	Subject       string       `gorm:"size:100;not null" json:"subject"`
 	SchoolName    string       `gorm:"size:255;not null" json:"schoolName"`
+	SchoolLogo  string       `gorm:"column:school_logo;type:text" json:"school_logo"`
+    TeacherImg  string       `gorm:"column:teacher_img;type:text" json:"teacher_img"`
 	Grade         string       `gorm:"size:50" json:"grade"`
 	MaxStudents   int          `gorm:"default:30" json:"maxStudents"`
 	StudentsCount int          `gorm:"default:0" json:"studentsCount"`
@@ -586,6 +588,8 @@ func createCourse(c *gin.Context) {
 		Course
 		DaysOfWeek string `json:"days_of_week"` // "Thứ 2, Thứ 4, Thứ 6"
 		TimeSlot   string `json:"time_slot"`   // "Tiết 1 - 3 (07:30 - 09:45)"
+		SchoolLogo string `json:"school_logo"` // Nhận logo từ frontend
+        TeacherImg string `json:"teacher_img"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -594,6 +598,8 @@ func createCourse(c *gin.Context) {
 	}
 
 	course := req.Course
+	course.SchoolLogo = req.SchoolLogo
+    course.TeacherImg = req.TeacherImg
 
 	// 🔒 1. KIỂM TRA CHUYÊN MÔN: Giáo viên có phụ trách môn này không?
 	var matchSubject TeacherSubject
