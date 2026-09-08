@@ -17,10 +17,14 @@ import {
   ZoomOut,
   Maximize2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Star,
+  MessageSquare,
+  Send,
+  UserCheck
 } from "lucide-react"
 
-// Mock danh sách tài liệu đầy đủ
+// Mock danh sách tài liệu đầy đủ kèm dữ liệu đánh giá
 const ALL_DOCUMENTS = [
   {
     id: 1,
@@ -35,7 +39,8 @@ const ALL_DOCUMENTS = [
     downloads: 1420,
     views: 3890,
     likes: 312,
-    rating: "4.9 / 5.0",
+    rating: 4.9,
+    ratingCount: 86,
     tag: "ĐH",
     color: "text-red-600 bg-red-100",
     description:
@@ -45,6 +50,42 @@ const ALL_DOCUMENTS = [
       "Phần 2: Khái quát chung về quyền sở hữu tài sản",
       "Phần 3: Thực trạng áp dụng pháp luật và bài học thực tiễn",
       "Phần 4: Kết luận & Kiến nghị sửa đổi"
+    ],
+    ratingBreakdown: {
+      5: 78,
+      4: 16,
+      3: 4,
+      2: 1,
+      1: 1
+    },
+    reviews: [
+      {
+        id: "r1",
+        author: "Trần Minh Quân",
+        classBadge: "CNTT K15",
+        score: 5,
+        date: "2 ngày trước",
+        comment: "Bố cục bài tiểu luận rất chuẩn chỉnh theo format của trường, phần trích dẫn điều luật dân sự rất chính xác. Mình đã tham khảo để làm bài thi giữa kỳ đạt 9.5.",
+        upvotes: 14
+      },
+      {
+        id: "r2",
+        author: "Nguyễn Hà Linh",
+        classBadge: "Kinh Tế K14",
+        score: 5,
+        date: "1 tuần trước",
+        comment: "Tài liệu hay, lời văn gãy gọn và có nhiều ví dụ thực tế về tranh chấp tài sản thừa kế. Rất đáng để tải về tham khảo!",
+        upvotes: 8
+      },
+      {
+        id: "r3",
+        author: "Lê Đức Thắng",
+        classBadge: "Khoa Luật K15",
+        score: 4,
+        date: "3 tuần trước",
+        comment: "Nội dung rất tốt, tuy nhiên ở phần kiến nghị sửa đổi nếu có thêm dẫn chứng từ luật so sánh quốc tế thì bài sẽ trọn vẹn hơn nữa.",
+        upvotes: 3
+      }
     ],
     relatedDocs: [
       { id: 2, title: "- Tiểu Luận PLĐC", pages: 61, size: "4.1 MB" },
@@ -64,7 +105,8 @@ const ALL_DOCUMENTS = [
     downloads: 980,
     views: 2410,
     likes: 188,
-    rating: "4.8 / 5.0",
+    rating: 4.8,
+    ratingCount: 42,
     tag: "UB",
     color: "text-blue-700 bg-blue-100",
     description: "Đề tài nghiên cứu các yếu tố cấu thành trách nhiệm dân sự và bồi thường thiệt hại ngoài hợp đồng.",
@@ -72,6 +114,18 @@ const ALL_DOCUMENTS = [
       "Chương I: Cơ sở lý luận về chế định hợp đồng",
       "Chương II: Phân tích thực trạng vi phạm nghĩa vụ hợp đồng",
       "Chương III: Biện pháp phòng tránh rủi ro pháp lý"
+    ],
+    ratingBreakdown: { 5: 80, 4: 15, 3: 5, 2: 0, 1: 0 },
+    reviews: [
+      {
+        id: "r201",
+        author: "Phạm Tấn Đạt",
+        classBadge: "QTKD K15",
+        score: 5,
+        date: "5 ngày trước",
+        comment: "Rất chi tiết về hợp đồng thương mại, bảng đối chiếu điều khoản làm rất công phu.",
+        upvotes: 6
+      }
     ],
     relatedDocs: [
       { id: 1, title: "Tiểu Luận Nhóm 10", pages: 47, size: "3.4 MB" }
@@ -90,11 +144,14 @@ const ALL_DOCUMENTS = [
     downloads: 750,
     views: 1800,
     likes: 120,
-    rating: "4.7 / 5.0",
+    rating: 4.7,
+    ratingCount: 28,
     tag: "PL",
     color: "text-sky-600 bg-sky-100",
     description: "Tóm tắt các quy chế lập pháp, hành pháp và tư pháp theo Hiến pháp năm 2013.",
     outline: ["Chương I: Bộ máy nhà nước CHXHCN Việt Nam", "Chương II: Cơ chế vận hành quyền lực"],
+    ratingBreakdown: { 5: 70, 4: 25, 3: 5, 2: 0, 1: 0 },
+    reviews: [],
     relatedDocs: []
   },
   {
@@ -110,11 +167,14 @@ const ALL_DOCUMENTS = [
     downloads: 410,
     views: 920,
     likes: 45,
-    rating: "Chưa có đánh giá",
+    rating: 4.5,
+    ratingCount: 12,
     tag: "NTA",
     color: "text-slate-800 bg-slate-200",
     description: "Bài tập cá nhân tổng hợp kiến thức học phần.",
     outline: ["Nội dung 1: Tóm tắt bài giảng", "Nội dung 2: Liên hệ bản thân"],
+    ratingBreakdown: { 5: 60, 4: 30, 3: 10, 2: 0, 1: 0 },
+    reviews: [],
     relatedDocs: []
   },
   {
@@ -130,11 +190,14 @@ const ALL_DOCUMENTS = [
     downloads: 530,
     views: 1100,
     likes: 72,
-    rating: "Chưa có đánh giá",
+    rating: 4.6,
+    ratingCount: 19,
     tag: "TM",
     color: "text-amber-700 bg-amber-100",
     description: "Đánh giá mức độ hiểu biết pháp luật của sinh viên năm nhất.",
     outline: ["Phần mở đầu", "Khảo sát thực tế", "Giải pháp tuyên truyền"],
+    ratingBreakdown: { 5: 65, 4: 25, 3: 10, 2: 0, 1: 0 },
+    reviews: [],
     relatedDocs: []
   },
   {
@@ -150,7 +213,8 @@ const ALL_DOCUMENTS = [
     downloads: 3200,
     views: 8900,
     likes: 850,
-    rating: "5.0 / 5.0",
+    rating: 5.0,
+    ratingCount: 140,
     tag: "HNGĐ",
     color: "text-emerald-700 bg-emerald-100",
     description: "Bộ tài liệu chuyên sâu 205 trang phân tích toàn diện Luật Hôn nhân & Gia đình và các án lệ thực tế.",
@@ -159,6 +223,18 @@ const ALL_DOCUMENTS = [
       "Phần 2: Điều kiện kết hôn và hệ quả kết hôn trái pháp luật",
       "Phần 3: Chế độ tài sản của vợ chồng theo luật định và theo thỏa thuận",
       "Phần 4: Ly hôn và giải quyết tranh chấp nuôi con, chia tài sản"
+    ],
+    ratingBreakdown: { 5: 95, 4: 5, 3: 0, 2: 0, 1: 0 },
+    reviews: [
+      {
+        id: "r601",
+        author: "Võ Hoàng Yến",
+        classBadge: "Thạc sĩ Luật",
+        score: 5,
+        date: "3 ngày trước",
+        comment: "Tài liệu cực kỳ đầy đủ và có giá trị tham khảo học thuật rất cao. Hệ thống án lệ phân loại chi tiết.",
+        upvotes: 27
+      }
     ],
     relatedDocs: [
       { id: 1, title: "Tiểu Luận Nhóm 10", pages: 47, size: "3.4 MB" }
@@ -175,6 +251,11 @@ export default function DocumentDetail() {
   const [isLiked, setIsLiked] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [toastMsg, setToastMsg] = useState("")
+
+  // State đánh giá nhận xét
+  const [userRating, setUserRating] = useState(5)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [commentInput, setCommentInput] = useState("")
 
   const triggerToast = (msg) => {
     setToastMsg(msg)
@@ -201,6 +282,16 @@ export default function DocumentDetail() {
 
   const handleDownload = () => {
     triggerToast(`Đang tải tệp: ${doc.title}.pdf`)
+  }
+
+  const handleSubmitReview = (e) => {
+    e.preventDefault()
+    if (!commentInput.trim()) {
+      triggerToast("Vui lòng nhập lời nhận xét trước khi gửi!")
+      return
+    }
+    triggerToast("Cảm ơn bạn đã gửi đánh giá cho tài liệu!")
+    setCommentInput("")
   }
 
   return (
@@ -312,6 +403,44 @@ export default function DocumentDetail() {
           margin-bottom: 8px;
         }
 
+        /* Review Section */
+        .rating-summary-box {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          padding: 20px;
+          margin-top: 20px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .rating-bar-track {
+          flex: 1;
+          height: 6px;
+          background: #f1f5f9;
+          border-radius: 9999px;
+          overflow: hidden;
+        }
+
+        .rating-bar-fill {
+          height: 100%;
+          background: #f59e0b;
+          border-radius: 9999px;
+        }
+
+        .review-card-item {
+          padding: 14px 16px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          margin-bottom: 12px;
+          transition: all 0.2s ease;
+        }
+
+        .review-card-item:hover {
+          background: #ffffff;
+          border-color: #cbd5e1;
+        }
+
         /* Cột bên phải */
         .doc-meta-card {
           background: #ffffff;
@@ -401,10 +530,10 @@ export default function DocumentDetail() {
 
       {/* Thân bài */}
       <main className="doc-body-grid">
-        {/* Cột trái: Trình đọc Preview PDF */}
+        {/* Cột trái: Preview PDF, Đề cương & Đánh giá */}
         <div>
+          {/* 1. Preview PDF */}
           <div className="preview-stage-card mb-6">
-            {/* Thanh công cụ xem tài liệu */}
             <div className="preview-toolbar">
               <div className="flex items-center gap-3">
                 <span className="bg-red-500 text-white font-black text-[10px] px-2 py-0.5 rounded">PDF</span>
@@ -412,7 +541,6 @@ export default function DocumentDetail() {
               </div>
 
               <div className="flex items-center gap-4">
-                {/* Phân trang */}
                 <div className="flex items-center gap-2 bg-slate-800 px-2 py-1 rounded-md text-xs">
                   <button
                     disabled={currentPage <= 1}
@@ -431,7 +559,6 @@ export default function DocumentDetail() {
                   </button>
                 </div>
 
-                {/* Zoom controls */}
                 <div className="flex items-center gap-1">
                   <button
                     className="p-1 hover:text-sky-400"
@@ -452,7 +579,6 @@ export default function DocumentDetail() {
               </div>
             </div>
 
-            {/* Vùng mô phỏng hiển thị trang PDF */}
             <div className="preview-canvas-viewport">
               <div
                 className="simulated-pdf-sheet"
@@ -490,8 +616,8 @@ export default function DocumentDetail() {
             </div>
           </div>
 
-          {/* Đề cương mục lục tài liệu */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
+          {/* 2. Đề cương mục lục tài liệu */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6">
             <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide mb-3 flex items-center gap-2">
               <Layers className="w-4 h-4 text-blue-900" /> Cấu trúc & Đề cương tài liệu
             </h4>
@@ -504,6 +630,140 @@ export default function DocumentDetail() {
               ))}
             </div>
           </div>
+
+          {/* 3. KHU VỰC ĐÁNH GIÁ & NHẬN XÉT CHI TIẾT */}
+          <section className="rating-summary-box">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-5">
+              <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-500 fill-amber-500" /> Đánh giá & Nhận xét từ sinh viên
+              </h4>
+              <span className="text-xs font-semibold text-slate-500">
+                {doc.ratingCount || 0} lượt xếp hạng
+              </span>
+            </div>
+
+            {/* Thống kê điểm sao & phân bổ */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center p-4 bg-slate-50 border border-slate-200 rounded-xl mb-6">
+              <div className="md:col-span-4 text-center md:border-r border-slate-200 md:pr-4">
+                <div className="text-4xl font-black text-slate-900 leading-none mb-1">
+                  {typeof doc.rating === "number" ? doc.rating.toFixed(1) : doc.rating}
+                </div>
+                <div className="flex items-center justify-center gap-1 text-amber-400 my-1.5">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-amber-400" />
+                  ))}
+                </div>
+                <span className="text-[11px] text-slate-500 font-medium">Đánh giá chung cộng đồng</span>
+              </div>
+
+              <div className="md:col-span-8 space-y-1.5 text-xs text-slate-600">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const percent = doc.ratingBreakdown ? doc.ratingBreakdown[star] || 0 : star === 5 ? 85 : 15
+                  return (
+                    <div key={star} className="flex items-center gap-2.5">
+                      <span className="w-10 font-bold flex items-center gap-1">
+                        {star} <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                      </span>
+                      <div className="rating-bar-track">
+                        <div className="rating-bar-fill" style={{ width: `${percent}%` }} />
+                      </div>
+                      <span className="w-8 text-right font-medium text-slate-400">{percent}%</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Khung gửi nhận xét mới */}
+            <form onSubmit={handleSubmitReview} className="p-4 border border-slate-200 rounded-xl bg-white mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-slate-800">Đánh giá của bạn về tài liệu này:</span>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setUserRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      className="p-0.5 text-slate-300 hover:text-amber-400 transition"
+                    >
+                      <Star
+                        className={`w-5 h-5 ${
+                          (hoverRating || userRating) >= star ? "text-amber-400 fill-amber-400" : ""
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative">
+                <textarea
+                  rows="3"
+                  value={commentInput}
+                  onChange={(e) => setCommentInput(e.target.value)}
+                  placeholder="Chia sẻ nhận xét về nội dung, tính thực tiễn hay độ chính xác của tài liệu để hỗ trợ các sinh viên khác..."
+                  className="w-full text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-sky-500 focus:bg-white transition resize-none"
+                />
+              </div>
+
+              <div className="flex justify-end mt-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow-sm transition"
+                >
+                  <Send className="w-3.5 h-3.5" /> Gửi đánh giá
+                </button>
+              </div>
+            </form>
+
+            {/* Danh sách các bình luận đánh giá */}
+            <div className="space-y-3">
+              {doc.reviews && doc.reviews.length > 0 ? (
+                doc.reviews.map((rev) => (
+                  <div key={rev.id} className="review-card-item">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-xs text-slate-900">{rev.author}</span>
+                        <span className="bg-sky-100 text-sky-800 text-[10px] font-black px-2 py-0.5 rounded">
+                          {rev.classBadge}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-400">{rev.date}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1 text-amber-400 mb-2">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-3.5 h-3.5 ${i < rev.score ? "fill-amber-400" : "text-slate-300"}`}
+                        />
+                      ))}
+                    </div>
+
+                    <p className="text-xs text-slate-700 leading-relaxed mb-3">{rev.comment}</p>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-[11px] text-slate-500">
+                      <span className="flex items-center gap-1 text-slate-400">
+                        <UserCheck className="w-3.5 h-3.5 text-emerald-600" /> Đã xác thực sinh viên
+                      </span>
+                      <button
+                        onClick={() => triggerToast(`Đã ghi nhận hữu ích từ nhận xét của ${rev.author}!`)}
+                        className="hover:text-blue-900 flex items-center gap-1 font-semibold transition"
+                      >
+                        <ThumbsUp className="w-3 h-3" /> Hữu ích ({rev.upvotes})
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  Chưa có nhận xét nào. Hãy là người đầu tiên để lại đánh giá cho tài liệu này!
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         {/* Cột phải: Thông số & Nút tải về */}
@@ -541,8 +801,11 @@ export default function DocumentDetail() {
                 <span className="font-bold text-emerald-600">{doc.downloads} lượt</span>
               </div>
               <div className="flex justify-between py-1">
-                <span className="text-slate-500">Đánh giá cộng đồng:</span>
-                <span className="font-bold text-amber-600">{doc.rating}</span>
+                <span className="text-slate-500">Đánh giá chung:</span>
+                <span className="font-bold text-amber-600 flex items-center gap-1">
+                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                  {typeof doc.rating === "number" ? `${doc.rating} / 5.0` : doc.rating}
+                </span>
               </div>
             </div>
 
