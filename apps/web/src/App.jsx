@@ -19,6 +19,8 @@ import StudentDashboard from "./userdb/pages/studentpage/dashboard/StudentDashbo
 import Programs from "./userdb/pages/studentpage/Chuongtrinhkhoilop/Programs.jsx"
 import Library from "./userdb/pages/studentpage/Khohoclieu/Library.jsx"
 import StudentCourses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx"
+import CourseDetail from "./userdb/pages/studentpage/chitietkhoahoc/CourseDetail.jsx"
+import DocumentDetail from "./userdb/pages/studentpage/chitietpdf/DocumentDetail.jsx" // 🟢 ĐÚNG ĐƯỜNG DẪN THEO ẢNH
 import Videos from "./userdb/pages/studentpage/VideoEdu/Videos.jsx"
 import Bookshelf from "./userdb/pages/studentpage/Tusach/Bookshelf.jsx"
 import ExamRoom from "./userdb/pages/studentpage/Monhoccuatoi/ExamRoom.jsx"
@@ -129,6 +131,11 @@ export default function App() {
             <Route path="programs" element={<Programs />} />
             <Route path="library" element={<Library />} />
             <Route path="courses" element={<StudentCourses />} />
+
+            {/* 🟢 CÁC ROUTE CHI TIẾT CÓ ID */}
+            <Route path="courses/:courseId" element={<CourseDetail />} />
+            <Route path="documents/:docId" element={<DocumentDetail />} />
+
             <Route path="transactions" element={<StudentTransactions />} />
             <Route path="payment-result" element={<PaymentResult />} />
             <Route path="videos" element={<Videos />} />

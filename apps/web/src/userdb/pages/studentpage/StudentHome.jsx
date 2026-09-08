@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
+import { useNavigate } from "react-router-dom"
 import { 
   Search, 
   ArrowRight, 
@@ -8,9 +9,18 @@ import {
   FileText, 
   Download, 
   ThumbsUp, 
-  X, 
   CheckCircle2, 
-  FileCheck 
+  FileCheck,
+  Eye,
+  Share2,
+  Bookmark,
+  TrendingUp,
+  UploadCloud,
+  Award,
+  Flame,
+  Clock,
+  Sparkles,
+  Filter
 } from "lucide-react"
 
 // Danh sách dữ liệu khóa học chuẩn
@@ -53,14 +63,98 @@ const INITIAL_COURSES = [
   }
 ]
 
-// Danh sách tài liệu PDF
-const INITIAL_DOCS = [
-  { id: 1, title: "Tiểu Luận Nhóm 10", pages: 47, rating: "Pas encore d'évaluation", tag: "ĐH", color: "text-red-600 bg-red-100" },
-  { id: 2, title: "- Tiểu Luận PLĐC", pages: 61, rating: "Pas encore d'évaluation", tag: "UB", color: "text-blue-700 bg-blue-100" },
-  { id: 3, title: "Tiểu Luận Pháp Luật Đại Cương", pages: 25, rating: "Pas encore d'évaluation", tag: "PL", color: "text-sky-600 bg-sky-100" },
-  { id: 4, title: "430206 - Nguyễn Tuấn Anh", pages: 16, rating: "Pas encore d'évaluation", tag: "NTA", color: "text-slate-800 bg-slate-200" },
-  { id: 5, title: "Tiểu Luận PLDC", pages: 22, rating: "Pas encore d'évaluation", tag: "TM", color: "text-amber-700 bg-amber-100" },
-  { id: 6, title: "Luật HNGĐ", pages: 205, rating: "100% (1)", tag: "HNGĐ", color: "text-emerald-700 bg-emerald-100", isLiked: true }
+// Danh sách các bài tiểu luận, tài liệu học thuật chia sẻ (Hiển thị 2 bảng mỗi dòng)
+const INITIAL_ESSAYS = [
+  {
+    id: 1,
+    title: "Tiểu Luận Nhóm 10 - Pháp Luật Đại Cương",
+    desc: "Nghiên cứu về quy định sở hữu tài sản & quyền định đoạt trong Bộ luật Dân sự 2015 kèm liên hệ bài học thực tiễn.",
+    author: "Nhóm 10 (K15)",
+    faculty: "Khoa Luật",
+    pages: 47,
+    fileSize: "3.4 MB",
+    views: "3.8k",
+    downloads: "1.4k",
+    likes: 312,
+    tag: "ĐH",
+    color: "text-red-600 bg-red-100",
+    date: "15/10/2025"
+  },
+  {
+    id: 2,
+    title: "Tiểu Luận PLĐC: Trách Nhiệm Dân Sự",
+    desc: "Phân tích các chế định trách nhiệm do vi phạm nghĩa vụ hợp đồng kinh doanh thương mại và biện pháp bồi thường thiệt hại.",
+    author: "Ủy Ban Học Tập UB",
+    faculty: "Luật Kinh Tế",
+    pages: 61,
+    fileSize: "4.1 MB",
+    views: "2.4k",
+    downloads: "980",
+    likes: 188,
+    tag: "UB",
+    color: "text-blue-700 bg-blue-100",
+    date: "02/11/2025"
+  },
+  {
+    id: 3,
+    title: "Tiểu Luận Pháp Luật Đại Cương - Bộ Máy Nhà Nước",
+    desc: "Tổng hợp cơ chế phân quyền, nguyên tắc tổ chức và phương thức vận hành của các cơ quan quản lý theo Hiến pháp 2013.",
+    author: "Ban Học Cụ PL",
+    faculty: "Lý Luận Chính Trị",
+    pages: 25,
+    fileSize: "1.8 MB",
+    views: "1.8k",
+    downloads: "750",
+    likes: 120,
+    tag: "PL",
+    color: "text-sky-600 bg-sky-100",
+    date: "20/12/2025"
+  },
+  {
+    id: 4,
+    title: "430206 - Bài Thu Hoạch Pháp Chế Cá Nhân",
+    desc: "Tổng hợp các bài tập giải quyết tình huống pháp lý cơ bản, bài học tuân thủ pháp luật và đạo đức nghề nghiệp CNTT.",
+    author: "Nguyễn Tuấn Anh",
+    faculty: "CNTT K15",
+    pages: 16,
+    fileSize: "1.2 MB",
+    views: "920",
+    downloads: "410",
+    likes: 45,
+    tag: "NTA",
+    color: "text-slate-800 bg-slate-200",
+    date: "05/01/2026"
+  },
+  {
+    id: 5,
+    title: "Tiểu Luận PLDC: Văn Hóa Pháp Lý Giới Trẻ",
+    desc: "Khảo sát và phân tích thực trạng nhận thức về bản quyền tác giả và an toàn thông tin mạng trong môi trường đại học.",
+    author: "Nhóm TM",
+    faculty: "Xã Hội Học",
+    pages: 22,
+    fileSize: "1.5 MB",
+    views: "1.1k",
+    downloads: "530",
+    likes: 72,
+    tag: "TM",
+    color: "text-amber-700 bg-amber-100",
+    date: "12/02/2026"
+  },
+  {
+    id: 6,
+    title: "Chuyên Đề Luật Hôn Nhân & Gia Đình (Toàn Tập)",
+    desc: "Bộ chuyên đề phân tích toàn diện các quy định về tài sản chung vợ chồng, án lệ chia tài sản và thủ tục tố tụng dân sự.",
+    author: "Ban Soạn Thảo HNGĐ",
+    faculty: "Dân Sự",
+    pages: 205,
+    fileSize: "12.8 MB",
+    views: "8.9k",
+    downloads: "3.2k",
+    likes: 850,
+    tag: "HNGĐ",
+    color: "text-emerald-700 bg-emerald-100",
+    date: "28/02/2026"
+  }
 ]
 
 function CardCanvas() {
@@ -166,10 +260,11 @@ function CardCanvas() {
 }
 
 export default function StudentHome() {
+  const navigate = useNavigate()
   const [searchKeyword, setSearchKeyword] = useState("")
   const [toastMessage, setToastMessage] = useState("")
   const [showToast, setShowToast] = useState(false)
-  const [modalDoc, setModalDoc] = useState(null)
+  const [essayFilter, setEssayFilter] = useState("all")
 
   const triggerToast = (msg) => {
     setToastMessage(msg)
@@ -177,7 +272,8 @@ export default function StudentHome() {
     setTimeout(() => setShowToast(false), 3000)
   }
 
-  const handleDownload = (filename) => {
+  const handleDownload = (e, filename) => {
+    e.stopPropagation()
     triggerToast(`Đang tải tệp tin: ${filename}`)
   }
 
@@ -188,8 +284,11 @@ export default function StudentHome() {
       c.subject.toLowerCase().includes(searchKeyword.toLowerCase())
   )
 
-  const filteredDocs = INITIAL_DOCS.filter((d) =>
-    d.title.toLowerCase().includes(searchKeyword.toLowerCase())
+  const filteredEssays = INITIAL_ESSAYS.filter(
+    (d) =>
+      d.title.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      d.desc.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      d.author.toLowerCase().includes(searchKeyword.toLowerCase())
   )
 
   return (
@@ -198,17 +297,16 @@ export default function StudentHome() {
         .home-root-wrapper {
           width: 100%;
           min-height: 100%;
-          padding: 0;
+          padding: 0 0 50px 0;
           box-sizing: border-box;
-          font-family: 'Inter', sans-serif;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
-        /* 🟢 Cột phải rút ngắn về 310px để mở rộng tối đa cho 3 thẻ khóa học */
         .home-wireframe-grid {
           display: grid;
           grid-template-columns: 1fr 310px;
           gap: 20px;
-          align-items: stretch;
+          align-items: start;
           width: 100%;
         }
 
@@ -225,13 +323,13 @@ export default function StudentHome() {
           gap: 20px;
         }
 
-        /* Search Hero Box */
+        /* 1. Search Hero Box */
         .search-hero-box {
           position: relative;
           background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0284c7 100%);
           border: 2px solid #cbd5e1;
           border-radius: 16px;
-          min-height: 220px;
+          min-height: 200px;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -257,7 +355,7 @@ export default function StudentHome() {
           font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.8px;
-          margin-bottom: 18px;
+          margin-bottom: 14px;
           text-align: center;
         }
 
@@ -285,7 +383,7 @@ export default function StudentHome() {
           flex: 1;
           border: none;
           outline: none;
-          font-size: 15px;
+          font-size: 14px;
           font-weight: 600;
           color: #0f172a;
           background: transparent;
@@ -295,7 +393,7 @@ export default function StudentHome() {
           background: #1e3a8a;
           color: #ffffff;
           border: none;
-          padding: 9px 22px;
+          padding: 9px 20px;
           border-radius: 40px;
           font-size: 13px;
           font-weight: 800;
@@ -339,7 +437,7 @@ export default function StudentHome() {
           color: #1e3a8a;
         }
 
-        /* 4. Khóa học nổi bật */
+        /* 2. Khóa học nổi bật */
         .courses-section {
           display: flex;
           flex-direction: column;
@@ -353,7 +451,7 @@ export default function StudentHome() {
         }
 
         .section-header-bar h3 {
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 800;
           color: #0f172a;
           text-transform: uppercase;
@@ -370,15 +468,6 @@ export default function StudentHome() {
           background: #1e3a8a;
           border-radius: 2px;
           display: inline-block;
-        }
-
-        .course-count-tag {
-          font-size: 12px;
-          font-weight: 700;
-          color: #1e3a8a;
-          background: #dbeafe;
-          padding: 3px 10px;
-          border-radius: 12px;
         }
 
         .three-cards-grid {
@@ -467,7 +556,6 @@ export default function StudentHome() {
           filter: drop-shadow(0 8px 12px rgba(0,0,0,0.15));
         }
 
-        /* 🟢 Tinh chỉnh content-box: Nâng top lên 18% và height 75% để bao trọn mọi thành phần */
         .content-box {
           position: absolute;
           top: 18%;
@@ -571,7 +659,6 @@ export default function StudentHome() {
           background: #1e3a8a;
         }
 
-        /* 🟢 Xếp 2 nút hàng ngang cạnh nhau để 100% nằm gọn bên trong thẻ */
         .action-buttons {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -603,7 +690,164 @@ export default function StudentHome() {
         .btn-register { background-color: #ea580c; }
         .btn-register:hover { background-color: #c2410c; }
 
-        /* 5. Cột phải: Panel PDF gọn gàng */
+        /* 3. LƯỚI 2 CỘT CHO TIỂU LUẬN & TÀI LIỆU */
+        .essays-section {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 18px;
+          padding: 20px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+        }
+
+        .two-columns-essay-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+        }
+
+        .essay-card-box {
+          background: #ffffff;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 14px;
+          padding: 16px;
+          display: flex;
+          gap: 14px;
+          cursor: pointer;
+          transition: all 0.25s ease;
+          position: relative;
+        }
+
+        .essay-card-box:hover {
+          border-color: #38bdf8;
+          box-shadow: 0 8px 20px rgba(30, 58, 138, 0.09);
+          transform: translateY(-2px);
+          background: #f8fafc;
+        }
+
+        /* Mô phỏng Bìa PDF trang trọng */
+        .essay-cover-mockup {
+          width: 82px;
+          height: 114px;
+          background: #ffffff;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          flex-shrink: 0;
+          position: relative;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 4px;
+          overflow: hidden;
+        }
+
+        .essay-cover-mockup::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 4px;
+          background: rgba(15, 23, 42, 0.15);
+        }
+
+        .cover-badge-top {
+          position: absolute;
+          top: 3px;
+          right: 3px;
+          background: #dc2626;
+          color: white;
+          font-size: 7px;
+          font-weight: 900;
+          padding: 1px 3px;
+          border-radius: 2px;
+        }
+
+        .cover-inner-body {
+          width: 100%;
+          height: 100%;
+          border: 1px dashed #e2e8f0;
+          border-radius: 4px;
+          padding: 4px 2px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+        }
+
+        .cover-logo-icon {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          font-size: 7px;
+          font-weight: 800;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 4px;
+        }
+
+        .cover-preview-lines {
+          width: 70%;
+          height: 1.5px;
+          background: #94a3b8;
+          margin: 1.5px 0;
+        }
+
+        .cover-title-text {
+          font-size: 6.5px;
+          font-weight: 800;
+          color: #1e293b;
+          line-height: 1.1;
+          margin-top: 3px;
+          max-width: 90%;
+        }
+
+        .essay-details {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+
+        .essay-title-text {
+          font-size: 13px;
+          font-weight: 800;
+          color: #0f172a;
+          line-height: 1.35;
+          margin-bottom: 4px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .essay-desc-text {
+          font-size: 11px;
+          color: #64748b;
+          line-height: 1.4;
+          margin-bottom: 8px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .essay-meta-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding-top: 8px;
+          border-top: 1px solid #f1f5f9;
+          font-size: 11px;
+          color: #64748b;
+        }
+
+        /* 4. Cột phải: Panel PDF gọn gàng */
         .pdf-panel {
           background: #ffffff;
           border: 2px solid #e2e8f0;
@@ -649,7 +893,7 @@ export default function StudentHome() {
           gap: 10px;
           list-style: none;
           overflow-y: auto;
-          max-height: 520px;
+          max-height: 480px;
           padding-right: 2px;
         }
 
@@ -869,10 +1113,16 @@ export default function StudentHome() {
           .three-cards-grid {
             grid-template-columns: repeat(2, 1fr);
           }
+          .two-columns-essay-grid {
+            grid-template-columns: 1fr;
+          }
         }
 
         @media (max-width: 768px) {
           .three-cards-grid {
+            grid-template-columns: 1fr;
+          }
+          .two-columns-essay-grid {
             grid-template-columns: 1fr;
           }
           .pill-search-bar {
@@ -896,10 +1146,11 @@ export default function StudentHome() {
       )}
 
       <div className="home-wireframe-grid">
+        {/* ================= CỘT TRÁI ================= */}
         <div className="home-left-col">
           {/* 1. HỘP TÌM KIẾM HERO */}
           <section className="search-hero-box">
-            <h2 className="search-hero-title">Hệ Thống Tra Cứu Khóa Học & Tài Liệu Trực Tuyến</h2>
+            <h2 className="search-hero-title">Diễn Đàn Chia Sẻ Khóa Học & Tiểu Luận Học Thuật</h2>
             
             <div className="pill-search-bar">
               <Search className="w-5 h-5 text-slate-400 mr-3 shrink-0" />
@@ -907,7 +1158,7 @@ export default function StudentHome() {
                 type="text" 
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="TÌM KIẾM khóa học, giảng viên, tiểu luận..." 
+                placeholder="Tìm tiểu luận, đề cương ôn thi, khóa học, giáo trình PDF..." 
               />
               <button className="search-btn" onClick={() => triggerToast(`Tìm kiếm: ${searchKeyword || "Tất cả"}`)}>
                 <span>TÌM KIẾM</span>
@@ -916,39 +1167,37 @@ export default function StudentHome() {
             </div>
 
             <div className="quick-tags">
-              <span>Gợi ý:</span>
-              <span className="tag-pill" onClick={() => setSearchKeyword("Trí Tuệ Nhân Tạo")}>Trí Tuệ Nhân Tạo</span>
-              <span className="tag-pill" onClick={() => setSearchKeyword("Học Máy")}>Học Máy</span>
+              <span>Từ khóa hot:</span>
               <span className="tag-pill" onClick={() => setSearchKeyword("Tiểu Luận")}>Tiểu Luận Pháp Luật</span>
+              <span className="tag-pill" onClick={() => setSearchKeyword("Trí Tuệ Nhân Tạo")}>Trí Tuệ Nhân Tạo</span>
+              <span className="tag-pill" onClick={() => setSearchKeyword("Học Máy")}>Học Máy Nâng Cao</span>
               <span className="tag-pill" onClick={() => setSearchKeyword("HNGĐ")}>Luật HNGĐ</span>
               <span className="tag-pill" onClick={() => setSearchKeyword("")}>Tất cả</span>
             </div>
           </section>
 
-          {/* 2. HÀNG 3 THẺ KHÓA HỌC */}
+          {/* 2. CÁC THẺ KHÓA HỌC */}
           <section className="courses-section">
             <div className="section-header-bar">
               <h3>CÁC THẺ KHÓA HỌC NỔI BẬT</h3>
-              <span className="course-count-tag">{filteredCourses.length} Khóa học phù hợp</span>
+              <span className="text-xs font-bold text-blue-900 bg-blue-50 px-3 py-1 rounded-full">
+                {filteredCourses.length} Khóa học chuẩn
+              </span>
             </div>
 
             <div className="three-cards-grid">
               {filteredCourses.map((c) => (
                 <div key={c.id} className="card-wrapper" data-course={c.courseName} data-teacher={c.teacherName}>
-                  
-                  {/* Logo Container */}
                   <div className="logo-container">
                     <img src={c.logoImg} alt="Logo" className="logo-img" />
                   </div>
 
-                  {/* Card Container với ảnh nền khung.png */}
                   <div 
                     className="card-container" 
                     style={{ backgroundImage: 'url("/thekhoahoc/khung.png")' }}
                   >
                     <CardCanvas />
 
-                    {/* Vùng ảnh giảng viên */}
                     <div className="teacher-image-zone">
                       <img src={c.teacherImg} alt="Giảng viên" className="teacher-img" />
                     </div>
@@ -988,13 +1237,107 @@ export default function StudentHome() {
                         </div>
                       </div>
 
-                      {/* Nút bấm đặt nằm ngang, lọt 100% bên trong khung */}
                       <div className="action-buttons">
-                        <button className="card-btn btn-detail" onClick={() => triggerToast(`Xem chi tiết: ${c.teacherName}`)}>
+                        <button 
+                          className="card-btn btn-detail" 
+                          onClick={() => navigate(`/student/courses/${c.id}`)}
+                        >
                           <BookMarked className="w-[2cqw] h-[2cqw]" /> Xem chi tiết
                         </button>
-                        <button className="card-btn btn-register" onClick={() => triggerToast(`Đăng ký môn: ${c.teacherName}`)}>
+                        <button 
+                          className="card-btn btn-register" 
+                          onClick={() => triggerToast(`Đăng ký môn: ${c.teacherName}`)}
+                        >
                           <PlusCircle className="w-[2cqw] h-[2cqw]" /> Đăng ký môn
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* 3. KHU VỰC TIỂU LUẬN CHIA SẺ: 1 DÒNG 2 BẢNG PDF */}
+          <section className="essays-section">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 mb-4">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-900" />
+                  <span>Kho Bài Tiểu Luận & Báo Cáo Học Thuật</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Tài liệu tham khảo được chia sẻ trực tiếp bởi sinh viên các khóa</p>
+              </div>
+
+              {/* Bộ lọc nhanh */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
+                <button 
+                  onClick={() => setEssayFilter("all")}
+                  className={`px-3 py-1 rounded-lg transition ${essayFilter === 'all' ? 'bg-white text-blue-900 shadow-xs' : 'hover:text-slate-900'}`}
+                >
+                  Tất cả ({filteredEssays.length})
+                </button>
+                <button 
+                  onClick={() => setEssayFilter("popular")}
+                  className={`px-3 py-1 rounded-lg transition ${essayFilter === 'popular' ? 'bg-white text-blue-900 shadow-xs' : 'hover:text-slate-900'}`}
+                >
+                  Tải nhiều nhất
+                </button>
+              </div>
+            </div>
+
+            {/* LƯỚI 2 BẢNG TRÊN MỘT DÒNG */}
+            <div className="two-columns-essay-grid">
+              {filteredEssays.map((essay) => (
+                <div 
+                  key={essay.id} 
+                  className="essay-card-box"
+                  onClick={() => navigate(`/student/documents/${essay.id}`)}
+                >
+                  {/* Bìa PDF mô phỏng */}
+                  <div className="essay-cover-mockup">
+                    <span className="cover-badge-top">PDF</span>
+                    <div className="cover-inner-body">
+                      <div className={`cover-logo-icon ${essay.color}`}>{essay.tag}</div>
+                      <div className="cover-preview-lines"></div>
+                      <div className="cover-preview-lines"></div>
+                      <div className="cover-preview-lines" style={{ width: '50%' }}></div>
+                      <div className="cover-title-text truncate">{essay.faculty}</div>
+                    </div>
+                  </div>
+
+                  {/* Thông tin chi tiết tiểu luận */}
+                  <div className="essay-details">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold mb-1">
+                        <span className="text-sky-700 font-bold">{essay.faculty}</span>
+                        <span>{essay.date}</span>
+                      </div>
+                      <h4 className="essay-title-text" title={essay.title}>
+                        {essay.title}
+                      </h4>
+                      <p className="essay-desc-text">
+                        {essay.desc}
+                      </p>
+                    </div>
+
+                    <div className="essay-meta-row">
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-slate-700">{essay.author}</span>
+                        <span>•</span>
+                        <span>{essay.pages} trang</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 font-bold text-emerald-600">
+                          <Download className="w-3 h-3" /> {essay.downloads}
+                        </span>
+                        <button
+                          className="p-1 hover:text-blue-900 rounded transition"
+                          onClick={(e) => handleDownload(e, `${essay.title}.pdf`)}
+                          title="Tải nhanh"
+                        >
+                          <Download className="w-3.5 h-3.5 text-slate-400 hover:text-blue-900" />
                         </button>
                       </div>
                     </div>
@@ -1005,8 +1348,9 @@ export default function StudentHome() {
           </section>
         </div>
 
-        {/* CỘT PHẢI: PDF ĐÃ ĐƯỢC THU NHỎ CHIỀU RỘNG */}
+        {/* ================= CỘT PHẢI ================= */}
         <div className="home-right-col">
+          {/* Tài liệu PDF đề xuất */}
           <section className="pdf-panel">
             <div className="pdf-panel-header">
               <div>
@@ -1014,14 +1358,18 @@ export default function StudentHome() {
                   <FileText className="w-4 h-4 text-red-500" />
                   <span>Tài liệu đề xuất</span>
                 </h3>
-                <p style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>Vous aimerez peut-être aussi</p>
+                <p style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>Bạn có thể quan tâm</p>
               </div>
               <span className="pdf-pill-badge">PDF HUB</span>
             </div>
 
             <ul className="doc-list">
-              {filteredDocs.map((doc) => (
-                <li key={doc.id} className="doc-item" onClick={() => setModalDoc(doc)}>
+              {filteredEssays.slice(0, 5).map((doc) => (
+                <li 
+                  key={doc.id} 
+                  className="doc-item" 
+                  onClick={() => navigate(`/student/documents/${doc.id}`)}
+                >
                   <div className="doc-cover-thumb">
                     <span className="doc-badge-pdf">PDF</span>
                     <div className="doc-cover-inner">
@@ -1032,20 +1380,13 @@ export default function StudentHome() {
                     </div>
                   </div>
                   <div className="doc-info">
-                    {doc.isLiked ? (
-                      <span className="doc-rating active"><ThumbsUp className="w-3 h-3" /> {doc.rating}</span>
-                    ) : (
-                      <span className="doc-rating">{doc.rating}</span>
-                    )}
+                    <span className="doc-rating active"><ThumbsUp className="w-3 h-3" /> {doc.likes} lượt thích</span>
                     <h4>{doc.title}</h4>
                     <div className="doc-footer-meta">
                       <span>{doc.pages} pages</span>
                       <button 
                         className="download-btn" 
-                        onClick={(e) => { 
-                          e.stopPropagation()
-                          handleDownload(`${doc.title}.pdf`) 
-                        }}
+                        onClick={(e) => handleDownload(e, `${doc.title}.pdf`)}
                       >
                         <Download className="w-3.5 h-3.5" />
                       </button>
@@ -1056,6 +1397,7 @@ export default function StudentHome() {
             </ul>
           </section>
 
+          {/* Biểu mẫu tải nhanh */}
           <section className="pdf-panel">
             <div className="pdf-panel-header">
               <h3 className="pdf-panel-title">
@@ -1067,13 +1409,13 @@ export default function StudentHome() {
 
             <div className="pdf-quick-list">
               {[
-                { name: "Mau_Bia_Tieu_Luan_Chuan.pdf", meta: "0.8 MB • 3 Trang" },
-                { name: "De_Cuong_Tri_Tue_Nhan_Tao.pdf", meta: "2.4 MB • 15 Trang" }
-              ].map((item, idx) => (
+                { id: 1, name: "Mau_Bia_Tieu_Luan_Chuan.pdf", meta: "0.8 MB • 3 Trang" },
+                { id: 2, name: "De_Cuong_Tri_Tue_Nhan_Tao.pdf", meta: "2.4 MB • 15 Trang" }
+              ].map((item) => (
                 <div 
-                  key={idx} 
+                  key={item.id} 
                   className="pdf-quick-item" 
-                  onClick={() => setModalDoc({ title: item.name, pages: item.meta, rating: "Tải nhanh" })}
+                  onClick={() => navigate(`/student/documents/${item.id}`)}
                 >
                   <div className="pdf-quick-meta">
                     <div className="pdf-quick-icon"><FileText className="w-4 h-4" /></div>
@@ -1084,10 +1426,7 @@ export default function StudentHome() {
                   </div>
                   <button 
                     className="download-btn" 
-                    onClick={(e) => { 
-                      e.stopPropagation()
-                      handleDownload(item.name) 
-                    }}
+                    onClick={(e) => handleDownload(e, item.name)}
                   >
                     <Download className="w-4 h-4" />
                   </button>
@@ -1097,58 +1436,6 @@ export default function StudentHome() {
           </section>
         </div>
       </div>
-
-      {/* MODAL PREVIEW PDF */}
-      {modalDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
-            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded">PDF</span>
-                <h4 className="text-sm font-bold truncate max-w-[320px]">Xem trước tài liệu</h4>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setModalDoc(null)} 
-                className="text-slate-400 hover:text-white transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 bg-slate-50 flex flex-col items-center text-center">
-              <div className="w-20 h-28 bg-white border border-slate-300 rounded-lg shadow-md flex flex-col items-center justify-center mb-4">
-                <FileText className="w-10 h-10 text-red-500" />
-                <span className="text-[10px] font-bold text-slate-500 mt-2">
-                  {typeof modalDoc.pages === "number" ? `${modalDoc.pages} pages` : modalDoc.pages}
-                </span>
-              </div>
-              <h3 className="text-base font-extrabold text-slate-900 mb-1">{modalDoc.title}</h3>
-              <p className="text-xs text-slate-500">Đánh giá: {modalDoc.rating}</p>
-            </div>
-
-            <div className="p-4 bg-white border-t border-slate-200 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setModalDoc(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition"
-              >
-                Đóng
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleDownload(`${modalDoc.title}.pdf`)
-                  setModalDoc(null)
-                }}
-                className="px-5 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg flex items-center gap-2 shadow-sm transition"
-              >
-                <Download className="w-4 h-4" /> Tải về máy
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
