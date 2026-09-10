@@ -13,13 +13,18 @@ import {
   ThumbsUp, 
   CheckCircle2, 
   FileCheck,
-  Loader2
+  Loader2,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react"
 
 import { courseService } from "../../../api/course.api"
 
 const DEFAULT_TEACHER_IMG = "/thekhoahoc/thaygiao.png";
 const DEFAULT_LOGO_IMG = "/thekhoahoc/logo.png";
+
+// Số khóa học hiển thị trên 1 trang (2 hàng x 3 cột)
+const COURSES_PER_PAGE = 6;
 
 // Map logo có sẵn chữ trường (đảm bảo hiển thị không bị lỗi hotlink)
 const PRESET_SCHOOL_LOGOS = {
@@ -168,6 +173,10 @@ export default function StudentHome() {
   const [essays, setEssays] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
+  // 🎯 State phân trang khóa học
+  const [currentCoursePage, setCurrentCoursePage] = useState(1);
+  const coursesSectionRef = useRef(null);
+
   useEffect(() => {
     const fetchHomeData = async () => {
       setIsLoading(true);
@@ -260,6 +269,11 @@ export default function StudentHome() {
     fetchHomeData();
   }, []);
 
+  // Tự động reset trang về 1 khi người dùng đổi từ khóa tìm kiếm
+  useEffect(() => {
+    setCurrentCoursePage(1);
+  }, [searchKeyword]);
+
   const triggerToast = (msg) => {
     setToastMessage(msg)
     setShowToast(true)
@@ -284,6 +298,23 @@ export default function StudentHome() {
       c.teacherName.toLowerCase().includes(searchKeyword.toLowerCase()) ||
       c.subject.toLowerCase().includes(searchKeyword.toLowerCase())
   ), [courses, searchKeyword]);
+
+  // 🎯 Tính toán phân trang cho Khóa học mở rộng
+  const totalCoursePages = Math.ceil(filteredCourses.length / COURSES_PER_PAGE) || 1;
+
+  const paginatedCourses = useMemo(() => {
+    const startIdx = (currentCoursePage - 1) * COURSES_PER_PAGE;
+    return filteredCourses.slice(startIdx, startIdx + COURSES_PER_PAGE);
+  }, [filteredCourses, currentCoursePage]);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalCoursePages && newPage !== currentCoursePage) {
+      setCurrentCoursePage(newPage);
+      if (coursesSectionRef.current) {
+        coursesSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
 
   const filteredEssays = useMemo(() => {
     let list = essays.filter(
@@ -471,7 +502,6 @@ export default function StudentHome() {
           flex-direction: column;
         }
 
-        /* 🎯 CHỈ HIỂN THỊ LOGO TRƯỜNG, ĐẶT ĐÚNG GÓC TRÊN BÊN PHẢI */
         .school-logo-corner {
           position: absolute;
           top: 2cqw;
@@ -918,7 +948,8 @@ export default function StudentHome() {
             </div>
           </section>
 
-          <section className="courses-section">
+          {/* 🎯 SECTION KHÓA HỌC MỞ RỘNG (KÈM PHÂN TRANG) */}
+          <section className="courses-section" ref={coursesSectionRef}>
             <div className="section-header-bar">
               <h3>CÁC KHÓA HỌC MỞ RỘNG</h3>
               <span className="text-xs font-bold text-blue-900 bg-blue-50 px-3 py-1 rounded-full flex items-center gap-1.5">
@@ -928,10 +959,10 @@ export default function StudentHome() {
             </div>
 
             <div className="three-cards-grid">
-              {filteredCourses.map((c) => (
+              {paginatedCourses.map((c) => (
                 <div key={c.id} className="card-wrapper" data-course={c.courseName} data-teacher={c.teacherName}>
                   
-                  {/* 🎯 LOGO GÓC TRÊN BÊN PHẢI (CHỈ HIỂN THỊ ẢNH LOGO, KHÔNG KÈM TEXT) */}
+                  {/* LOGO TRƯỜNG GÓC TRÊN */}
                   <div className="school-logo-corner">
                     <img 
                       src={c.logoImg} 
@@ -950,7 +981,7 @@ export default function StudentHome() {
                   >
                     <CardCanvas />
 
-                    {/* ẢNH GIÁO VIÊN ĐỨNG DÁNG TOÀN THÂN */}
+                    {/* ẢNH DÁNG ĐỨNG CỦA GIÁO VIÊN */}
                     <div className="teacher-image-zone">
                       <img 
                         src={c.teacherImg} 
@@ -1023,8 +1054,81 @@ export default function StudentHome() {
                 </div>
               )}
             </div>
+
+            {/* 🎯 BỘ ĐIỀU HƯỚNG PHÂN TRANG (PAGINATION) */}
+            {filteredCourses.length > COURSES_PER_PAGE && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 mt-1 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+                <div className="text-xs font-medium text-slate-500">
+                  Hiển thị <strong className="text-slate-800 font-bold">{(currentCoursePage - 1) * COURSES_PER_PAGE + 1}</strong> - <strong className="text-slate-800 font-bold">{Math.min(currentCoursePage * COURSES_PER_PAGE, filteredCourses.length)}</strong> trên tổng <strong className="text-blue-900 font-bold">{filteredCourses.length}</strong> khóa học
+                </div>
+
+                <div className="flex items-center space-x-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(currentCoursePage - 1)}
+                    disabled={currentCoursePage === 1}
+                    className={`p-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                      currentCoursePage === 1
+                        ? "text-slate-300 bg-slate-50 cursor-not-allowed border border-slate-100"
+                        : "text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 hover:text-blue-900 shadow-2xs"
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Trước</span>
+                  </button>
+
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: totalCoursePages }).map((_, idx) => {
+                      const pageNum = idx + 1;
+                      // Chỉ hiện trang đầu, cuối và lân cận trang hiện tại
+                      if (
+                        pageNum === 1 || 
+                        pageNum === totalCoursePages || 
+                        (pageNum >= currentCoursePage - 1 && pageNum <= currentCoursePage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`w-8 h-8 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                              currentCoursePage === pageNum
+                                ? "bg-blue-900 text-white shadow-md shadow-blue-900/20 font-black"
+                                : "bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80"
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      } else if (
+                        pageNum === currentCoursePage - 2 || 
+                        pageNum === currentCoursePage + 2
+                      ) {
+                        return <span key={pageNum} className="px-1 text-slate-400 font-bold text-xs">...</span>;
+                      }
+                      return null;
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(currentCoursePage + 1)}
+                    disabled={currentCoursePage === totalCoursePages}
+                    className={`p-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                      currentCoursePage === totalCoursePages
+                        ? "text-slate-300 bg-slate-50 cursor-not-allowed border border-slate-100"
+                        : "text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 hover:text-blue-900 shadow-2xs"
+                    }`}
+                  >
+                    <span className="hidden sm:inline">Sau</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
 
+          {/* SECTION TIỂU LUẬN & BÁO CÁO HỌC THUẬT */}
           <section className="essays-section">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 mb-4">
               <div>

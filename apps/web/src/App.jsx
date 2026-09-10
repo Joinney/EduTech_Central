@@ -19,8 +19,10 @@ import StudentDashboard from "./userdb/pages/studentpage/dashboard/StudentDashbo
 import Programs from "./userdb/pages/studentpage/Chuongtrinhkhoilop/Programs.jsx"
 import Library from "./userdb/pages/studentpage/Khohoclieu/Library.jsx"
 import StudentCourses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx"
+import CourseCategories from "./userdb/pages/studentpage/danhmuckhoahoc/CourseCategories.jsx"
+import DocumentCategories from "./userdb/pages/studentpage/danhmuctailieu/DocumentCategories.jsx"
 import CourseDetail from "./userdb/pages/studentpage/chitietkhoahoc/CourseDetail.jsx"
-import DocumentDetail from "./userdb/pages/studentpage/chitietpdf/DocumentDetail.jsx" // 🟢 ĐÚNG ĐƯỜNG DẪN THEO ẢNH
+import DocumentDetail from "./userdb/pages/studentpage/chitietpdf/DocumentDetail.jsx"
 import Videos from "./userdb/pages/studentpage/VideoEdu/Videos.jsx"
 import Bookshelf from "./userdb/pages/studentpage/Tusach/Bookshelf.jsx"
 import ExamRoom from "./userdb/pages/studentpage/Monhoccuatoi/ExamRoom.jsx"
@@ -113,6 +115,13 @@ export default function App() {
             <Route path="dashboard" element={<TeacherHome />} />
             <Route path="courses" element={<CourseManagement />} />
             <Route path="courses/request" element={<TeacherRequestCourse />} />
+
+            {/* Danh mục khóa học & Danh mục tài liệu */}
+            <Route path="course-categories" element={<CourseCategories />} />
+            <Route path="courses/category/:categorySlug" element={<CourseCategories />} />
+            <Route path="document-categories" element={<DocumentCategories />} />
+            <Route path="docs/:docSlug" element={<DocumentCategories />} />
+
             <Route path="quizzes" element={<QuizBank />} />
             <Route path="grading" element={<Grading />} />
             <Route path="students" element={<StudentList />} />
@@ -132,7 +141,13 @@ export default function App() {
             <Route path="library" element={<Library />} />
             <Route path="courses" element={<StudentCourses />} />
 
-            {/* 🟢 CÁC ROUTE CHI TIẾT CÓ ID */}
+            {/* Danh mục khóa học & Danh mục tài liệu */}
+            <Route path="course-categories" element={<CourseCategories />} />
+            <Route path="courses/category/:categorySlug" element={<CourseCategories />} />
+            <Route path="document-categories" element={<DocumentCategories />} />
+            <Route path="docs/:docSlug" element={<DocumentCategories />} />
+
+            {/* CÁC ROUTE CHI TIẾT */}
             <Route path="courses/:courseId" element={<CourseDetail />} />
             <Route path="documents/:docId" element={<DocumentDetail />} />
 
@@ -148,7 +163,7 @@ export default function App() {
         <Route path="*" element={<DashboardRedirect />} />
       </Routes>
 
-      {/* 🟢 WIDGET AI NỔI CỐ ĐỊNH Ở GÓC DƯỚI BÊN PHẢI */}
+      {/* WIDGET AI NỔI CỐ ĐỊNH Ở GÓC DƯỚI BÊN PHẢI */}
       <AIChatWidget />
     </>
   )

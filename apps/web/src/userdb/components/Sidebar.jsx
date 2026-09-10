@@ -1,4 +1,6 @@
-﻿import React, { useState, useEffect } from "react"
+﻿/* eslint-disable react/prop-types */
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { 
   Home as HomeIcon,
@@ -10,6 +12,7 @@ import {
   Bookmark, 
   Sparkles,
   ChevronRight,
+  ChevronDown,
   Award,
   Users,
   FolderPlus,
@@ -17,7 +20,9 @@ import {
   ShieldCheck,
   FileCheck2,
   HelpCircle,
-  CalendarDays
+  CalendarDays,
+  Tags,
+  FolderTree
 } from "lucide-react"
 
 export default function Sidebar() {
@@ -25,6 +30,34 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [role, setRole] = useState("student")
+  
+  const [openSubmenu, setOpenSubmenu] = useState({
+    "Danh mục khóa học": true,
+    "Danh mục tài liệu": true
+  })
+  
+  const [expandedSubmenus, setExpandedSubmenus] = useState({})
+
+  // Danh mục khóa học (Khởi tạo sẵn danh sách fallback chuẩn)
+  const [courseCategories, setCourseCategories] = useState([
+    { name: "Toán học & Giải tích", slug: "toan-hoc" },
+    { name: "Tin học & Lập trình", slug: "tin-hoc" },
+    { name: "Tiếng Anh & Ngoại ngữ", slug: "tieng-anh" },
+    { name: "Vật lý đại cương", slug: "vat-ly" },
+    { name: "Hóa học & Sinh học", slug: "khoa-hoc-tu-nhien" },
+    { name: "Toán cao cấp & Đại số", slug: "toan-cao-cap" },
+    { name: "Triết học & Pháp luật", slug: "dai-cuong" },
+    { name: "Kinh tế vi mô & vĩ mô", slug: "kinh-te" }
+  ])
+
+  // Danh mục tài liệu
+  const docCategories = [
+    { name: "Giáo trình & Bài giảng chuẩn", path: `/${role}/docs/giao-trinh` },
+    { name: "Đề thi & Đáp án chi tiết", path: `/${role}/docs/de-thi` },
+    { name: "Sách & Ebook tham khảo", path: `/${role}/docs/ebooks` },
+    { name: "Bài báo & Đề tài nghiên cứu", path: `/${role}/docs/nghien-cuu` },
+    { name: "Slide & Tóm tắt kiến thức", path: `/${role}/docs/slide` }
+  ]
 
   useEffect(() => {
     const loadUserData = () => {
@@ -46,9 +79,32 @@ export default function Sidebar() {
     }
 
     loadUserData()
-
     window.addEventListener("storage", loadUserData)
     return () => window.removeEventListener("storage", loadUserData)
+  }, [])
+
+  // 🎯 BƯỚC 3: Fetch danh mục thực tế từ Database backend course-service
+  useEffect(() => {
+    const fetchDBCategories = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
+        const res = await fetch(`${baseUrl}/categories`)
+        if (res.ok) {
+          const json = await res.json()
+          const data = Array.isArray(json) ? json : (json?.data || [])
+          if (data.length > 0) {
+            setCourseCategories(data.map(item => ({
+              name: item.name,
+              slug: item.slug
+            })))
+          }
+        }
+      } catch (err) {
+        console.warn("Dùng danh mục mặc định cho Sidebar:", err)
+      }
+    }
+
+    fetchDBCategories()
   }, [])
 
   const fullName = user?.fullName || user?.full_name || (role === "teacher" ? "Giảng viên EduTech" : "Học viên EduTech")
@@ -61,22 +117,46 @@ export default function Sidebar() {
     return parts.map(p => p[0]).join("").substring(0, 3).toUpperCase()
   }
 
-  // 1. Danh sách menu cho Học viên (Đã thêm Trang chủ lên đầu)
+  // Chuyển mảng danh mục thành đường dẫn URL tương ứng với role
+  const dynamicCourseChildren = courseCategories.map(cat => ({
+    name: cat.name,
+    path: `/${role}/courses/category/${cat.slug}`
+  }))
+
   const studentNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
     { name: "Bảng điều khiển", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Chương trình & Khối lớp", path: `/${role}/programs`, icon: GraduationCap },
     { name: "Kho Học liệu & Thư viện", path: `/${role}/library`, icon: Library },
+    { 
+      name: "Danh mục khóa học", 
+      icon: Tags, 
+      children: dynamicCourseChildren 
+    },
+    { 
+      name: "Danh mục tài liệu", 
+      icon: FolderTree, 
+      children: docCategories 
+    },
     { name: "Môn học của tôi", path: `/${role}/courses`, icon: BookOpen },
     { name: "Video Edu & Bài giảng", path: `/${role}/videos`, icon: Video },
     { name: "Tủ sách & Bộ sưu tập", path: `/${role}/bookshelf`, icon: Bookmark },
   ]
 
-  // 2. Danh sách menu cho Giảng viên (Đã thêm Trang chủ lên đầu)
   const teacherNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
     { name: "Bảng quản lý Giảng viên", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Quản lý Lớp & Khóa học", path: `/${role}/courses`, icon: FolderPlus },
+    { 
+      name: "Danh mục khóa học", 
+      icon: Tags, 
+      children: dynamicCourseChildren 
+    },
+    { 
+      name: "Danh mục tài liệu", 
+      icon: FolderTree, 
+      children: docCategories 
+    },
     { name: "Ngân hàng Đề & Bài kiểm tra", path: `/${role}/quizzes`, icon: HelpCircle },
     { name: "Chấm điểm & Đánh giá", path: `/${role}/grading`, icon: FileCheck2 },
     { name: "Danh sách Học viên", path: `/${role}/students`, icon: Users },
@@ -85,6 +165,21 @@ export default function Sidebar() {
   ]
 
   const navItems = role === "teacher" ? teacherNavItems : studentNavItems
+  const isTeacher = role === "teacher"
+
+  const toggleSubmenu = (name) => {
+    setOpenSubmenu(prev => ({
+      ...prev,
+      [name]: !prev[name]
+    }))
+  }
+
+  const toggleExpandSubmenu = (name) => {
+    setExpandedSubmenus(prev => ({
+      ...prev,
+      [name]: !prev[name]
+    }))
+  }
 
   const handleLogout = () => {
     localStorage.removeItem("token")
@@ -93,7 +188,7 @@ export default function Sidebar() {
     navigate("/login")
   }
 
-  const isTeacher = role === "teacher"
+  const ITEM_LIMIT = 5
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between text-slate-700 select-none shrink-0 p-4 transition-all">
@@ -102,7 +197,7 @@ export default function Sidebar() {
         {/* Profile Header */}
         <Link
           to={`/${role}/profile`}
-          className={`relative group p-3 rounded-2xl border shadow-sm flex items-center space-x-3 transition-all cursor-pointer block ${
+          className={`relative group p-3 rounded-2xl border shadow-xs flex items-center space-x-3 transition-all cursor-pointer block ${
             isTeacher 
               ? "bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/20 border-slate-200/60 hover:border-orange-300" 
               : "bg-gradient-to-br from-slate-50 via-blue-50/30 to-cyan-50/20 border-slate-200/60 hover:border-blue-300"
@@ -113,7 +208,7 @@ export default function Sidebar() {
               <img
                 src={avatarUrl}
                 alt={fullName}
-                className="w-10 h-10 rounded-full object-cover shadow-md border-2 border-white"
+                className="w-10 h-10 rounded-full object-cover shadow-xs border-2 border-white"
                 onError={(e) => {
                   e.target.style.display = "none"
                   if (e.target.nextSibling) e.target.nextSibling.style.display = "flex"
@@ -122,7 +217,7 @@ export default function Sidebar() {
             ) : null}
 
             <div
-              className={`w-10 h-10 rounded-full text-white font-black text-xs items-center justify-center shadow-md border-2 border-white ${
+              className={`w-10 h-10 rounded-full text-white font-black text-xs items-center justify-center shadow-xs border-2 border-white ${
                 avatarUrl ? "hidden" : "flex"
               } ${
                 isTeacher 
@@ -133,7 +228,7 @@ export default function Sidebar() {
               {getInitials(fullName)}
             </div>
 
-            <span className="w-3 h-3 bg-emerald-500 border-2 border-white rounded-full absolute bottom-0 right-0 shadow-sm" />
+            <span className="w-3 h-3 bg-emerald-500 border-2 border-white rounded-full absolute bottom-0 right-0 shadow-xs" />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -167,42 +262,116 @@ export default function Sidebar() {
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = location.pathname === item.path
+              const hasChildren = Boolean(item.children && item.children.length > 0)
+              const isChildActive = hasChildren && item.children.some(c => location.pathname === c.path)
+              const isActive = (!hasChildren && location.pathname === item.path) || isChildActive
+              const isOpen = Boolean(openSubmenu[item.name])
+              const isExpanded = Boolean(expandedSubmenus[item.name])
+
+              const visibleChildren = hasChildren 
+                ? (isExpanded ? item.children : item.children.slice(0, ITEM_LIMIT))
+                : []
 
               return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
-                    isActive
-                      ? isTeacher
-                        ? "bg-orange-500 text-white shadow-md shadow-orange-500/25"
-                        : "bg-blue-600 text-white shadow-md shadow-blue-500/25"
-                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
-                  }`}
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
-                      isActive 
-                        ? "text-white" 
-                        : isTeacher
-                          ? "text-slate-500 group-hover:text-orange-600 group-hover:scale-110"
-                          : "text-slate-500 group-hover:text-blue-600 group-hover:scale-110"
-                    }`} />
-                    <span className="truncate">{item.name}</span>
-                  </div>
+                <div key={item.name} className="relative">
+                  {hasChildren ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleSubmenu(item.name)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
+                        isChildActive
+                          ? isTeacher
+                            ? "bg-orange-50 text-orange-600 border border-orange-200/60"
+                            : "bg-blue-50 text-blue-600 border border-blue-200/60"
+                          : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+                          isChildActive
+                            ? isTeacher ? "text-orange-600" : "text-blue-600"
+                            : "text-slate-500"
+                        }`} />
+                        <span className="truncate">{item.name}</span>
+                      </div>
 
-                  <ChevronRight className={`w-3.5 h-3.5 opacity-0 -translate-x-1 transition-all duration-200 ${
-                    isActive ? "opacity-100 translate-x-0 text-white/80" : "group-hover:opacity-100 group-hover:translate-x-0 text-slate-400"
-                  }`} />
-                </Link>
+                      {isOpen ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                      )}
+                    </button>
+                  ) : (
+                    <Link
+                      to={item.path}
+                      className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                        isActive
+                          ? isTeacher
+                            ? "bg-orange-500 text-white shadow-xs shadow-orange-500/25"
+                            : "bg-blue-600 text-white shadow-xs shadow-blue-500/25"
+                          : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2.5">
+                        <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+                          isActive 
+                            ? "text-white" 
+                            : isTeacher
+                              ? "text-slate-500 group-hover:text-orange-600 group-hover:scale-110"
+                              : "text-slate-500 group-hover:text-blue-600 group-hover:scale-110"
+                        }`} />
+                        <span className="truncate">{item.name}</span>
+                      </div>
+
+                      <ChevronRight className={`w-3.5 h-3.5 opacity-0 -translate-x-1 transition-all duration-200 ${
+                        isActive ? "opacity-100 translate-x-0 text-white/80" : "group-hover:opacity-100 group-hover:translate-x-0 text-slate-400"
+                      }`} />
+                    </Link>
+                  )}
+
+                  {hasChildren && isOpen && (
+                    <div className="mt-1 ml-4 pl-2 border-l-2 border-slate-100 space-y-0.5 animate-in fade-in duration-200">
+                      {visibleChildren.map((sub) => {
+                        const isSubActive = location.pathname === sub.path
+                        return (
+                          <Link
+                            key={sub.path}
+                            to={sub.path}
+                            className={`block px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
+                              isSubActive
+                                ? isTeacher ? "text-orange-600 bg-orange-50 font-bold" : "text-blue-600 bg-blue-50 font-bold"
+                                : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                            }`}
+                          >
+                            {sub.name}
+                          </Link>
+                        )
+                      })}
+
+                      {item.children.length > ITEM_LIMIT && (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpandSubmenu(item.name)}
+                          className={`w-full text-left px-2.5 py-1 text-[11px] font-bold cursor-pointer transition-colors ${
+                            isTeacher 
+                              ? "text-orange-500 hover:text-orange-700" 
+                              : "text-blue-600 hover:text-blue-800"
+                          }`}
+                        >
+                          {isExpanded 
+                            ? "− Thu gọn" 
+                            : `+ Xem thêm (${item.children.length - ITEM_LIMIT})`}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               )
             })}
           </nav>
         </div>
       </div>
 
-      {/* Widget AI & Logout */}
       <div className="pt-3 border-t border-slate-100 space-y-2">
         <div className={`p-3 rounded-2xl border space-y-1.5 ${
           isTeacher 
@@ -217,8 +386,8 @@ export default function Sidebar() {
           </div>
           <p className="text-[10px] text-slate-600 font-medium leading-relaxed">
             {isTeacher 
-              ? `Hỗ trợ Thầy/Cô tạo ngân hàng đề thi & gợi ý giáo án.` 
-              : `Sẵn sàng hỗ trợ bạn giải bài tập 24/7.`}
+              ? "Hỗ trợ Thầy/Cô tạo ngân hàng đề thi & gợi ý giáo án." 
+              : "Sẵn sàng hỗ trợ bạn giải bài tập 24/7."}
           </p>
         </div>
 
