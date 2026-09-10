@@ -26,7 +26,8 @@ import {
   Loader2, 
   FileCheck, 
   Award,
-  Check
+  Check,
+  ExternalLink
 } from "lucide-react"
 
 import { courseService } from "../../../../api/course.api"
@@ -83,45 +84,45 @@ const formatForDateTimeInput = (val) => {
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().slice(0, 16);
   }
-  return val.slice(0, 16);
+  return String(val).slice(0, 16);
 };
 
 export default function CourseDetail({ course, onBack }) {
   const navigate = useNavigate();
 
-  // Thứ tự tab mặc định: Bài giảng
-  const [activeTab, setActiveTab] = useState("lessons") // "lessons" | "assignments" | "quizzes" | "students"
-  const [isInMeeting, setIsInMeeting] = useState(false)
-  const [previewFile, setPreviewFile] = useState(null)
+  const [activeTab, setActiveTab] = useState("lessons");
+  const [isInMeeting, setIsInMeeting] = useState(false);
+  
+  // 🎯 State Xem Trước File nhúng trực tiếp
+  const [previewFile, setPreviewFile] = useState(null); // { url, name }
 
   const [meetInfo, setMeetInfo] = useState({
     title: `Buổi học Trực tuyến: ${course?.title || "Ôn tập & Giải đáp thắc mắc"}`,
     link: `https://meet.jit.si/EduTech-${course?.code || "Room"}-${course?.id || "Live"}`,
     startTime: "19:30 - 21:00",
     isActive: true
-  })
+  });
 
-  const [lessons, setLessons] = useState(course?.lessons || [])
-  const [assignments, setAssignments] = useState(course?.assignments || [])
-  const [quizzes, setQuizzes] = useState([])
-  const [students, setStudents] = useState([])
+  const [lessons, setLessons] = useState(course?.lessons || []);
+  const [assignments, setAssignments] = useState(course?.assignments || []);
+  const [quizzes, setQuizzes] = useState([]);
+  const [students, setStudents] = useState([]);
 
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [isUploading, setIsUploading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileBlobUrl, setFileBlobUrl] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  // Danh sách nộp bài tập (Postgres)
-  const [viewSubmissionsAssignment, setViewSubmissionsAssignment] = useState(null)
-  const [submissionsList, setSubmissionsList] = useState([])
-  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false)
+  const [viewSubmissionsAssignment, setViewSubmissionsAssignment] = useState(null);
+  const [submissionsList, setSubmissionsList] = useState([]);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
 
-  // State Xem Trước Đề Thi Thật Bóc Tách từ File Word
-  const [previewStudentExam, setPreviewStudentExam] = useState(false)
-  const [parsedPreviewQuestions, setParsedPreviewQuestions] = useState([])
-  const [isParsingPreview, setIsParsingPreview] = useState(false)
+  const [previewStudentExam, setPreviewStudentExam] = useState(false);
+  const [parsedPreviewQuestions, setParsedPreviewQuestions] = useState([]);
+  const [isParsingPreview, setIsParsingPreview] = useState(false);
 
-  const [modalType, setModalType] = useState(null)
-  const [selectedItem, setSelectedItem] = useState(null)
-  const [formCategory, setFormCategory] = useState("lesson") 
+  const [modalType, setModalType] = useState(null); // "create" | "edit" | "view" | "meet"
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [formCategory, setFormCategory] = useState("lesson"); // "lesson" | "assignment" | "quiz"
 
   const [formData, setFormData] = useState({
     title: "",
@@ -136,34 +137,47 @@ export default function CourseDetail({ course, onBack }) {
     totalQuestions: 10,
     passScore: 5,
     description: ""
-  })
+  });
 
   const [meetForm, setMeetForm] = useState({
     title: meetInfo.title,
     link: meetInfo.link,
     startTime: meetInfo.startTime
-  })
+  });
 
-  // Tải dữ liệu từ Postgres và MongoDB
+  // Tạo blob URL khi chọn file từ máy để xem trước ngay trước khi bấm lưu
+  useEffect(() => {
+    if (selectedFile) {
+      const url = URL.createObjectURL(selectedFile);
+      setFileBlobUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setFileBlobUrl(null);
+    }
+  }, [selectedFile]);
+
   const fetchAllCourseDetails = async () => {
     if (!course?.id) return;
     const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
 
-    try {
-      const [resL, resA, resS, mongoExams] = await Promise.all([
-        fetch(`${baseUrl}/courses/${course.id}/lessons`).then(r => r.json()).catch(() => []),
-        fetch(`${baseUrl}/courses/${course.id}/assignments`).then(r => r.json()).catch(() => []),
-        fetch(`${baseUrl}/courses/${course.id}/students`).then(r => r.json()).catch(() => []),
-        quizApi.getExamsByCourse(course.id).catch(() => [])
-      ]);
+    fetch(`${baseUrl}/courses/${course.id}/lessons`)
+      .then(r => r.json())
+      .then(data => setLessons(Array.isArray(data) ? data : data?.data || []))
+      .catch(() => setLessons([]));
 
-      setLessons(Array.isArray(resL) ? resL : resL?.data || []);
-      setAssignments(Array.isArray(resA) ? resA : resA?.data || []);
-      setStudents(Array.isArray(resS) ? resS : resS?.data || []);
-      setQuizzes(mongoExams || []);
-    } catch (error) {
-      console.error("Lỗi khi tải chi tiết lớp học:", error);
-    }
+    fetch(`${baseUrl}/courses/${course.id}/assignments`)
+      .then(r => r.json())
+      .then(data => setAssignments(Array.isArray(data) ? data : data?.data || []))
+      .catch(() => setAssignments([]));
+
+    fetch(`${baseUrl}/courses/${course.id}/students`)
+      .then(r => r.json())
+      .then(data => setStudents(Array.isArray(data) ? data : data?.data || []))
+      .catch(() => setStudents([]));
+
+    quizApi.getExamsByCourse(course.id)
+      .then(data => setQuizzes(Array.isArray(data) ? data : []))
+      .catch(() => setQuizzes([]));
   };
 
   useEffect(() => {
@@ -187,7 +201,6 @@ export default function CourseDetail({ course, onBack }) {
     }
   };
 
-  // 🎯 ĐIỀU HƯỚNG SANG TRANG RIÊNG BIỆT ĐỂ XEM DANH SÁCH BÀI LÀM
   const handleOpenExamSubmissions = (quiz) => {
     const examId = quiz.id || quiz._id;
     navigate(`/teacher/exam/${examId}`);
@@ -248,7 +261,7 @@ export default function CourseDetail({ course, onBack }) {
       maxScore: item.maxScore || item.max_score || 10,
       totalQuestions: item.totalQuestions || item.total_questions || 10,
       passScore: item.passScore || item.pass_score || 5,
-      description: item.description || ""
+      description: item.description || item.content || ""
     });
     setModalType("edit");
   };
@@ -307,7 +320,7 @@ export default function CourseDetail({ course, onBack }) {
             body: JSON.stringify({
               title: formData.title,
               duration: formData.duration,
-              content: formData.description,
+              content: formData.description || formData.content,
               fileUrl: uploadedFile.url,
               fileName: uploadedFile.fileName,
             }),
@@ -323,7 +336,7 @@ export default function CourseDetail({ course, onBack }) {
             body: JSON.stringify({
               title: formData.title,
               duration: formData.duration,
-              content: formData.description,
+              content: formData.description || formData.content,
               fileUrl: uploadedFile.url,
               fileName: uploadedFile.fileName,
             }),
@@ -338,7 +351,7 @@ export default function CourseDetail({ course, onBack }) {
           due_date: formData.dueDate,
           maxScore: Number(formData.maxScore),
           max_score: Number(formData.maxScore),
-          description: formData.description,
+          description: formData.description || formData.content,
           fileUrl: uploadedFile.url,
           fileName: uploadedFile.fileName,
         };
@@ -388,7 +401,7 @@ export default function CourseDetail({ course, onBack }) {
       setPreviewStudentExam(false);
     } catch (error) {
       console.error("Lỗi khi lưu dữ liệu:", error);
-      alert("Lỗi kết nối khi lưu đề thi!");
+      alert("Lỗi khi lưu dữ liệu!");
     } finally {
       setIsUploading(false);
     }
@@ -455,7 +468,7 @@ export default function CourseDetail({ course, onBack }) {
               </span>
               <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
                 <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                Đơn vị: <strong className="text-slate-700">{course.schoolName || "EduTech"}</strong>
+                Đơn vị: <strong className="text-slate-700">{course.schoolName || course.school_name || "EduTech"}</strong>
               </span>
             </div>
             <h1 className="text-2xl font-black text-slate-900">{course.title}</h1>
@@ -573,14 +586,29 @@ export default function CourseDetail({ course, onBack }) {
                     <p className="text-[10px] text-slate-500 mt-0.5 font-medium">
                       📅 Lịch học: <strong className="text-slate-700">{formatDateTime(lesson.duration)}</strong>
                     </p>
+
+                    {/* Nút xem trực tiếp file đính kèm nếu có */}
+                    {(lesson.fileUrl || lesson.file_url) && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewFile({
+                          url: lesson.fileUrl || lesson.file_url,
+                          name: lesson.fileName || lesson.file_name || lesson.title
+                        })}
+                        className="inline-flex items-center space-x-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:underline mt-1 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Xem trước tệp: {lesson.fileName || lesson.file_name || "Tài liệu bài học"}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-1.5 shrink-0">
-                  <button onClick={() => handleOpenView("lesson", lesson)} className="p-2 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-xl cursor-pointer"><Eye className="w-4 h-4" /></button>
+                  <button onClick={() => handleOpenView("lesson", lesson)} className="p-2 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-xl cursor-pointer" title="Xem chi tiết"><Eye className="w-4 h-4" /></button>
                   <button onClick={() => toggleVisibility("lesson", lesson.id)} className={`p-2 rounded-xl text-xs font-bold cursor-pointer ${lesson.isVisible !== false ? "bg-emerald-50 text-emerald-600" : "bg-slate-200 text-slate-600"}`}>{lesson.isVisible !== false ? <CheckCircle2 className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}</button>
-                  <button onClick={() => handleOpenEdit("lesson", lesson)} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl cursor-pointer"><Edit3 className="w-4 h-4" /></button>
-                  <button onClick={() => handleDelete("lesson", lesson.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleOpenEdit("lesson", lesson)} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl cursor-pointer" title="Chỉnh sửa"><Edit3 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete("lesson", lesson.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl cursor-pointer" title="Xóa"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             ))}
@@ -608,6 +636,19 @@ export default function CourseDetail({ course, onBack }) {
                     <p className="text-[10px] text-slate-500 mt-1 font-medium">
                       ⏰ Hạn nộp: <strong className="text-red-600">{formatDateTime(item.dueDate || item.due_date)}</strong>
                     </p>
+                    {(item.fileUrl || item.file_url) && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewFile({
+                          url: item.fileUrl || item.file_url,
+                          name: item.fileName || item.file_name || item.title
+                        })}
+                        className="inline-flex items-center space-x-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:underline mt-1 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Xem tệp đề bài</span>
+                      </button>
+                    )}
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.isVisible !== false ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
                     {item.isVisible !== false ? "Đang mở" : "Đã ẩn"}
@@ -708,71 +749,217 @@ export default function CourseDetail({ course, onBack }) {
       )}
 
       {/* ================= TAB 4: DANH SÁCH HỌC VIÊN ================= */}
-{activeTab === "students" && (
-  <div className="space-y-4">
-    <div className="flex justify-between items-center">
-      <h3 className="text-sm font-bold text-slate-800">Học viên đang tham gia lớp</h3>
-    </div>
+      {activeTab === "students" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-bold text-slate-800">Học viên đang tham gia lớp</h3>
+          </div>
 
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-      <div className="grid grid-cols-1 divide-y divide-slate-100">
-        {students.map((student, idx) => {
-          const studentAvatar = 
-            student.avatar || 
-            student.avatar_url || 
-            student.avatarUrl || 
-            student.user_avatar || 
-            student.photo || 
-            student.image || 
-            student.user?.avatar || 
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name || student.displayName || student.fullName || "HV")}&background=random`;
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+            <div className="grid grid-cols-1 divide-y divide-slate-100">
+              {students.map((student, idx) => {
+                const studentAvatar = 
+                  student.avatar || 
+                  student.avatar_url || 
+                  student.avatarUrl || 
+                  student.user_avatar || 
+                  student.photo || 
+                  student.image || 
+                  student.user?.avatar || 
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(student.name || student.displayName || student.fullName || "HV")}&background=random`;
 
-          const studentDisplayName = 
-            student.name || 
-            student.displayName || 
-            student.fullName || 
-            student.student_name || 
-            student.email?.split("@")[0] || 
-            "Chưa cập nhật tên";
+                const studentDisplayName = 
+                  student.name || 
+                  student.displayName || 
+                  student.fullName || 
+                  student.student_name || 
+                  student.email?.split("@")[0] || 
+                  "Chưa cập nhật tên";
 
-          return (
-            <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-              <div className="flex items-center space-x-3">
-                <img 
-                  src={studentAvatar} 
-                  alt={studentDisplayName} 
-                  className="w-10 h-10 rounded-full border border-slate-200 object-cover shrink-0"
-                  onError={(e) => {
-                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(studentDisplayName)}&background=random`;
-                  }}
-                />
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900">{studentDisplayName}</h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">{student.email || student.student_email}</p>
-                </div>
-              </div>
+                return (
+                  <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center space-x-3">
+                      <img 
+                        src={studentAvatar} 
+                        alt={studentDisplayName} 
+                        className="w-10 h-10 rounded-full border border-slate-200 object-cover shrink-0"
+                        onError={(e) => {
+                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(studentDisplayName)}&background=random`;
+                        }}
+                      />
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">{studentDisplayName}</h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{student.email || student.student_email}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-3">
+                      <span className="text-[11px] font-medium text-slate-400">
+                        Tham gia: {student.joined_at || student.created_at ? new Date(student.joined_at || student.created_at).toLocaleDateString("vi-VN") : "--"}
+                      </span>
+                      <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer" title="Mời khỏi lớp">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
               
-              <div className="flex items-center space-x-3">
-                <span className="text-[11px] font-medium text-slate-400">
-                  Tham gia: {student.joined_at || student.created_at ? new Date(student.joined_at || student.created_at).toLocaleDateString("vi-VN") : "--"}
-                </span>
-                <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer" title="Mời khỏi lớp">
-                  <Trash2 className="w-4 h-4" />
+              {students.length === 0 && (
+                <div className="p-8 text-center text-xs text-slate-500 font-medium">
+                  Chưa có học viên nào tham gia lớp học này.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= 🎯 MODAL THÊM / SỬA BÀI HỌC HOẶC BÀI TẬP (CÓ NÚT XEM TRƯỚC TRỰC TIẾP) ================= */}
+      {(modalType === "create" || modalType === "edit") && (formCategory === "lesson" || formCategory === "assignment") && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border overflow-hidden flex flex-col max-h-[92vh]">
+            <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-4 text-white flex justify-between items-center shrink-0">
+              <div className="flex items-center space-x-2">
+                <BookOpen className="w-5 h-5 text-white" />
+                <h3 className="font-extrabold text-sm">
+                  {modalType === "create" ? "Thêm Mới" : "Chỉnh Sửa"} {formCategory === "lesson" ? "Bài Học" : "Bài Tập"}
+                </h3>
+              </div>
+              <button onClick={() => setModalType(null)} className="p-1 hover:bg-white/20 rounded-lg cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitForm} className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 uppercase block mb-1">
+                  Tiêu đề {formCategory === "lesson" ? "bài học" : "bài tập"} *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="VD: Nhập tiêu đề..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium"
+                />
+              </div>
+
+              {formCategory === "lesson" ? (
+                <div>
+                  <label className="font-bold text-slate-700 uppercase block mb-1">Lịch học / Thời gian *</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={formData.duration}
+                    onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium"
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700 uppercase block mb-1">Hạn nộp bài *</label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 uppercase block mb-1">Thang điểm tối đa</label>
+                    <input
+                      type="number"
+                      value={formData.maxScore}
+                      onChange={(e) => setFormData({ ...formData, maxScore: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* KHU VỰC CHỌN VÀ NHÚNG XEM TRƯỚC FILE */}
+              <div className="p-4 bg-orange-50/60 border border-dashed border-orange-300 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-800 uppercase flex items-center gap-1.5">
+                    <Paperclip className="w-4 h-4 text-orange-600" />
+                    <span>Tài liệu đính kèm (.pdf / .docx / .zip / .pptx)</span>
+                  </label>
+
+                  {/* 🎯 NÚT XEM TRƯỚC FILE NGAY KHI VỪA CHỌN */}
+                  {(fileBlobUrl || selectedItem?.fileUrl || selectedItem?.file_url) && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFile({
+                        url: fileBlobUrl || selectedItem?.fileUrl || selectedItem?.file_url,
+                        name: selectedFile?.name || selectedItem?.fileName || selectedItem?.file_name || "Tệp đính kèm"
+                      })}
+                      className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 cursor-pointer transition shadow-2xs"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Xem trước file</span>
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  type="file"
+                  onChange={(e) => setSelectedFile(e.target.files[0])}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs"
+                />
+
+                {selectedFile && (
+                  <div className="flex items-center justify-between text-[11px] text-emerald-700 font-bold bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                    <span>✓ Đã chọn: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                  </div>
+                )}
+
+                {!selectedFile && (selectedItem?.fileUrl || selectedItem?.file_url) && (
+                  <div className="flex items-center justify-between text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200">
+                    <span className="truncate max-w-[240px]">File hiện tại: {selectedItem.fileName || selectedItem.file_name || "Đã có file"}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFile({
+                        url: selectedItem.fileUrl || selectedItem.file_url,
+                        name: selectedItem.fileName || selectedItem.file_name || "Tệp đính kèm"
+                      })}
+                      className="text-blue-600 hover:underline font-bold text-[11px]"
+                    >
+                      Mở xem
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 uppercase block mb-1">Nội dung / Hướng dẫn</label>
+                <textarea
+                  rows="3"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Nhập ghi chú hoặc tóm tắt nội dung..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium resize-none"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end space-x-2">
+                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold cursor-pointer">Hủy</button>
+                <button 
+                  type="submit" 
+                  disabled={isUploading}
+                  className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold cursor-pointer shadow-md shadow-orange-500/20 flex items-center space-x-1.5"
+                >
+                  {isUploading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{isUploading ? "Đang lưu..." : "Lưu Thay Đổi"}</span>
                 </button>
               </div>
-            </div>
-          );
-        })}
-        
-        {students.length === 0 && (
-          <div className="p-8 text-center text-xs text-slate-500 font-medium">
-            Chưa có học viên nào tham gia lớp học này.
+            </form>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+        </div>
+      )}
 
       {/* ================= MODAL TẠO ĐỀ THI & XEM TRƯỚC CÂU HỎI THẬT ================= */}
       {modalType === "create" && formCategory === "quiz" && (
@@ -877,7 +1064,6 @@ export default function CourseDetail({ course, onBack }) {
                 </div>
               </div>
 
-              {/* NẠP FILE WORD ĐỀ THI & NÚT XEM TRƯỚC CÂU HỎI THẬT */}
               <div className="p-4 bg-orange-50/60 border border-dashed border-orange-300 rounded-2xl space-y-2">
                 <label className="font-bold text-slate-800 uppercase flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
@@ -973,12 +1159,6 @@ export default function CourseDetail({ course, onBack }) {
                   </div>
                 </div>
               ))}
-
-              {parsedPreviewQuestions.length === 0 && (
-                <div className="py-12 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed">
-                  Không tìm thấy câu hỏi nào. Hãy chắc chắn các câu trong file Word bắt đầu bằng <code>Câu 1:</code>, <code>Câu 2:</code> và đáp án có dạng <code>A.</code>, <code>B.</code>, <code>C.</code>, <code>D.</code>.
-                </div>
-              )}
             </div>
 
             <div className="p-4 bg-slate-50 border-t flex justify-end">
@@ -990,7 +1170,95 @@ export default function CourseDetail({ course, onBack }) {
         </div>
       )}
 
-      {/* ================= MODAL XEM CÁC BÀI TẬP HỌC SINH ĐÃ NỘP (POSTGRES) ================= */}
+      {/* ================= 🎯 MODAL NHÚNG XEM TRƯỚC FILE (DOCUMENT VIEWER) ================= */}
+      {previewFile && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-3 md:p-6 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-5xl h-[92vh] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+            {/* Header Viewer */}
+            <div className="bg-slate-900 text-white p-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center space-x-2.5 truncate max-w-[80%]">
+                <FileText className="w-5 h-5 text-blue-400 shrink-0" />
+                <span className="font-extrabold text-sm truncate">{previewFile.name}</span>
+              </div>
+              <div className="flex items-center space-x-2 shrink-0">
+                <a 
+                  href={previewFile.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold flex items-center space-x-1"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Mở tab mới</span>
+                </a>
+                <button 
+                  onClick={() => setPreviewFile(null)} 
+                  className="p-1.5 hover:bg-white/20 rounded-xl text-slate-300 hover:text-white transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Viewer Iframe Body */}
+            <div className="flex-1 bg-slate-100 relative">
+              {previewFile.url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                <div className="w-full h-full flex items-center justify-center p-4">
+                  <img src={previewFile.url} alt="Preview" className="max-w-full max-h-full object-contain rounded-xl shadow-lg" />
+                </div>
+              ) : previewFile.url.match(/\.(mp4|webm|ogg)$/i) ? (
+                <div className="w-full h-full flex items-center justify-center p-4">
+                  <video src={previewFile.url} controls className="max-w-full max-h-full rounded-xl shadow-lg" />
+                </div>
+              ) : (
+                <iframe
+                  title="Document Preview"
+                  src={
+                    previewFile.url.startsWith("blob:")
+                      ? previewFile.url
+                      : `https://docs.google.com/viewer?url=${encodeURIComponent(previewFile.url)}&embedded=true`
+                  }
+                  className="w-full h-full border-none"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL XEM CHI TIẾT (VIEW) ================= */}
+      {modalType === "view" && selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border overflow-hidden p-6 space-y-4 text-xs">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h4 className="font-bold text-sm text-slate-900">{selectedItem.title}</h4>
+              <button onClick={() => setModalType(null)} className="p-1 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-2 text-slate-600">
+              <p><strong>Nội dung:</strong> {selectedItem.content || selectedItem.description || "Không có mô tả chi tiết."}</p>
+              {(selectedItem.fileUrl || selectedItem.file_url) && (
+                <div className="p-2.5 bg-slate-50 rounded-xl border flex items-center justify-between">
+                  <span className="truncate">{selectedItem.fileName || selectedItem.file_name || "Tài liệu đính kèm"}</span>
+                  <button 
+                    type="button"
+                    onClick={() => setPreviewFile({
+                      url: selectedItem.fileUrl || selectedItem.file_url,
+                      name: selectedItem.fileName || selectedItem.file_name || selectedItem.title
+                    })}
+                    className="p-1 text-blue-600 font-bold hover:underline cursor-pointer"
+                  >
+                    Xem trực tiếp
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <button onClick={() => setModalType(null)} className="px-4 py-2 bg-slate-100 rounded-xl font-bold">Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL XEM BÀI TẬP ĐÃ NỘP ================= */}
       {viewSubmissionsAssignment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border overflow-hidden flex flex-col max-h-[90vh]">
@@ -1049,7 +1317,7 @@ export default function CourseDetail({ course, onBack }) {
         </div>
       )}
 
-      {/* ================= MODAL TẠO / SỬA MEET ================= */}
+      {/* ================= MODAL MEET ================= */}
       {modalType === "meet" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border overflow-hidden">
