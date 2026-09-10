@@ -8,7 +8,7 @@ import {
   Radio,
   FileCheck,
   Plus,
-  Download
+  Download,
 } from "lucide-react";
 import { courseService } from "../../api/course.api";
 
@@ -63,10 +63,12 @@ export default function AdminCourses() {
       setIsLoading(true);
       const [coursesRes, logsRes] = await Promise.all([
         courseService.getAllCourses(),
-        courseService.getAllAttendanceLogs().catch(() => ({ data: [] }))
+        courseService.getAllAttendanceLogs().catch(() => ({ data: [] })),
       ]);
 
-      const courseList = Array.isArray(coursesRes) ? coursesRes : coursesRes?.data || [];
+      const courseList = Array.isArray(coursesRes)
+        ? coursesRes
+        : coursesRes?.data || [];
       setCourses(courseList);
       if (courseList.length > 0 && !selectedCourse) {
         setSelectedCourse(courseList[0]);
@@ -97,13 +99,17 @@ export default function AdminCourses() {
   const handleUpdateCourseStatus = async (courseId, newStatus) => {
     try {
       let defaultMsg = "Trạng thái đã được cập nhật.";
-      if (newStatus === "APPROVED") defaultMsg = "Khóa học đã đạt tiêu chuẩn và được xuất bản.";
-      if (newStatus === "NEEDS_REVISION") defaultMsg = "Yêu cầu giảng viên rà soát lại tài liệu và nội dung bài học.";
-      if (newStatus === "REJECTED") defaultMsg = "Khóa học bị từ chối do không phù hợp quy định đào tạo.";
+      if (newStatus === "APPROVED")
+        defaultMsg = "Khóa học đã đạt tiêu chuẩn và được xuất bản.";
+      if (newStatus === "NEEDS_REVISION")
+        defaultMsg =
+          "Yêu cầu giảng viên rà soát lại tài liệu và nội dung bài học.";
+      if (newStatus === "REJECTED")
+        defaultMsg = "Khóa học bị từ chối do không phù hợp quy định đào tạo.";
 
       await courseService.updateCourseStatus(courseId, {
         status: newStatus,
-        admin_note: adminNote || defaultMsg
+        admin_note: adminNote || defaultMsg,
       });
 
       alert(`Đã cập nhật trạng thái: ${newStatus}`);
@@ -118,14 +124,17 @@ export default function AdminCourses() {
   // Lọc dữ liệu
   const externalCourses = courses.filter((c) => c.type === "external");
   const schoolCourses = courses.filter((c) => c.type === "school");
-  const currentCategoryCourses = courseCategoryTab === "external" ? externalCourses : schoolCourses;
+  const currentCategoryCourses =
+    courseCategoryTab === "external" ? externalCourses : schoolCourses;
 
   const filteredCourses = currentCategoryCourses.filter((c) => {
     const matchStatus = statusFilter === "ALL" || c.status === statusFilter;
     const matchSearch =
       (c.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (c.code || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.teacher_name || c.teacherName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.teacher_name || c.teacherName || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       (c.schoolName || "").toLowerCase().includes(searchTerm.toLowerCase());
     return matchStatus && matchSearch;
   });
@@ -136,25 +145,25 @@ export default function AdminCourses() {
         return {
           title: "Quản Lý Lớp Học & Học Viên",
           desc: "Theo dõi danh sách học viên, tỉ lệ chuyên cần và tiến độ hoàn thành bài học.",
-          icon: GraduationCap
+          icon: GraduationCap,
         };
       case "live":
         return {
           title: "Điều Phối Dạy Online & Lịch Live",
           desc: "Giám sát phòng học ảo và nhật ký điểm danh thời gian thực.",
-          icon: Radio
+          icon: Radio,
         };
       case "assessment":
         return {
           title: "Trung Tâm Đánh Giá & Khảo Thí",
           desc: "Tổng hợp bài tập tự luận, kết quả thi trắc nghiệm và thang điểm học viên.",
-          icon: FileCheck
+          icon: FileCheck,
         };
       default:
         return {
           title: "Quản Lý & Kiểm Duyệt Khóa Học (LCMS Core)",
           desc: "Quy trình kiểm duyệt bài giảng mở rộng và điều phối cấp lớp trường học chính quy.",
-          icon: BookOpenCheck
+          icon: BookOpenCheck,
         };
     }
   };

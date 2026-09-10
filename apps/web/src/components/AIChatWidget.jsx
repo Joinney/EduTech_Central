@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Sparkles,
   X,
@@ -24,8 +24,8 @@ import {
   Users,
   Calendar,
   FileCheck,
-  DollarSign
-} from "lucide-react"
+  DollarSign,
+} from "lucide-react";
 
 // Chuẩn hóa tiếng Việt bỏ dấu để tìm kiếm thông minh hơn
 const removeVietnameseTones = (str = "") => {
@@ -35,8 +35,8 @@ const removeVietnameseTones = (str = "") => {
     .replace(/đ/g, "d")
     .replace(/Đ/g, "D")
     .toLowerCase()
-    .trim()
-}
+    .trim();
+};
 
 // BỘ DỮ LIỆU ĐA NGHIỆP VỤ HỖ TRỢ TOÀN HỆ THỐNG
 const KNOWLEDGE_BASE = [
@@ -44,29 +44,63 @@ const KNOWLEDGE_BASE = [
   {
     id: "student_programs",
     category: "student",
-    keywords: ["khoa hoc", "chuong trinh", "khoi lop", "dang ky hoc", "mua khoa", "lop 10", "lop 11", "lop 12"],
+    keywords: [
+      "khoa hoc",
+      "chuong trinh",
+      "khoi lop",
+      "dang ky hoc",
+      "mua khoa",
+      "lop 10",
+      "lop 11",
+      "lop 12",
+    ],
     answer:
       "Bạn có thể khám phá toàn bộ lộ trình học tại **Chương trình khối lớp**:\n" +
       "* Lựa chọn môn học theo khối và xem đề cương.\n" +
       "* Với khóa miễn phí: Bấm **Tham gia ngay**.\n" +
       "* Với khóa có phí: Thanh toán nhanh chóng qua cổng **VNPAY**.",
-    action: { label: "Mở Chương trình khối lớp", path: "/student/programs", roles: ["student", "all"] }
+    action: {
+      label: "Mở Chương trình khối lớp",
+      path: "/student/programs",
+      roles: ["student", "all"],
+    },
   },
   {
     id: "student_my_courses",
     category: "student",
-    keywords: ["mon hoc cua toi", "bai hoc cua toi", "vao hoc", "tiep tuc hoc", "danh sach mon"],
+    keywords: [
+      "mon hoc cua toi",
+      "bai hoc cua toi",
+      "vao hoc",
+      "tiep tuc hoc",
+      "danh sach mon",
+    ],
     answer:
       "Tất cả các môn bạn đã đăng ký hoặc đang theo học đều được lưu tại **Môn học của tôi**. Bạn có thể theo dõi tiến độ hoàn thành % tại đây.",
-    action: { label: "Mở Môn học của tôi", path: "/student/courses", roles: ["student", "all"] }
+    action: {
+      label: "Mở Môn học của tôi",
+      path: "/student/courses",
+      roles: ["student", "all"],
+    },
   },
   {
     id: "student_library",
     category: "student",
-    keywords: ["kho hoc lieu", "tai lieu", "de cuong", "giao trinh", "tai file", "pdf"],
+    keywords: [
+      "kho hoc lieu",
+      "tai lieu",
+      "de cuong",
+      "giao trinh",
+      "tai file",
+      "pdf",
+    ],
     answer:
       "Toàn bộ tài liệu tham khảo, file bài tập và đề cương số hóa chuẩn chương trình được tổng hợp tại **Kho học liệu**.",
-    action: { label: "Mở Kho học liệu", path: "/student/library", roles: ["student", "all"] }
+    action: {
+      label: "Mở Kho học liệu",
+      path: "/student/library",
+      roles: ["student", "all"],
+    },
   },
   {
     id: "student_bookshelf",
@@ -74,38 +108,74 @@ const KNOWLEDGE_BASE = [
     keywords: ["tu sach", "doc sach", "sach giao khoa", "bookshelf", "ebook"],
     answer:
       "Bạn có thể đọc sách giáo khoa điện tử và tuyển tập tài liệu tham khảo trực tuyến tại **Tủ sách điện tử**.",
-    action: { label: "Xem Tủ sách điện tử", path: "/student/bookshelf", roles: ["student", "all"] }
+    action: {
+      label: "Xem Tủ sách điện tử",
+      path: "/student/bookshelf",
+      roles: ["student", "all"],
+    },
   },
   {
     id: "student_videos",
     category: "student",
-    keywords: ["video", "videoedu", "bai giang video", "xem lai bai giang", "clip hoc"],
+    keywords: [
+      "video",
+      "videoedu",
+      "bai giang video",
+      "xem lai bai giang",
+      "clip hoc",
+    ],
     answer:
       "Thư viện bài giảng ghi hình chất lượng cao theo từng chuyên đề ôn luyện có tại **VideoEdu**.",
-    action: { label: "Xem Video bài giảng", path: "/student/videos", roles: ["student", "all"] }
+    action: {
+      label: "Xem Video bài giảng",
+      path: "/student/videos",
+      roles: ["student", "all"],
+    },
   },
 
   // --- 2. THANH TOÁN & GIAO DỊCH (VNPAY) ---
   {
     id: "payment_vnpay",
     category: "payment",
-    keywords: ["vnpay", "thanh toan", "chuyen khoan", "quet qr", "hoc phi", "nap tien", "giao dich", "hoa don"],
+    keywords: [
+      "vnpay",
+      "thanh toan",
+      "chuyen khoan",
+      "quet qr",
+      "hoc phi",
+      "nap tien",
+      "giao dich",
+      "hoa don",
+    ],
     answer:
       "Quy trình thanh toán học phí qua **VNPAY**:\n" +
       "1. Chọn khóa học cần thanh toán ➔ Hệ thống tạo mã QR VNPAY.\n" +
       "2. Dùng App Ngân hàng hoặc ví VNPAY quét mã.\n" +
       "3. Sau khi trừ tiền thành công, khóa học được kích hoạt tự động sau **5–10 giây**. Bạn có thể xem lại lịch sử tại trang giao dịch.",
-    action: { label: "Xem Lịch sử giao dịch", path: "/student/transactions", roles: ["student", "all"] }
+    action: {
+      label: "Xem Lịch sử giao dịch",
+      path: "/student/transactions",
+      roles: ["student", "all"],
+    },
   },
 
   // --- 3. DÀNH CHO GIÁNG VIÊN (TEACHER) ---
   {
     id: "teacher_courses",
     category: "teacher",
-    keywords: ["quan ly lop hoc", "lop day", "danh sach lop day", "bai giang cua toi"],
+    keywords: [
+      "quan ly lop hoc",
+      "lop day",
+      "danh sach lop day",
+      "bai giang cua toi",
+    ],
     answer:
       "Thầy/Cô quản lý các khóa học đang trực tiếp giảng dạy, bài tập và học viên tại **Quản lý lớp học**.",
-    action: { label: "Quản lý khóa học", path: "/teacher/courses", roles: ["teacher"] }
+    action: {
+      label: "Quản lý khóa học",
+      path: "/teacher/courses",
+      roles: ["teacher"],
+    },
   },
   {
     id: "teacher_request",
@@ -113,15 +183,29 @@ const KNOWLEDGE_BASE = [
     keywords: ["yeu cau mo khoa", "mo lop moi", "tao khoa hoc", "de xuat khoa"],
     answer:
       "Thầy/Cô soạn thảo thông tin khóa học, khung chương trình và học phí gửi Ban Quản Trị tại **Yêu cầu mở khóa**.",
-    action: { label: "Tạo yêu cầu mở khóa", path: "/teacher/courses/request", roles: ["teacher"] }
+    action: {
+      label: "Tạo yêu cầu mở khóa",
+      path: "/teacher/courses/request",
+      roles: ["teacher"],
+    },
   },
   {
     id: "teacher_quizzes",
     category: "teacher",
-    keywords: ["ngan hang de", "tao de thi", "trac nghiem", "soan cau hoi", "quiz bank"],
+    keywords: [
+      "ngan hang de",
+      "tao de thi",
+      "trac nghiem",
+      "soan cau hoi",
+      "quiz bank",
+    ],
     answer:
       "Khu vực quản lý kho câu hỏi trắc nghiệm, cấu hình thời gian làm bài và trộn đề thi tự động tại **Ngân hàng đề thi**.",
-    action: { label: "Mở Ngân hàng đề thi", path: "/teacher/quizzes", roles: ["teacher"] }
+    action: {
+      label: "Mở Ngân hàng đề thi",
+      path: "/teacher/quizzes",
+      roles: ["teacher"],
+    },
   },
   {
     id: "teacher_grading",
@@ -129,15 +213,29 @@ const KNOWLEDGE_BASE = [
     keywords: ["cham diem", "nhap diem", "cham bai", "bai nop", "grading"],
     answer:
       "Giáo viên kiểm tra danh sách bài tập đã nộp, nhập điểm tự luận và nhận xét học viên tại mục **Chấm điểm & Điểm số**.",
-    action: { label: "Chấm bài & Nhập điểm", path: "/teacher/grading", roles: ["teacher"] }
+    action: {
+      label: "Chấm bài & Nhập điểm",
+      path: "/teacher/grading",
+      roles: ["teacher"],
+    },
   },
   {
     id: "teacher_schedule",
     category: "teacher",
-    keywords: ["lich day", "lich meet", "google meet", "thoi khoa bieu", "phong hop"],
+    keywords: [
+      "lich day",
+      "lich meet",
+      "google meet",
+      "thoi khoa bieu",
+      "phong hop",
+    ],
     answer:
       "Lịch biểu giảng dạy trực tuyến và phòng Google Meet theo ca học được quản lý tại **Lịch dạy & Meet**.",
-    action: { label: "Xem Lịch dạy Meet", path: "/teacher/schedule", roles: ["teacher"] }
+    action: {
+      label: "Xem Lịch dạy Meet",
+      path: "/teacher/schedule",
+      roles: ["teacher"],
+    },
   },
 
   // --- 4. DÀNH CHO ADMIN (QUẢN TRỊ VIÊN) ---
@@ -147,23 +245,46 @@ const KNOWLEDGE_BASE = [
     keywords: ["dashboard admin", "tong quan", "bao cao he thong", "thong ke"],
     answer:
       "Báo cáo tổng quan về số lượng học viên, số khóa học đang mở và doanh thu hệ thống tại **Bảng điều khiển Admin**.",
-    action: { label: "Mở Admin Dashboard", path: "/admin/dashboard", roles: ["admin"] }
+    action: {
+      label: "Mở Admin Dashboard",
+      path: "/admin/dashboard",
+      roles: ["admin"],
+    },
   },
   {
     id: "admin_users",
     category: "admin",
-    keywords: ["quan ly nguoi dung", "tai khoan", "khoa tai khoan", "phan quyen", "user list"],
+    keywords: [
+      "quan ly nguoi dung",
+      "tai khoan",
+      "khoa tai khoan",
+      "phan quyen",
+      "user list",
+    ],
     answer:
       "Admin xem danh sách, khóa/mở tài khoản hoặc thay đổi vai trò (Student, Teacher, Admin) tại **Quản lý người dùng**.",
-    action: { label: "Quản lý Người dùng", path: "/admin/users", roles: ["admin"] }
+    action: {
+      label: "Quản lý Người dùng",
+      path: "/admin/users",
+      roles: ["admin"],
+    },
   },
   {
     id: "admin_courses",
     category: "admin",
-    keywords: ["duyet khoa hoc", "khoa hoc truong", "admin courses", "tao khoa truong"],
+    keywords: [
+      "duyet khoa hoc",
+      "khoa hoc truong",
+      "admin courses",
+      "tao khoa truong",
+    ],
     answer:
       "Phê duyệt các yêu cầu mở khóa của giảng viên hoặc tạo khóa học chuẩn tại **Quản lý khóa học Admin**.",
-    action: { label: "Quản lý & Duyệt khóa", path: "/admin/courses", roles: ["admin"] }
+    action: {
+      label: "Quản lý & Duyệt khóa",
+      path: "/admin/courses",
+      roles: ["admin"],
+    },
   },
   {
     id: "admin_transactions",
@@ -171,17 +292,31 @@ const KNOWLEDGE_BASE = [
     keywords: ["doanh thu", "giao dich he thong", "dong tien", "admin vnpay"],
     answer:
       "Theo dõi dòng tiền nộp học phí qua VNPAY và đối soát tài chính tại **Giao dịch & Doanh thu**.",
-    action: { label: "Kiểm tra Doanh thu", path: "/admin/transactions", roles: ["admin"] }
+    action: {
+      label: "Kiểm tra Doanh thu",
+      path: "/admin/transactions",
+      roles: ["admin"],
+    },
   },
 
   // --- 5. TÀI KHOẢN & BẢO MẬT CHUNG ---
   {
     id: "common_profile",
     category: "common",
-    keywords: ["ho so", "profile", "thong tin ca nhan", "doi mat khau", "avatar"],
+    keywords: [
+      "ho so",
+      "profile",
+      "thong tin ca nhan",
+      "doi mat khau",
+      "avatar",
+    ],
     answer:
       "Cập nhật họ tên, hình đại diện và thông tin liên hệ của bạn tại **Thông tin cá nhân**.",
-    action: { label: "Cập nhật Hồ sơ", path: "DYNAMIC_PROFILE", roles: ["all"] }
+    action: {
+      label: "Cập nhật Hồ sơ",
+      path: "DYNAMIC_PROFILE",
+      roles: ["all"],
+    },
   },
   {
     id: "common_greeting",
@@ -190,48 +325,49 @@ const KNOWLEDGE_BASE = [
     answer:
       "Xin chào! Mình là **EduTech AI Copilot** 🎓.\n" +
       "Mình hiểu toàn bộ nghiệp vụ trên hệ thống. Bạn có thể hỏi bất kỳ điều gì hoặc bấm nút để chuyển thẳng đến màn hình cần thao tác!",
-    action: null
-  }
-]
+    action: null,
+  },
+];
 
 // Hàm tìm câu trả lời tối ưu theo từ khóa và vai trò người dùng
 const findBestMatch = (queryText, currentRole = "student") => {
-  const normalizedQuery = removeVietnameseTones(queryText)
-  let bestItem = null
-  let maxScore = 0
+  const normalizedQuery = removeVietnameseTones(queryText);
+  let bestItem = null;
+  let maxScore = 0;
 
   for (const item of KNOWLEDGE_BASE) {
-    let score = 0
+    let score = 0;
     for (const kw of item.keywords) {
-      const normalizedKw = removeVietnameseTones(kw)
+      const normalizedKw = removeVietnameseTones(kw);
       if (normalizedQuery.includes(normalizedKw)) {
-        score += normalizedKw.split(" ").length * 3
+        score += normalizedKw.split(" ").length * 3;
       }
     }
 
     // Ưu tiên kết quả khớp với quyền hiện tại
     if (score > 0 && item.category === currentRole) {
-      score += 2
+      score += 2;
     }
 
     if (score > maxScore) {
-      maxScore = score
-      bestItem = item
+      maxScore = score;
+      bestItem = item;
     }
   }
 
   if (bestItem && maxScore > 0) {
-    let action = bestItem.action ? { ...bestItem.action } : null
+    let action = bestItem.action ? { ...bestItem.action } : null;
 
     // Xử lý Dynamic Profile route
     if (action && action.path === "DYNAMIC_PROFILE") {
-      action.path = currentRole === "admin" ? "/admin/profile" : `/${currentRole}/profile`
+      action.path =
+        currentRole === "admin" ? "/admin/profile" : `/${currentRole}/profile`;
     }
 
     return {
       content: bestItem.answer,
-      action
-    }
+      action,
+    };
   }
 
   return {
@@ -239,53 +375,58 @@ const findBestMatch = (queryText, currentRole = "student") => {
       "EduTech AI chưa tìm thấy chỉ mục khớp hoàn toàn với yêu cầu này. Bạn có thể thử:\n" +
       "* Gõ từ khóa ngắn gọn: *'học phí'*, *'tủ sách'*, *'chấm điểm'*, *'duyệt khóa'*...\n" +
       "* Hoặc sử dụng các lối tắt nhanh bên dưới.",
-    action: null
-  }
-}
+    action: null,
+  };
+};
 
 // Component format Markdown nhẹ nhàng
 const FormattedMessage = ({ text, isBot }) => {
-  const lines = text.split("\n")
+  const lines = text.split("\n");
   return (
     <div className="space-y-1.5 leading-relaxed text-[13px]">
       {lines.map((line, idx) => {
-        if (!line.trim()) return <div key={idx} className="h-1" />
-        const isBullet = line.trim().startsWith("*") || line.trim().startsWith("-")
-        const cleanLine = isBullet ? line.trim().replace(/^[*|-]\s*/, "") : line
+        if (!line.trim()) return <div key={idx} className="h-1" />;
+        const isBullet =
+          line.trim().startsWith("*") || line.trim().startsWith("-");
+        const cleanLine = isBullet
+          ? line.trim().replace(/^[*|-]\s*/, "")
+          : line;
 
         const rendered = cleanLine.replace(
           /\*\*(.*?)\*\*/g,
-          `<strong class="${isBot ? "font-semibold text-orange-600" : "font-bold text-white"}">$1</strong>`
-        )
+          `<strong class="${isBot ? "font-semibold text-orange-600" : "font-bold text-white"}">$1</strong>`,
+        );
 
         if (isBullet) {
           return (
             <div key={idx} className="flex items-start gap-2 pl-1">
-              <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${isBot ? "bg-orange-500" : "bg-white"}`} />
+              <span
+                className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${isBot ? "bg-orange-500" : "bg-white"}`}
+              />
               <span dangerouslySetInnerHTML={{ __html: rendered }} />
             </div>
-          )
+          );
         }
 
-        return <p key={idx} dangerouslySetInnerHTML={{ __html: rendered }} />
+        return <p key={idx} dangerouslySetInnerHTML={{ __html: rendered }} />;
       })}
     </div>
-  )
-}
+  );
+};
 
 export default function AIChatWidget() {
-  const navigate = useNavigate()
-  const location = useLocation()
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const currentRole = (localStorage.getItem("role") || "student").toLowerCase()
+  const currentRole = (localStorage.getItem("role") || "student").toLowerCase();
 
-  const [isOpen, setIsOpen] = useState(false)
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [input, setInput] = useState("")
-  const [isTyping, setIsTyping] = useState(false)
-  const [copiedId, setCopiedId] = useState(null)
-  const [likedIds, setLikedIds] = useState([])
-  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
+  const [likedIds, setLikedIds] = useState([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const [messages, setMessages] = useState([
     {
@@ -295,132 +436,178 @@ export default function AIChatWidget() {
         "Xin chào! Mình là **EduTech Copilot** 🎓.\n" +
         "Bạn cần tìm tài liệu, xem lịch học, nộp bài hay thanh toán? Hãy nhắn câu hỏi hoặc bấm vào nút điều hướng để mình đưa bạn đến ngay!",
       action: {
-        label: currentRole === "teacher" ? "Mở Quản lý lớp học" : "Xem Chương trình học",
-        path: currentRole === "teacher" ? "/teacher/courses" : "/student/programs"
+        label:
+          currentRole === "teacher"
+            ? "Mở Quản lý lớp học"
+            : "Xem Chương trình học",
+        path:
+          currentRole === "teacher" ? "/teacher/courses" : "/student/programs",
       },
-      time: "Vừa xong"
-    }
-  ])
+      time: "Vừa xong",
+    },
+  ]);
 
-  const messagesEndRef = useRef(null)
+  const messagesEndRef = useRef(null);
 
   // Ẩn hoàn toàn AI khi học sinh đang làm bài thi để tránh gian lận / phân tâm
   if (location.pathname.includes("/exam/")) {
-    return null
+    return null;
   }
 
   // Tùy biến câu hỏi gợi ý phù hợp từng phân quyền
   const quickPrompts = useMemo(() => {
     if (currentRole === "admin") {
       return [
-        { icon: <Layers className="w-3.5 h-3.5" />, text: "Duyệt khóa học mới" },
+        {
+          icon: <Layers className="w-3.5 h-3.5" />,
+          text: "Duyệt khóa học mới",
+        },
         { icon: <Users className="w-3.5 h-3.5" />, text: "Quản lý người dùng" },
-        { icon: <DollarSign className="w-3.5 h-3.5" />, text: "Kiểm tra doanh thu VNPAY" }
-      ]
+        {
+          icon: <DollarSign className="w-3.5 h-3.5" />,
+          text: "Kiểm tra doanh thu VNPAY",
+        },
+      ];
     }
     if (currentRole === "teacher" || currentRole === "instructor") {
       return [
-        { icon: <FileCheck className="w-3.5 h-3.5" />, text: "Yêu cầu mở khóa học" },
-        { icon: <GraduationCap className="w-3.5 h-3.5" />, text: "Soạn ngân hàng đề thi" },
-        { icon: <Calendar className="w-3.5 h-3.5" />, text: "Xem lịch dạy Meet" }
-      ]
+        {
+          icon: <FileCheck className="w-3.5 h-3.5" />,
+          text: "Yêu cầu mở khóa học",
+        },
+        {
+          icon: <GraduationCap className="w-3.5 h-3.5" />,
+          text: "Soạn ngân hàng đề thi",
+        },
+        {
+          icon: <Calendar className="w-3.5 h-3.5" />,
+          text: "Xem lịch dạy Meet",
+        },
+      ];
     }
     return [
-      { icon: <Layers className="w-3.5 h-3.5" />, text: "Xem chương trình khối lớp" },
-      { icon: <CreditCard className="w-3.5 h-3.5" />, text: "Thanh toán học phí VNPAY" },
-      { icon: <BookOpen className="w-3.5 h-3.5" />, text: "Mở tủ sách điện tử" }
-    ]
-  }, [currentRole])
+      {
+        icon: <Layers className="w-3.5 h-3.5" />,
+        text: "Xem chương trình khối lớp",
+      },
+      {
+        icon: <CreditCard className="w-3.5 h-3.5" />,
+        text: "Thanh toán học phí VNPAY",
+      },
+      {
+        icon: <BookOpen className="w-3.5 h-3.5" />,
+        text: "Mở tủ sách điện tử",
+      },
+    ];
+  }, [currentRole]);
 
   useEffect(() => {
     if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isOpen, isTyping])
+  }, [messages, isOpen, isTyping]);
+
+  // LẮNG NGHE TÍN HIỆU TỪ CÁC NÚT KHÁC ĐỂ MỞ CHAT TỰ ĐỘNG
+  useEffect(() => {
+    const handleOpenChat = () => setIsOpen(true);
+    window.addEventListener("open-ai-chat", handleOpenChat);
+
+    // Dọn dẹp bộ nhớ khi component bị hủy
+    return () => window.removeEventListener("open-ai-chat", handleOpenChat);
+  }, []);
 
   const handleSend = (customText) => {
-    const text = (customText || input).trim()
-    if (!text) return
+    const text = (customText || input).trim();
+    if (!text) return;
 
-    const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    const now = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
     const userMsg = {
       id: Date.now(),
       role: "user",
       content: text,
-      time: now
-    }
+      time: now,
+    };
 
-    setMessages((prev) => [...prev, userMsg])
-    setInput("")
-    setIsTyping(true)
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setIsTyping(true);
 
     setTimeout(() => {
-      const response = findBestMatch(text, currentRole)
+      const response = findBestMatch(text, currentRole);
       const botMsg = {
         id: Date.now() + 1,
         role: "assistant",
         content: response.content,
         action: response.action,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      }
-      setMessages((prev) => [...prev, botMsg])
-      setIsTyping(false)
-    }, 550)
-  }
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setMessages((prev) => [...prev, botMsg]);
+      setIsTyping(false);
+    }, 550);
+  };
 
   // Điều hướng trực tiếp tới trang và đóng hộp thoại
   const handleNavigateTo = (path) => {
-    if (!path) return
-    navigate(path)
-    setIsOpen(false)
-  }
+    if (!path) return;
+    navigate(path);
+    setIsOpen(false);
+  };
 
   const handleCopy = (id, text) => {
-    const cleanText = text.replace(/\*\*/g, "")
-    navigator.clipboard.writeText(cleanText)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
-  }
+    const cleanText = text.replace(/\*\*/g, "");
+    navigator.clipboard.writeText(cleanText);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const toggleLike = (id) => {
     setLikedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    )
-  }
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
 
   // Đọc câu trả lời bằng giọng nói qua Web Speech API
   const handleSpeak = (text) => {
-    if (!window.speechSynthesis) return
+    if (!window.speechSynthesis) return;
     if (isSpeaking) {
-      window.speechSynthesis.cancel()
-      setIsSpeaking(false)
-      return
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
     }
 
-    const cleanText = text.replace(/[*#_`]/g, "")
-    const utterance = new SpeechSynthesisUtterance(cleanText)
-    utterance.lang = "vi-VN"
-    utterance.onend = () => setIsSpeaking(false)
-    utterance.onerror = () => setIsSpeaking(false)
+    const cleanText = text.replace(/[*#_`]/g, "");
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = "vi-VN";
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
 
-    setIsSpeaking(true)
-    window.speechSynthesis.speak(utterance)
-  }
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
 
   // Tải file text lịch sử trò chuyện
   const handleExportChat = () => {
     const content = messages
-      .map((m) => `[${m.time}] ${m.role === "user" ? "Bạn" : "EduTech AI"}:\n${m.content}\n`)
-      .join("\n----------------------------------------\n\n")
+      .map(
+        (m) =>
+          `[${m.time}] ${m.role === "user" ? "Bạn" : "EduTech AI"}:\n${m.content}\n`,
+      )
+      .join("\n----------------------------------------\n\n");
 
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `edutech-chat-${new Date().toISOString().slice(0, 10)}.txt`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `edutech-chat-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end font-sans select-none">
@@ -444,7 +631,9 @@ export default function AIChatWidget() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-sm tracking-tight text-white">EduTech Copilot</h3>
+                  <h3 className="font-bold text-sm tracking-tight text-white">
+                    EduTech Copilot
+                  </h3>
                   <span className="text-[9px] uppercase font-bold tracking-wider bg-white/25 px-1.5 py-0.5 rounded-md backdrop-blur-sm border border-white/20 text-orange-50">
                     {currentRole}
                   </span>
@@ -472,9 +661,10 @@ export default function AIChatWidget() {
                     {
                       id: Date.now(),
                       role: "assistant",
-                      content: "Hội thoại đã được đặt lại. Bạn muốn mình hướng dẫn đến tính năng nào?",
-                      time: "Vừa xong"
-                    }
+                      content:
+                        "Hội thoại đã được đặt lại. Bạn muốn mình hướng dẫn đến tính năng nào?",
+                      time: "Vừa xong",
+                    },
                   ])
                 }
                 title="Làm mới hội thoại"
@@ -488,7 +678,11 @@ export default function AIChatWidget() {
                 className="hidden sm:block p-2 text-white/80 hover:text-white hover:bg-white/15 rounded-xl transition"
                 title={isExpanded ? "Thu nhỏ" : "Phóng to"}
               >
-                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                {isExpanded ? (
+                  <Minimize2 className="w-4 h-4" />
+                ) : (
+                  <Maximize2 className="w-4 h-4" />
+                )}
               </button>
 
               <button
@@ -504,7 +698,7 @@ export default function AIChatWidget() {
           {/* VÙNG DANH SÁCH TIN NHẮN */}
           <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4 bg-gradient-to-b from-orange-50/20 via-slate-50/50 to-white">
             {messages.map((m) => {
-              const isBot = m.role === "assistant"
+              const isBot = m.role === "assistant";
               return (
                 <div
                   key={m.id}
@@ -516,7 +710,9 @@ export default function AIChatWidget() {
                     </div>
                   )}
 
-                  <div className={`max-w-[85%] space-y-2 ${isBot ? "" : "flex flex-col items-end"}`}>
+                  <div
+                    className={`max-w-[85%] space-y-2 ${isBot ? "" : "flex flex-col items-end"}`}
+                  >
                     <div
                       className={`px-4 py-3 rounded-2xl text-[13px] shadow-sm transition-all ${
                         isBot
@@ -536,7 +732,9 @@ export default function AIChatWidget() {
                             <span>{m.action.label}</span>
                             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                           </button>
-                          <span className="text-[10px] text-slate-400 font-medium">Bấm để mở trang</span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            Bấm để mở trang
+                          </span>
                         </div>
                       )}
                     </div>
@@ -556,7 +754,9 @@ export default function AIChatWidget() {
                             ) : (
                               <Copy className="w-3 h-3" />
                             )}
-                            <span>{copiedId === m.id ? "Đã chép" : "Sao chép"}</span>
+                            <span>
+                              {copiedId === m.id ? "Đã chép" : "Sao chép"}
+                            </span>
                           </button>
 
                           <span>•</span>
@@ -577,10 +777,14 @@ export default function AIChatWidget() {
                           <button
                             onClick={() => toggleLike(m.id)}
                             className={`hover:text-orange-500 transition flex items-center gap-1 ${
-                              likedIds.includes(m.id) ? "text-orange-500 font-semibold" : ""
+                              likedIds.includes(m.id)
+                                ? "text-orange-500 font-semibold"
+                                : ""
                             }`}
                           >
-                            <ThumbsUp className={`w-3 h-3 ${likedIds.includes(m.id) ? "fill-orange-500" : ""}`} />
+                            <ThumbsUp
+                              className={`w-3 h-3 ${likedIds.includes(m.id) ? "fill-orange-500" : ""}`}
+                            />
                             <span>Hữu ích</span>
                           </button>
                         </>
@@ -594,7 +798,7 @@ export default function AIChatWidget() {
                     </div>
                   )}
                 </div>
-              )
+              );
             })}
 
             {/* HIỆU ỨNG TYPING KHI CHỜ TRẢ LỜI */}
@@ -621,7 +825,9 @@ export default function AIChatWidget() {
                 onClick={() => handleSend(q.text)}
                 className="group flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-xs text-slate-600 bg-slate-50 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 border border-slate-200/80 rounded-xl transition duration-150 active:scale-95 shrink-0"
               >
-                <span className="text-orange-500 group-hover:scale-110 transition-transform">{q.icon}</span>
+                <span className="text-orange-500 group-hover:scale-110 transition-transform">
+                  {q.icon}
+                </span>
                 <span className="font-medium">{q.text}</span>
               </button>
             ))}
@@ -630,8 +836,8 @@ export default function AIChatWidget() {
           {/* KHUNG NHẬP NỘI DUNG */}
           <form
             onSubmit={(e) => {
-              e.preventDefault()
-              handleSend()
+              e.preventDefault();
+              handleSend();
             }}
             className="p-3.5 bg-white border-t border-slate-100 flex items-center gap-2 shrink-0"
           >
@@ -655,6 +861,7 @@ export default function AIChatWidget() {
 
       {/* ================= NÚT TRIGGER NỔI (FLOATING BUTTON) ================= */}
       <button
+        id="edutech-ai-widget-btn"
         onClick={() => setIsOpen(!isOpen)}
         className={`group relative flex items-center gap-2.5 px-4 h-13 py-3 rounded-full shadow-[0_12px_32px_rgba(234,88,12,0.35)] transition-all duration-300 active:scale-95 focus:outline-none ring-4 ring-orange-500/10 ${
           isOpen
@@ -665,7 +872,9 @@ export default function AIChatWidget() {
         {isOpen ? (
           <>
             <X className="w-5 h-5 transition-transform duration-300 group-hover:rotate-90" />
-            <span className="text-xs font-semibold tracking-wide pr-1">Thu gọn</span>
+            <span className="text-xs font-semibold tracking-wide pr-1">
+              Thu gọn
+            </span>
           </>
         ) : (
           <>
@@ -676,10 +885,12 @@ export default function AIChatWidget() {
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 border border-white"></span>
               </span>
             </div>
-            <span className="text-xs font-bold tracking-wide pr-0.5">EduTech AI</span>
+            <span className="text-xs font-bold tracking-wide pr-0.5">
+              EduTech AI
+            </span>
           </>
         )}
       </button>
     </div>
-  )
+  );
 }

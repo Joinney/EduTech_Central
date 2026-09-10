@@ -21,9 +21,9 @@ import (
 
 // Cấu hình Cloudinary
 const (
-	CloudinaryCloudName = "j3iibkjc"
-	CloudinaryAPIKey    = "923999593653689"
-	CloudinaryAPISecret = "7dnI1NUEFe_x-xl3Q4jHzqdmnfE"
+	CloudinaryCloudName = "z9ax76tw"
+	CloudinaryAPIKey    = "434219145345683"
+	CloudinaryAPISecret = "nLVorN1p_FsHc3M3iQiuZs00xhc"
 )
 
 // ==========================================
@@ -219,6 +219,24 @@ type StudentProfile struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// 🎯 Model chia sẻ tài liệu cộng đồng (Giống Studocu)
+type SharedDocument struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	StudentID   uint      `json:"student_id"`
+	StudentName string    `gorm:"size:255" json:"student_name"`
+	Title       string    `gorm:"size:255;not null" json:"title"`
+	Description string    `gorm:"type:text" json:"description"`
+	FileURL     string    `gorm:"type:text;not null" json:"file_url"`
+	Category    string    `gorm:"size:100" json:"category"` 
+	Subject     string    `gorm:"size:100" json:"subject"`
+	Views       int       `gorm:"default:0" json:"views"`
+	Downloads   int       `gorm:"default:0" json:"downloads"`
+	IsApproved  bool      `gorm:"default:false" json:"is_approved"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (SharedDocument) TableName() string { return "shared_documents" }
+
 func (User) TableName() string             { return "users" }
 func (StudentProfile) TableName() string   { return "student_profiles" }
 func (CourseStudent) TableName() string    { return "course_students" }
@@ -295,6 +313,7 @@ func initDB() {
 		&CourseDiscussion{},
 		&TeacherSubject{},
 		&CourseSchedule{},
+		&SharedDocument{},
 	)
 	log.Println("✅ AutoMigrate toàn bộ 12 bảng LCMS & Lịch giảng dạy thành công!")
 
@@ -449,6 +468,12 @@ func main() {
 		api.GET("/courses/:id/discussions", getCourseDiscussions)
 		api.POST("/courses/:id/discussions", createDiscussion)
 		api.DELETE("/discussions/:id", deleteDiscussion)
+
+		// --- CHIA SẺ TÀI LIỆU (STUDOCU CLONE) ---
+		api.GET("/shared-documents", GetSharedDocuments)
+		api.POST("/shared-documents", CreateSharedDocument)
+		api.PUT("/shared-documents/:id/approve", ApproveSharedDocument)
+		api.DELETE("/shared-documents/:id", DeleteSharedDocument)
 
 		// Trong main.go hoặc routes.go của course-service:
 		api.GET("/teacher-subjects", getTeacherSubjectsHandler)
@@ -1487,4 +1512,78 @@ func getTeacherSubjectsHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": list})
+}
+
+// ==============================================================================
+// 🎯 API TÍNH NĂNG CHIA SẺ TÀI LIỆU (STUDOCU CLONE)
+// ==============================================================================
+
+// 1. Lấy danh sách tài liệu chia sẻ
+func GetSharedDocuments(c *gin.Context) {
+	var docs []SharedDocument
+	
+	query := db.Model(&SharedDocument{})
+	if subject := c.Query("subject"); subject != "" {
+		query = query.Where("subject = ?", subject)
+	}
+	if category := c.Query("category"); category != "" {
+		query = query.Where("category = ?", category)
+	}
+	
+	// Học sinh chỉ thấy bài đã duyệt (is_approved = true)
+	if c.Query("all") != "true" {
+		query = query.Where("is_approved = ?", true)
+	}
+
+	if err := query.Order("created_at desc").Find(&docs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi truy xuất dữ liệu"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": docs})
+}
+
+// 2. Sinh viên đăng tải tài liệu mới
+func CreateSharedDocument(c *gin.Context) {
+	var input SharedDocument
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu đầu vào không hợp lệ"})
+		return
+	}
+
+	input.CreatedAt = time.Now()
+	input.IsApproved = false // Chờ kiểm duyệt mới hiện
+
+	if err := db.Create(&input).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi lưu tài liệu"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Đăng tài liệu thành công! Đang chờ kiểm duyệt.", "data": input})
+}
+
+// 3. Admin Phê duyệt tài liệu
+func ApproveSharedDocument(c *gin.Context) {
+	id := c.Param("id")
+	if err := db.Model(&SharedDocument{}).Where("id = ?", id).Update("is_approved", true).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi khi phê duyệt tài liệu"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Đã phê duyệt tài liệu thành công"})
+}
+
+// 4. Admin Xóa / Từ chối tài liệu
+func DeleteSharedDocument(c *gin.Context) {
+	id := c.Param("id")
+	// Lấy URL để xóa trên Cloudinary trước
+	var doc SharedDocument
+	if err := db.First(&doc, id).Error; err == nil {
+		deleteCloudinaryFile(doc.FileURL)
+	}
+
+	// Xóa khỏi Database
+	if err := db.Delete(&SharedDocument{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi khi xóa tài liệu"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Đã xóa tài liệu"})
 }

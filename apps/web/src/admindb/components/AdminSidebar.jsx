@@ -1,15 +1,15 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from "react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
-import { 
-  LayoutDashboard, 
-  Users, 
-  BookOpenCheck, 
-  ShieldAlert, 
-  Settings, 
-  LogOut, 
-  UserCircle, 
-  ChevronLeft, 
+import React, { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Users,
+  BookOpenCheck,
+  ShieldAlert,
+  Settings,
+  LogOut,
+  UserCircle,
+  ChevronLeft,
   ChevronRight,
   ChevronDown,
   FolderTree,
@@ -25,49 +25,51 @@ import {
   FileCheck,
   BarChart3,
   Sparkles,
-  Receipt
-} from "lucide-react"
+  Receipt,
+  CheckCircle2, // Icon dùng cho mục Kiểm duyệt
+} from "lucide-react";
 
 export default function AdminSidebar() {
-  const location = useLocation()
-  const navigate = useNavigate()
-  
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const getCurrentTabFromUrl = () => {
-    const searchParams = new URLSearchParams(location.search)
-    return searchParams.get("tab") || "content"
-  }
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get("tab") || "content";
+  };
 
   const [openMenus, setOpenMenus] = useState(() => {
-    const currentTab = new URLSearchParams(location.search).get("tab") || "content"
+    const currentTab =
+      new URLSearchParams(location.search).get("tab") || "content";
     return {
       content: currentTab === "content",
       students: currentTab === "students",
       live: currentTab === "live",
-      assessment: currentTab === "assessment"
-    }
-  })
+      assessment: currentTab === "assessment",
+    };
+  });
 
   useEffect(() => {
-    const currentTab = getCurrentTabFromUrl()
+    const currentTab = getCurrentTabFromUrl();
     setOpenMenus({
       content: currentTab === "content",
       students: currentTab === "students",
       live: currentTab === "live",
-      assessment: currentTab === "assessment"
-    })
-  }, [location.search])
+      assessment: currentTab === "assessment",
+    });
+  }, [location.search]);
 
   const toggleMenu = (key) => {
-    if (isCollapsed) setIsCollapsed(false)
+    if (isCollapsed) setIsCollapsed(false);
     setOpenMenus((prev) => ({
       content: key === "content" ? !prev.content : false,
       students: key === "students" ? !prev.students : false,
       live: key === "live" ? !prev.live : false,
-      assessment: key === "assessment" ? !prev.assessment : false
-    }))
-  }
+      assessment: key === "assessment" ? !prev.assessment : false,
+    }));
+  };
 
   const lcmsGroups = [
     {
@@ -75,58 +77,125 @@ export default function AdminSidebar() {
       title: "Khóa Học & Bài Giảng",
       icon: FolderTree,
       subItems: [
-        { name: "Danh sách khóa học", tab: "content", sub: "course_list", icon: BookOpenCheck },
-        { name: "Cấu trúc chương mục", tab: "content", sub: "curriculum", icon: Layers },
-        { name: "Ngân hàng tài nguyên", tab: "content", sub: "resources", icon: Database },
-      ]
+        {
+          name: "Danh sách khóa học",
+          tab: "content",
+          sub: "course_list",
+          icon: BookOpenCheck,
+        },
+        {
+          name: "Cấu trúc chương mục",
+          tab: "content",
+          sub: "curriculum",
+          icon: Layers,
+        },
+        {
+          name: "Ngân hàng tài nguyên",
+          tab: "content",
+          sub: "resources",
+          icon: Database,
+        },
+        // 👇 ĐÂY LÀ MENU MỚI THÊM VÀO 👇
+        {
+          name: "Kiểm duyệt tài liệu",
+          tab: "content",
+          sub: "doc_approval",
+          icon: CheckCircle2,
+        },
+      ],
     },
     {
       id: "students",
       title: "Lớp Học & Học Viên",
       icon: GraduationCap,
       subItems: [
-        { name: "Danh sách học viên", tab: "students", sub: "student_list", icon: Users },
-        { name: "Tiến độ học tập", tab: "students", sub: "progress", icon: TrendingUp },
-        { name: "Diễn đàn / Thảo luận", tab: "students", sub: "discussion", icon: MessageSquare },
-      ]
+        {
+          name: "Danh sách học viên",
+          tab: "students",
+          sub: "student_list",
+          icon: Users,
+        },
+        {
+          name: "Tiến độ học tập",
+          tab: "students",
+          sub: "progress",
+          icon: TrendingUp,
+        },
+        {
+          name: "Diễn đàn / Thảo luận",
+          tab: "students",
+          sub: "discussion",
+          icon: MessageSquare,
+        },
+      ],
     },
     {
       id: "live",
       title: "Dạy Online & Lịch Live",
       icon: Radio,
       subItems: [
-        { name: "Lịch dạy trực tuyến", tab: "live", sub: "schedule", icon: Clock },
-        { name: "Tích hợp phòng ảo", tab: "live", sub: "virtual_room", icon: Video },
-        { name: "Điểm danh online", tab: "live", sub: "attendance", icon: UserCircle },
-      ]
+        {
+          name: "Lịch dạy trực tuyến",
+          tab: "live",
+          sub: "schedule",
+          icon: Clock,
+        },
+        {
+          name: "Tích hợp phòng ảo",
+          tab: "live",
+          sub: "virtual_room",
+          icon: Video,
+        },
+        {
+          name: "Điểm danh online",
+          tab: "live",
+          sub: "attendance",
+          icon: UserCircle,
+        },
+      ],
     },
     {
       id: "assessment",
       title: "Đánh Giá & Khảo Thí",
       icon: FileCheck,
       subItems: [
-        { name: "Kho ngân hàng câu hỏi", tab: "assessment", sub: "question_bank", icon: HelpCircle },
-        { name: "Quản lý bài kiểm tra", tab: "assessment", sub: "quiz_mgmt", icon: FileCheck },
-        { name: "Chấm điểm & Báo cáo", tab: "assessment", sub: "grading", icon: BarChart3 },
-      ]
-    }
-  ]
+        {
+          name: "Kho ngân hàng câu hỏi",
+          tab: "assessment",
+          sub: "question_bank",
+          icon: HelpCircle,
+        },
+        {
+          name: "Quản lý bài kiểm tra",
+          tab: "assessment",
+          sub: "quiz_mgmt",
+          icon: FileCheck,
+        },
+        {
+          name: "Chấm điểm & Báo cáo",
+          tab: "assessment",
+          sub: "grading",
+          icon: BarChart3,
+        },
+      ],
+    },
+  ];
 
   const handleLogout = () => {
-    localStorage.clear()
-    navigate("/admin/login")
-  }
+    localStorage.clear();
+    navigate("/admin/login");
+  };
 
   const isSubItemActive = (tab, sub) => {
-    if (location.pathname !== "/admin/courses") return false
-    const searchParams = new URLSearchParams(location.search)
-    const currentTab = searchParams.get("tab") || "content"
-    const currentSub = searchParams.get("sub") || "course_list"
-    return currentTab === tab && currentSub === sub
-  }
+    if (location.pathname !== "/admin/courses") return false;
+    const searchParams = new URLSearchParams(location.search);
+    const currentTab = searchParams.get("tab") || "content";
+    const currentSub = searchParams.get("sub") || "course_list";
+    return currentTab === tab && currentSub === sub;
+  };
 
   return (
-    <aside 
+    <aside
       className={`bg-[#38497C] text-white flex flex-col justify-between shrink-0 select-none min-h-screen relative overflow-visible transition-all duration-300 z-50 ${
         isCollapsed ? "w-20 p-3" : "w-72 p-4"
       }`}
@@ -138,16 +207,17 @@ export default function AdminSidebar() {
         className="absolute -right-3 top-8 bg-orange-500 text-white rounded-full p-1 shadow-md z-50 hover:bg-orange-600 transition-all cursor-pointer"
         title={isCollapsed ? "Mở rộng thanh điều hướng" : "Thu gọn"}
       >
-        {isCollapsed ? <ChevronRight size={16} strokeWidth={3} /> : <ChevronLeft size={16} strokeWidth={3} />}
+        {isCollapsed ? (
+          <ChevronRight size={16} strokeWidth={3} />
+        ) : (
+          <ChevronLeft size={16} strokeWidth={3} />
+        )}
       </button>
 
       <div className="absolute top-0 left-0 w-full h-48 bg-white/10 blur-[80px] pointer-events-none" />
 
-      {/* KHU VỰC CUỘN NỘI DUNG:
-          - overflow-y-hidden hover:overflow-y-auto
-          - Thêm [scrollbar-gutter:stable] để tránh giật giao diện khi thanh cuộn xuất hiện
-      */}
-      <div 
+      {/* KHU VỰC CUỘN NỘI DUNG */}
+      <div
         className="space-y-4 relative z-10 overflow-y-hidden hover:overflow-y-auto max-h-[calc(100vh-100px)] pr-1.5 [scrollbar-gutter:stable]
           [&::-webkit-scrollbar]:w-1.5
           [&::-webkit-scrollbar-track]:bg-transparent
@@ -155,9 +225,8 @@ export default function AdminSidebar() {
           hover:[&::-webkit-scrollbar-thumb]:bg-white/30
           [&::-webkit-scrollbar-thumb]:rounded-full"
       >
-        
         {/* LOGO TRANG */}
-        <Link 
+        <Link
           to="/admin/dashboard"
           className={`group flex items-center justify-center transition-all duration-300 ${
             isCollapsed ? "py-2 h-14" : "py-3 min-h-[70px]"
@@ -230,8 +299,8 @@ export default function AdminSidebar() {
           )}
 
           {lcmsGroups.map((group) => {
-            const GroupIcon = group.icon
-            const isOpen = openMenus[group.id]
+            const GroupIcon = group.icon;
+            const isOpen = openMenus[group.id];
 
             return (
               <div key={group.id} className="space-y-1">
@@ -240,24 +309,34 @@ export default function AdminSidebar() {
                   onClick={() => toggleMenu(group.id)}
                   title={isCollapsed ? group.title : ""}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    isOpen ? "bg-white/15 text-white" : "text-blue-100/80 hover:bg-white/10 hover:text-white"
+                    isOpen
+                      ? "bg-white/15 text-white"
+                      : "text-blue-100/80 hover:bg-white/10 hover:text-white"
                   } ${isCollapsed ? "justify-center" : ""}`}
                 >
-                  <div className={`flex items-center ${isCollapsed ? "" : "space-x-2.5 truncate"}`}>
+                  <div
+                    className={`flex items-center ${isCollapsed ? "" : "space-x-2.5 truncate"}`}
+                  >
                     <GroupIcon className="w-4 h-4 shrink-0 text-orange-400" />
-                    {!isCollapsed && <span className="truncate text-left">{group.title}</span>}
+                    {!isCollapsed && (
+                      <span className="truncate text-left">{group.title}</span>
+                    )}
                   </div>
                   {!isCollapsed && (
-                    <ChevronDown className={`w-3.5 h-3.5 text-blue-200 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-blue-200 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    />
                   )}
                 </button>
 
                 {!isCollapsed && isOpen && (
                   <div className="pl-4 pr-1 py-1 space-y-1 border-l-2 border-orange-500/40 ml-4 animate-fadeIn">
                     {group.subItems.map((sub) => {
-                      const SubIcon = sub.icon
-                      const active = isSubItemActive(sub.tab, sub.sub)
-                      const targetUrl = `/admin/courses?tab=${sub.tab}&sub=${sub.sub}`
+                      const SubIcon = sub.icon;
+                      const active = isSubItemActive(sub.tab, sub.sub);
+
+                      // Url điều hướng dựa vào tab và sub
+                      const targetUrl = `/admin/courses?tab=${sub.tab}&sub=${sub.sub}`;
 
                       return (
                         <Link
@@ -269,15 +348,17 @@ export default function AdminSidebar() {
                               : "text-blue-100/70 hover:bg-white/10 hover:text-white"
                           }`}
                         >
-                          <SubIcon className={`w-3.5 h-3.5 shrink-0 ${active ? "text-white" : "text-blue-200/60"}`} />
+                          <SubIcon
+                            className={`w-3.5 h-3.5 shrink-0 ${active ? "text-white" : "text-blue-200/60"}`}
+                          />
                           <span className="truncate">{sub.name}</span>
                         </Link>
-                      )
+                      );
                     })}
                   </div>
                 )}
               </div>
-            )
+            );
           })}
         </div>
 
@@ -309,7 +390,6 @@ export default function AdminSidebar() {
             {!isCollapsed && <span>Cấu hình hệ thống</span>}
           </Link>
         </div>
-
       </div>
 
       {/* NÚT ĐĂNG XUẤT */}
@@ -327,5 +407,5 @@ export default function AdminSidebar() {
         </button>
       </div>
     </aside>
-  )
+  );
 }
