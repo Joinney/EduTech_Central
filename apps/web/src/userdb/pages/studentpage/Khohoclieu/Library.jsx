@@ -577,6 +577,7 @@ export default function Library() {
             </div>
 
             <div className="space-y-2.5 pt-1">
+              {/* 1. Nút Tài liệu Chính quy */}
               <button
                 onClick={() => setSelectedType("pdf")}
                 className="w-full p-3.5 rounded-2xl border transition flex items-center justify-between cursor-pointer text-left bg-slate-50/60 hover:bg-slate-100"
@@ -596,6 +597,47 @@ export default function Library() {
                 </div>
               </button>
 
+              {/* 2. Nút Video Bài giảng */}
+              <button
+                onClick={() => setSelectedType("video")}
+                className="w-full p-3.5 rounded-2xl border transition flex items-center justify-between cursor-pointer text-left bg-blue-50/30 border-blue-100 hover:bg-blue-50"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                    <PlayCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h5 className="font-extrabold text-xs text-blue-800">
+                      Video Bài Giảng
+                    </h5>
+                    <p className="text-[10px] text-blue-600/80 font-medium">
+                      {stats.videoCount} tệp video
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* 3. Nút Bài tập Thực hành*/}
+              <button
+                onClick={() => setSelectedType("assignment")}
+                className="w-full p-3.5 rounded-2xl border transition flex items-center justify-between cursor-pointer text-left bg-purple-50/30 border-purple-100 hover:bg-purple-50"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                    <Pencil className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h5 className="font-extrabold text-xs text-purple-800">
+                      Bài tập Thực hành
+                    </h5>
+                    <p className="text-[10px] text-purple-600/80 font-medium">
+                      {stats.assignCount} tệp bài tập
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* 4. Nút Cộng đồng Chia sẻ */}
               <button
                 onClick={() => setSelectedType("shared")}
                 className="w-full p-3.5 rounded-2xl border transition flex items-center justify-between cursor-pointer text-left bg-emerald-50/30 border-emerald-100 hover:bg-emerald-50"
