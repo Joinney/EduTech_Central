@@ -1,4 +1,6 @@
-﻿import React, { useState, useEffect } from "react"
+﻿/* eslint-disable react/prop-types */
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { 
   Home as HomeIcon,
@@ -29,14 +31,33 @@ export default function Sidebar() {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState("student")
   
-  // Quản lý đóng/mở submenu (mặc định mở cả 2 danh mục để luôn thấy list)
   const [openSubmenu, setOpenSubmenu] = useState({
     "Danh mục khóa học": true,
     "Danh mục tài liệu": true
   })
   
-  // Quản lý xem thêm / thu gọn khi danh sách dài
   const [expandedSubmenus, setExpandedSubmenus] = useState({})
+
+  // Danh mục khóa học (Khởi tạo sẵn danh sách fallback chuẩn)
+  const [courseCategories, setCourseCategories] = useState([
+    { name: "Toán học & Giải tích", slug: "toan-hoc" },
+    { name: "Tin học & Lập trình", slug: "tin-hoc" },
+    { name: "Tiếng Anh & Ngoại ngữ", slug: "tieng-anh" },
+    { name: "Vật lý đại cương", slug: "vat-ly" },
+    { name: "Hóa học & Sinh học", slug: "khoa-hoc-tu-nhien" },
+    { name: "Toán cao cấp & Đại số", slug: "toan-cao-cap" },
+    { name: "Triết học & Pháp luật", slug: "dai-cuong" },
+    { name: "Kinh tế vi mô & vĩ mô", slug: "kinh-te" }
+  ])
+
+  // Danh mục tài liệu
+  const docCategories = [
+    { name: "Giáo trình & Bài giảng chuẩn", path: `/${role}/docs/giao-trinh` },
+    { name: "Đề thi & Đáp án chi tiết", path: `/${role}/docs/de-thi` },
+    { name: "Sách & Ebook tham khảo", path: `/${role}/docs/ebooks` },
+    { name: "Bài báo & Đề tài nghiên cứu", path: `/${role}/docs/nghien-cuu` },
+    { name: "Slide & Tóm tắt kiến thức", path: `/${role}/docs/slide` }
+  ]
 
   useEffect(() => {
     const loadUserData = () => {
@@ -62,6 +83,30 @@ export default function Sidebar() {
     return () => window.removeEventListener("storage", loadUserData)
   }, [])
 
+  // 🎯 BƯỚC 3: Fetch danh mục thực tế từ Database backend course-service
+  useEffect(() => {
+    const fetchDBCategories = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
+        const res = await fetch(`${baseUrl}/categories`)
+        if (res.ok) {
+          const json = await res.json()
+          const data = Array.isArray(json) ? json : (json?.data || [])
+          if (data.length > 0) {
+            setCourseCategories(data.map(item => ({
+              name: item.name,
+              slug: item.slug
+            })))
+          }
+        }
+      } catch (err) {
+        console.warn("Dùng danh mục mặc định cho Sidebar:", err)
+      }
+    }
+
+    fetchDBCategories()
+  }, [])
+
   const fullName = user?.fullName || user?.full_name || (role === "teacher" ? "Giảng viên EduTech" : "Học viên EduTech")
   const avatarUrl = user?.avatar || ""
 
@@ -72,28 +117,12 @@ export default function Sidebar() {
     return parts.map(p => p[0]).join("").substring(0, 3).toUpperCase()
   }
 
-  // 1. List các mục con của Danh mục khóa học
-  const courseCategories = [
-    { name: "Toán học & Giải tích", path: `/${role}/courses/category/toan-hoc` },
-    { name: "Tin học & Lập trình", path: `/${role}/courses/category/tin-hoc` },
-    { name: "Tiếng Anh & Ngoại ngữ", path: `/${role}/courses/category/tieng-anh` },
-    { name: "Vật lý đại cương", path: `/${role}/courses/category/vat-ly` },
-    { name: "Hóa học & Sinh học", path: `/${role}/courses/category/khoa-hoc-tu-nhien` },
-    { name: "Toán cao cấp & Đại số", path: `/${role}/courses/category/toan-cao-cap` },
-    { name: "Triết học & Pháp luật", path: `/${role}/courses/category/dai-cuong` },
-    { name: "Kinh tế vi mô & vĩ mô", path: `/${role}/courses/category/kinh-te` }
-  ]
+  // Chuyển mảng danh mục thành đường dẫn URL tương ứng với role
+  const dynamicCourseChildren = courseCategories.map(cat => ({
+    name: cat.name,
+    path: `/${role}/courses/category/${cat.slug}`
+  }))
 
-  // 2. List các mục con của Danh mục tài liệu
-  const docCategories = [
-    { name: "Giáo trình & Bài giảng chuẩn", path: `/${role}/docs/giao-trinh` },
-    { name: "Đề thi & Đáp án chi tiết", path: `/${role}/docs/de-thi` },
-    { name: "Sách & Ebook tham khảo", path: `/${role}/docs/ebooks` },
-    { name: "Bài báo & Đề tài nghiên cứu", path: `/${role}/docs/nghien-cuu` },
-    { name: "Slide & Tóm tắt kiến thức", path: `/${role}/docs/slide` }
-  ]
-
-  // Menu học viên
   const studentNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
     { name: "Bảng điều khiển", path: `/${role}/dashboard`, icon: LayoutDashboard },
@@ -102,7 +131,7 @@ export default function Sidebar() {
     { 
       name: "Danh mục khóa học", 
       icon: Tags, 
-      children: courseCategories 
+      children: dynamicCourseChildren 
     },
     { 
       name: "Danh mục tài liệu", 
@@ -114,7 +143,6 @@ export default function Sidebar() {
     { name: "Tủ sách & Bộ sưu tập", path: `/${role}/bookshelf`, icon: Bookmark },
   ]
 
-  // Menu giảng viên
   const teacherNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
     { name: "Bảng quản lý Giảng viên", path: `/${role}/dashboard`, icon: LayoutDashboard },
@@ -122,7 +150,7 @@ export default function Sidebar() {
     { 
       name: "Danh mục khóa học", 
       icon: Tags, 
-      children: courseCategories 
+      children: dynamicCourseChildren 
     },
     { 
       name: "Danh mục tài liệu", 
@@ -247,7 +275,6 @@ export default function Sidebar() {
               return (
                 <div key={item.name} className="relative">
                   {hasChildren ? (
-                    // Nút bấm mở/đóng danh mục có list con
                     <button
                       type="button"
                       onClick={() => toggleSubmenu(item.name)}
@@ -275,7 +302,6 @@ export default function Sidebar() {
                       )}
                     </button>
                   ) : (
-                    // Tab điều hướng thông thường
                     <Link
                       to={item.path}
                       className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
@@ -303,7 +329,6 @@ export default function Sidebar() {
                     </Link>
                   )}
 
-                  {/* List xổ dọc hiển thị các danh mục con */}
                   {hasChildren && isOpen && (
                     <div className="mt-1 ml-4 pl-2 border-l-2 border-slate-100 space-y-0.5 animate-in fade-in duration-200">
                       {visibleChildren.map((sub) => {
@@ -323,7 +348,6 @@ export default function Sidebar() {
                         )
                       })}
 
-                      {/* Nút Xem thêm / Thu gọn khi danh sách > 5 mục */}
                       {item.children.length > ITEM_LIMIT && (
                         <button
                           type="button"
@@ -348,7 +372,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Widget AI & Logout */}
       <div className="pt-3 border-t border-slate-100 space-y-2">
         <div className={`p-3 rounded-2xl border space-y-1.5 ${
           isTeacher 

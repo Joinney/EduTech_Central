@@ -29,6 +29,16 @@ const (
 // ==========================================
 // 1. MODELS DATABASE (LCMS, SCHEDULING & AUTH)
 // ==========================================
+type CourseCategory struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Name        string    `gorm:"size:150;not null" json:"name"`
+	Slug        string    `gorm:"size:100;unique;not null" json:"slug"`
+	Description string    `gorm:"type:text" json:"description"`
+	Icon        string    `gorm:"size:50;default:'BookOpen'" json:"icon"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
+func (CourseCategory) TableName() string { return "course_categories" }
 
 type Course struct {
 	ID            uint         `gorm:"primaryKey" json:"id"`
@@ -38,6 +48,8 @@ type Course struct {
 	Title         string       `gorm:"size:255;not null" json:"title"`
 	Code          string       `gorm:"size:50;unique;not null" json:"code"`
 	Subject       string       `gorm:"size:100;not null" json:"subject"`
+	CategoryID    *uint           `gorm:"column:category_id" json:"category_id"`
+	Category      *CourseCategory `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
 	SchoolName    string       `gorm:"size:255;not null" json:"schoolName"`
 	SchoolLogo  string       `gorm:"column:school_logo;type:text" json:"school_logo"`
     TeacherImg  string       `gorm:"column:teacher_img;type:text" json:"teacher_img"`
@@ -283,6 +295,7 @@ func initDB() {
 	}
 
 	db.AutoMigrate(
+		&CourseCategory{},
 		&Course{},
 		&Lesson{},
 		&Assignment{},
@@ -453,6 +466,9 @@ func main() {
 		// Trong main.go hoặc routes.go của course-service:
 		api.GET("/teacher-subjects", getTeacherSubjectsHandler)
 		api.GET("/teachers/:teacher_id/subjects", getTeacherSubjectsHandler)
+
+		// --- DANH MỤC KHÓA HỌC ---
+		api.GET("/categories", getCategories)
 	}
 
 	port := os.Getenv("PORT")
@@ -557,8 +573,9 @@ func getCourses(c *gin.Context) {
 	var courses []Course
 	teacherID := c.Query("teacher_id")
 	status := c.Query("status")
+	categorySlug := c.Query("category")
 
-	query := db.Preload("Lessons").Preload("Assignments").Preload("Quizzes").Order("created_at desc")
+	query := db.Preload("Category").Preload("Lessons").Preload("Assignments").Preload("Quizzes").Order("created_at desc")
 
 	if teacherID != "" && teacherID != "undefined" && teacherID != "null" {
 		query = query.Where("teacher_id = ?", teacherID)
@@ -568,12 +585,16 @@ func getCourses(c *gin.Context) {
 		query = query.Where("status = ?", status)
 	}
 
+	if categorySlug != "" {
+		query = query.Joins("JOIN course_categories ON course_categories.id = courses.category_id").
+			Where("course_categories.slug = ?", categorySlug)
+	}
+
 	if err := query.Find(&courses).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi truy vấn danh sách khóa học"})
 		return
 	}
 
-	// 🎯 Đồng bộ đếm sĩ số thực tế từ bảng course_students
 	for i := range courses {
 		var actualCount int64
 		db.Model(&CourseStudent{}).Where("course_id = ?", courses[i].ID).Count(&actualCount)
@@ -677,7 +698,7 @@ func createCourse(c *gin.Context) {
 func getCourseByID(c *gin.Context) {
 	id := c.Param("id")
 	var course Course
-	if err := db.Preload("Lessons").Preload("Assignments").Preload("Quizzes").Preload("Schedules").First(&course, id).Error; err != nil {
+	if err := db.Preload("Category").Preload("Lessons").Preload("Assignments").Preload("Quizzes").Preload("Schedules").First(&course, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy lớp học"})
 		return
 	}
@@ -1487,4 +1508,13 @@ func getTeacherSubjectsHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": list})
+}
+
+func getCategories(c *gin.Context) {
+	var categories []CourseCategory
+	if err := db.Order("id asc").Find(&categories).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi lấy danh mục"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": categories})
 }

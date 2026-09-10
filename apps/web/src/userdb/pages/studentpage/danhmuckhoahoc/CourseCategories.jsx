@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from "react"
+/* eslint-disable react/prop-types */
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect, useMemo } from "react"
 import { useParams, Link, useNavigate } from "react-router-dom"
 import { 
   Calculator, 
@@ -18,8 +20,11 @@ import {
   Star,
   Users,
   GraduationCap,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from "lucide-react"
+
+import { courseService } from "../../../../api/course.api"
 
 // Cấu hình thông tin chuẩn các danh mục
 const CATEGORIES = [
@@ -81,7 +86,19 @@ const CATEGORIES = [
   }
 ]
 
-// Mock dữ liệu các khóa học thực tế để hiển thị và lọc
+// Từ điển ánh xạ slug sang từ khóa tiếng Việt tương ứng trong CSDL
+const CATEGORY_KEYWORDS = {
+  "vat-ly": ["vật lý", "vat ly", "physics"],
+  "toan-hoc": ["toán", "toan", "giải tích", "hình học"],
+  "tin-hoc": ["tin học", "lập trình", "ai", "cntt", "code", "python", "c++", "web"],
+  "tieng-anh": ["tiếng anh", "english", "ngoại ngữ", "ielts", "toeic", "giao tiếp"],
+  "khoa-hoc-tu-nhien": ["hóa học", "hoa hoc", "sinh học", "sinh hoc"],
+  "toan-cao-cap": ["toán cao cấp", "đại số tuyến tính", "đại số", "ma trận", "vector"],
+  "dai-cuong": ["triết", "pháp luật", "chính trị", "tư tưởng", "đại cương"],
+  "kinh-te": ["kinh tế", "tài chính", "vi mô", "vĩ mô"]
+}
+
+// Mock bổ trợ
 const MOCK_COURSES = [
   {
     id: "c-toan-12",
@@ -98,20 +115,6 @@ const MOCK_COURSES = [
     thumbnail: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=60"
   },
   {
-    id: "c-toan-hh",
-    title: "Hình học không gian cổ điển & Tọa độ Oxyz",
-    categorySlug: "toan-hoc",
-    instructor: "TS. Nguyễn Hoàng Long",
-    level: "Cơ bản",
-    rating: 4.8,
-    studentsCount: 980,
-    lessonsCount: 28,
-    duration: "32 giờ",
-    price: 0,
-    originalPrice: 0,
-    thumbnail: "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=600&auto=format&fit=crop&q=60"
-  },
-  {
     id: "c-py-01",
     title: "Lập trình Python từ Zero đến Thực chiến dữ liệu",
     categorySlug: "tin-hoc",
@@ -126,20 +129,6 @@ const MOCK_COURSES = [
     thumbnail: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=60"
   },
   {
-    id: "c-dsa-cpp",
-    title: "Cấu trúc dữ liệu & Giải thuật với C++ Pro",
-    categorySlug: "tin-hoc",
-    instructor: "ThS. Đỗ Tuấn Kiệt",
-    level: "Chuyên sâu",
-    rating: 5.0,
-    studentsCount: 1840,
-    lessonsCount: 44,
-    duration: "55 giờ",
-    price: 650000,
-    originalPrice: 1200000,
-    thumbnail: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&auto=format&fit=crop&q=60"
-  },
-  {
     id: "c-ielts-7",
     title: "Luyện thi IELTS 7.0+: Kỹ năng Writing & Speaking",
     categorySlug: "tieng-anh",
@@ -152,48 +141,6 @@ const MOCK_COURSES = [
     price: 799000,
     originalPrice: 1500000,
     thumbnail: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=600&auto=format&fit=crop&q=60"
-  },
-  {
-    id: "c-eng-comm",
-    title: "Tiếng Anh giao tiếp công sở và đàm phán quốc tế",
-    categorySlug: "tieng-anh",
-    instructor: "ThS. Phạm Thanh Hương",
-    level: "Cơ bản",
-    rating: 4.7,
-    studentsCount: 1450,
-    lessonsCount: 30,
-    duration: "28 giờ",
-    price: 0,
-    originalPrice: 0,
-    thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&auto=format&fit=crop&q=60"
-  },
-  {
-    id: "c-dstt",
-    title: "Đại số tuyến tính & Giải tích ma trận đại học",
-    categorySlug: "toan-cao-cap",
-    instructor: "PGS.TS Nguyễn Văn Hùng",
-    level: "Chuyên sâu",
-    rating: 4.85,
-    studentsCount: 1100,
-    lessonsCount: 38,
-    duration: "42 giờ",
-    price: 350000,
-    originalPrice: 600000,
-    thumbnail: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=60"
-  },
-  {
-    id: "c-ktvm",
-    title: "Kinh tế vi mô ứng dụng & Phân tích hành vi thị trường",
-    categorySlug: "kinh-te",
-    instructor: "TS. Vũ Hải Đăng",
-    level: "Cơ bản",
-    rating: 4.8,
-    studentsCount: 890,
-    lessonsCount: 32,
-    duration: "36 giờ",
-    price: 299000,
-    originalPrice: 500000,
-    thumbnail: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=60"
   }
 ]
 
@@ -203,24 +150,100 @@ export default function CourseCategories() {
   const role = localStorage.getItem("role")?.toLowerCase() || "student"
   const isTeacher = role === "teacher"
 
+  const [dbCourses, setDbCourses] = useState([])
+  const [isLoading, setIsLoading] = useState(false)
+
   // Bộ lọc nội bộ
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedLevel, setSelectedLevel] = useState("all")
   const [selectedPrice, setSelectedPrice] = useState("all")
   const [sortBy, setSortBy] = useState("popular")
 
-  // Thông tin danh mục hiện tại (nếu có categorySlug)
+  // Thông tin danh mục hiện tại
   const currentCategory = useMemo(() => {
     return CATEGORIES.find(c => c.id === categorySlug)
   }, [categorySlug])
 
-  // Lọc danh sách khóa học
-  const filteredCourses = useMemo(() => {
-    return MOCK_COURSES.filter(course => {
-      // Khớp danh mục nếu đang có categorySlug
-      if (categorySlug && course.categorySlug !== categorySlug) return false
+  // 🎯 TẢI DỮ LIỆU THỰC TẾ TỪ POSTGRESQL (COURSE-SERVICE)
+  useEffect(() => {
+    const fetchCoursesFromDB = async () => {
+      setIsLoading(true)
+      try {
+        const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
+        const queryParam = categorySlug ? `?category=${categorySlug}` : ""
+        const res = await fetch(`${baseUrl}/courses${queryParam}`).catch(() => null)
+        
+        let list = []
+        if (res && res.ok) {
+          const json = await res.json()
+          list = Array.isArray(json) ? json : (json?.data || [])
+        } else {
+          const fallbackRes = await courseService.getAllCourses().catch(() => [])
+          list = Array.isArray(fallbackRes) ? fallbackRes : (fallbackRes?.data || [])
+        }
 
-      // Khớp từ khóa tìm kiếm
+        // Chuẩn hóa định dạng khóa học từ DB
+        const mapped = list.map(c => {
+          const defaultThumb = "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=60"
+          const thumb = (c.thumbnail && !c.thumbnail.includes("ui-avatars")) ? c.thumbnail : defaultThumb
+
+          return {
+            id: c.id || c.id_course,
+            title: c.title,
+            subject: c.subject || "",
+            categorySlug: c.category?.slug || "",
+            categoryId: c.category_id,
+            instructor: c.teacher_name || c.teacherName || "Giảng viên EduTech",
+            level: c.grade || "Đại học",
+            rating: 4.9,
+            studentsCount: c.studentsCount || c.students_count || 45,
+            lessonsCount: c.lessons?.length || 12,
+            duration: c.schedule || "45 giờ",
+            price: Number(c.price) || 0,
+            originalPrice: Number(c.price) ? Number(c.price) * 1.5 : 0,
+            thumbnail: thumb,
+            isDb: true
+          }
+        })
+
+        setDbCourses(mapped)
+      } catch (err) {
+        console.error("Lỗi tải khóa học:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchCoursesFromDB()
+  }, [categorySlug])
+
+  // Gộp các khóa học DB cùng danh sách Mock
+  const combinedCourses = useMemo(() => {
+    const list = [...dbCourses]
+    MOCK_COURSES.forEach(mock => {
+      if (!list.some(item => item.title === mock.title)) {
+        list.push(mock)
+      }
+    })
+    return list
+  }, [dbCourses])
+
+  // 🎯 LỌC KHÓA HỌC THEO SLUG & TỪ KHÓA
+  const filteredCourses = useMemo(() => {
+    const keywords = categorySlug ? (CATEGORY_KEYWORDS[categorySlug] || [categorySlug]) : []
+
+    return combinedCourses.filter(course => {
+      // 1. Kiểm tra khớp danh mục
+      if (categorySlug) {
+        const matchSlug = course.categorySlug === categorySlug
+        const subjectLower = (course.subject || "").toLowerCase()
+        const titleLower = (course.title || "").toLowerCase()
+        const matchKeyword = keywords.some(kw => subjectLower.includes(kw) || titleLower.includes(kw))
+
+        if (!matchSlug && !matchKeyword) return false
+      }
+
+      // 2. Khớp từ khóa tìm kiếm
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase()
         const matchTitle = course.title.toLowerCase().includes(query)
@@ -228,10 +251,10 @@ export default function CourseCategories() {
         if (!matchTitle && !matchInstructor) return false
       }
 
-      // Khớp trình độ
+      // 3. Khớp trình độ
       if (selectedLevel !== "all" && course.level !== selectedLevel) return false
 
-      // Khớp loại phí
+      // 4. Khớp loại phí
       if (selectedPrice === "free" && course.price > 0) return false
       if (selectedPrice === "paid" && course.price === 0) return false
 
@@ -243,20 +266,20 @@ export default function CourseCategories() {
       if (sortBy === "price-high") return b.price - a.price
       return 0
     })
-  }, [categorySlug, searchTerm, selectedLevel, selectedPrice, sortBy])
+  }, [combinedCourses, categorySlug, searchTerm, selectedLevel, selectedPrice, sortBy])
 
   // 1. GIAO DIỆN KHI XEM TỪNG DANH MỤC CỤ THỂ
   if (categorySlug) {
     const Icon = currentCategory?.icon || BookOpenCheck
 
     return (
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans pb-16">
         
         {/* Nút quay lại & Header danh mục */}
         <div className="flex items-center space-x-3">
           <button
             type="button"
-            onClick={() => navigate(`/${role}/course-categories`)}
+            onClick={() => navigate(`/${role}/courses/category`)}
             className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-colors cursor-pointer shadow-xs"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -297,8 +320,6 @@ export default function CourseCategories() {
 
         {/* Thanh lọc & Tìm kiếm */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 md:space-y-0 md:flex md:items-center md:justify-between gap-4">
-          
-          {/* Ô tìm kiếm */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
@@ -310,14 +331,12 @@ export default function CourseCategories() {
             />
           </div>
 
-          {/* Nhóm Select bộ lọc */}
           <div className="flex items-center flex-wrap gap-2">
             <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-500 pr-1">
               <SlidersHorizontal className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Bộ lọc:</span>
             </div>
 
-            {/* Trình độ */}
             <select
               value={selectedLevel}
               onChange={(e) => setSelectedLevel(e.target.value)}
@@ -329,7 +348,6 @@ export default function CourseCategories() {
               <option value="Chuyên sâu">Chuyên sâu</option>
             </select>
 
-            {/* Học phí */}
             <select
               value={selectedPrice}
               onChange={(e) => setSelectedPrice(e.target.value)}
@@ -340,7 +358,6 @@ export default function CourseCategories() {
               <option value="paid">Trả phí</option>
             </select>
 
-            {/* Sắp xếp */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -355,7 +372,12 @@ export default function CourseCategories() {
         </div>
 
         {/* Lưới hiển thị các thẻ khóa học */}
-        {filteredCourses.length > 0 ? (
+        {isLoading ? (
+          <div className="py-16 text-center text-slate-400 space-y-2">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" />
+            <p className="text-xs font-medium">Đang tải danh sách khóa học từ hệ thống...</p>
+          </div>
+        ) : filteredCourses.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {filteredCourses.map((course) => (
               <div
@@ -363,11 +385,10 @@ export default function CourseCategories() {
                 className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs hover:shadow-xl hover:border-slate-300 transition-all duration-300 flex flex-col justify-between group"
               >
                 <div>
-                  {/* Thumbnail */}
                   <div className="relative aspect-video overflow-hidden bg-slate-100">
                     <img 
                       src={course.thumbnail} 
-                      alt={course.title}
+                      alt={course.title} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <span className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold rounded-lg">
@@ -375,7 +396,6 @@ export default function CourseCategories() {
                     </span>
                   </div>
 
-                  {/* Thông tin bài giảng */}
                   <div className="p-4 space-y-2.5">
                     <h3 
                       className={`font-bold text-xs leading-snug line-clamp-2 transition-colors ${
@@ -391,7 +411,6 @@ export default function CourseCategories() {
                       <span className="truncate">{course.instructor}</span>
                     </p>
 
-                    {/* Chỉ số: Sao, Học viên, Thời lượng */}
                     <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold pt-1 border-t border-slate-100">
                       <div className="flex items-center space-x-1 text-amber-500 font-bold">
                         <Star className="w-3 h-3 fill-amber-400" />
@@ -399,7 +418,7 @@ export default function CourseCategories() {
                       </div>
                       <div className="flex items-center space-x-1">
                         <Users className="w-3 h-3 text-slate-400" />
-                        <span>{course.studentsCount}</span>
+                        <span>{course.studentsCount} HV</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <Clock className="w-3 h-3 text-slate-400" />
@@ -409,7 +428,6 @@ export default function CourseCategories() {
                   </div>
                 </div>
 
-                {/* Chân thẻ: Giá & Nút đăng ký/xem */}
                 <div className="p-4 pt-0 mt-2 flex items-center justify-between border-t border-slate-50">
                   <div>
                     {course.price === 0 ? (
@@ -466,10 +484,9 @@ export default function CourseCategories() {
     )
   }
 
-  // 2. GIAO DIỆN TỔNG QUAN KHI VÀO /course-categories (CHƯA CHỌN DANH MỤC CON)
+  // 2. GIAO DIỆN TỔNG QUAN KHI VÀO DANH MỤC GỐC
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Banner đầu trang */}
+    <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans pb-16">
       <div className={`p-6 md:p-8 rounded-3xl border shadow-xs ${
         isTeacher 
           ? "bg-gradient-to-r from-orange-500/10 via-amber-50/40 to-white border-orange-200/70"
@@ -487,11 +504,16 @@ export default function CourseCategories() {
         </p>
       </div>
 
-      {/* Grid danh mục */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {CATEGORIES.map((cat) => {
           const Icon = cat.icon
-          const courseCount = MOCK_COURSES.filter(c => c.categorySlug === cat.id).length
+          const keywords = CATEGORY_KEYWORDS[cat.id] || [cat.id]
+          const matchCount = combinedCourses.filter(c => {
+            if (c.categorySlug === cat.id) return true
+            const sub = (c.subject || "").toLowerCase()
+            const title = (c.title || "").toLowerCase()
+            return keywords.some(kw => sub.includes(kw) || title.includes(kw))
+          }).length
 
           return (
             <Link
@@ -506,7 +528,7 @@ export default function CourseCategories() {
                   </div>
                   <span className="text-[11px] font-bold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full flex items-center space-x-1">
                     <BookOpenCheck className="w-3 h-3 text-slate-400" />
-                    <span>{courseCount || 10}+ khóa</span>
+                    <span>{matchCount} khóa</span>
                   </span>
                 </div>
 
