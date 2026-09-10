@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import React, { useState, useEffect, useMemo } from "react"
+import { useParams, useNavigate, useLocation } from "react-router-dom"
 import {
   ArrowLeft,
   Calendar,
@@ -32,15 +32,73 @@ import {
 import { courseService } from "../../../../api/course.api"
 
 const DEFAULT_TEACHER_IMG = "/thekhoahoc/thaygiao.png"
-const DEFAULT_LOGO_IMG = "/thekhoahoc/logo.png"
+
+// 🎯 Khung bài học mẫu
+const generateSampleChapters = (subjectName = "Học phần") => [
+  {
+    id: "c1",
+    title: `Chương 1: Tổng quan nền tảng & Kiến thức cốt lõi môn ${subjectName}`,
+    duration: "6 Tiết",
+    lessons: [
+      { name: "Khái niệm mở đầu và định hướng nghiên cứu", type: "theory", duration: "45p" },
+      { name: "Phương pháp luận và các công cụ thực hành chính", type: "theory", duration: "60p" },
+      { name: "Bài thực hành 01: Thiết lập môi trường & bài tập căn bản", type: "lab", duration: "90p" }
+    ]
+  },
+  {
+    id: "c2",
+    title: `Chương 2: Kỹ thuật phân tích & Mô hình ứng dụng chuyên sâu`,
+    duration: "9 Tiết",
+    lessons: [
+      { name: "Các thuật toán và định lý trọng tâm", type: "theory", duration: "90p" },
+      { name: "Xây dựng sơ đồ tư duy và phân tích ca điển hình (Case Study)", type: "theory", duration: "60p" },
+      { name: "Bài thực hành 02: Giải quyết bài toán thực tế", type: "lab", duration: "120p" }
+    ]
+  },
+  {
+    id: "c3",
+    title: `Chương 3: Tối ưu hóa hiệu năng & Thực chiến chuyên đề`,
+    duration: "12 Tiết",
+    lessons: [
+      { name: "Nguyên lý thiết kế hệ thống & kiểm thử chất lượng", type: "theory", duration: "90p" },
+      { name: "Bài thực hành 03: Tối ưu dữ liệu và xử lý tình huống nâng cao", type: "lab", duration: "120p" }
+    ]
+  },
+  {
+    id: "c4",
+    title: `Chương 4: Đồ án tổng kết học phần & Hướng dẫn báo cáo`,
+    duration: "8 Tiết",
+    lessons: [
+      { name: "Tổng hợp kiến thức và tiêu chuẩn đánh giá cuối kỳ", type: "theory", duration: "60p" },
+      { name: "Bảo vệ đồ án / Báo cáo kết quả nghiên cứu", type: "lab", duration: "120p" }
+    ]
+  }
+]
+
+// 🎯 Giáo trình tài liệu mẫu
+const generateSampleMaterials = (subjectName = "Mon_Hoc") => [
+  { id: "m1", name: `Giao_Trinh_Chuan_${subjectName.replace(/\s+/g, "_")}.pdf`, size: "14.2 MB", type: "PDF", downloads: 840 },
+  { id: "m2", name: `Slide_Bai_Giang_Tong_Hop_Toan_Tap.pdf`, size: "8.6 MB", type: "PDF", downloads: 620 },
+  { id: "m3", name: `Bo_De_Cuong_On_Tap_Va_Cau_Hoi_Thi.pdf`, size: "3.4 MB", type: "PDF", downloads: 512 },
+  { id: "m4", name: `Huong_Dan_Lam_Do_An_Thuc_Hanh.pdf`, size: "1.8 MB", type: "PDF", downloads: 310 }
+]
 
 export default function CourseDetailPage({ onBack }) {
-  const { id: paramId } = useParams()
+  const params = useParams()
   const navigate = useNavigate()
-  const courseId = paramId || 1
+  const location = useLocation()
+
+  // 🎯 Bóc tách ID an toàn tuyệt đối từ cả useParams, props và URL thực tế: /courses/:id
+  const targetId = useMemo(() => {
+    if (params?.id) return String(params.id).trim()
+    // Quét trực tiếp pathname: ví dụ /student/courses/25 -> lấy 25
+    const pathParts = location.pathname.split("/").filter(Boolean)
+    const lastPart = pathParts[pathParts.length - 1]
+    return lastPart && !isNaN(lastPart) ? String(lastPart).trim() : ""
+  }, [params, location.pathname])
 
   const [course, setCourse] = useState(null)
-  const [lessons, setLessons] = useState([])
+  const [chapters, setChapters] = useState([])
   const [materials, setMaterials] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -56,25 +114,41 @@ export default function CourseDetailPage({ onBack }) {
     setTimeout(() => setToastMessage(""), 3000)
   }
 
-  // 🎯 TẢI DỮ LIỆU ĐỒNG BỘ TỪ BACKEND
   useEffect(() => {
     const fetchFullCourseData = async () => {
       setIsLoading(true)
       try {
-        // 1. Lấy chi tiết khóa học
         let cData = null
-        try {
-          const res = await courseService.getCourseById(courseId)
-          cData = res?.data || res
-        } catch (_) {
-          // Fallback nếu không có getCourseById thì lấy qua getAllCourses
-          const allRes = await courseService.getAllCourses().catch(() => [])
-          const allList = Array.isArray(allRes) ? allRes : (allRes?.data || [])
-          cData = allList.find(item => String(item.id || item.id_course) === String(courseId)) || allList[0]
+        const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
+
+        // 1. Thử gọi API lấy trực tiếp theo ID
+        if (targetId) {
+          try {
+            const directRes = await fetch(`${baseUrl}/courses/${targetId}`).then(r => r.ok ? r.json() : null)
+            cData = directRes?.data || directRes
+          } catch (_) {}
         }
 
+        // 2. Nếu direct API không có, lấy qua getAllCourses và tìm đúng ID
+        if (!cData || (!cData.id && !cData.id_course)) {
+          const allRes = await courseService.getAllCourses().catch(() => [])
+          const allList = Array.isArray(allRes) ? allRes : (allRes?.data || [])
+
+          if (targetId) {
+            cData = allList.find((item) => {
+              const rawId = item.id ?? item.id_course ?? item.course_id
+              return String(rawId).trim() === targetId
+            })
+          }
+
+          // Fallback nếu không thấy ID chỉ định
+          if (!cData && allList.length > 0) {
+            cData = allList[0]
+          }
+        }
+
+        // 3. Xử lý dữ liệu hiển thị
         if (cData) {
-          // Nhận diện ảnh dáng người thực tế của giảng viên
           const realUploadedImg = 
             (cData.thumbnail && !cData.thumbnail.includes("unsplash.com") && !cData.thumbnail.includes("thekhoahoc")) 
               ? cData.thumbnail 
@@ -83,21 +157,26 @@ export default function CourseDetailPage({ onBack }) {
           const isUIAvatar = realUploadedImg && realUploadedImg.includes("ui-avatars.com")
           const cleanTeacherImg = (realUploadedImg && !isUIAvatar) ? realUploadedImg : DEFAULT_TEACHER_IMG
 
+          const currentCourseTitle = cData.title || cData.courseName || "Khóa Học Đào Tạo"
+          const currentSubject = cData.subject || "Chuyên môn"
+
           setCourse({
             id: cData.id || cData.id_course,
-            courseName: cData.title || "Khóa Học Đào Tạo",
-            subject: cData.subject || "Chuyên ngành",
-            code: cData.code || `ED-${cData.id || "2026"}`,
+            courseName: currentCourseTitle,
+            subject: currentSubject,
+            code: cData.code || `SKILL-${cData.id || targetId || "2026"}`,
             credits: cData.credits || 3,
-            grade: cData.schoolName || cData.school_name || cData.grade || "Đại học",
+            grade: cData.schoolName || cData.school_name || cData.grade || "Cơ sở Đào tạo",
             rating: 4.9,
             ratingCount: 128,
             schedule: cData.schedule || "Linh hoạt",
             timeDetail: cData.schedule?.includes("(") ? cData.schedule.split("(")[1]?.replace(")", "") : "19:30 - 21:00",
-            room: cData.room || "Phòng học trực tuyến / Meet",
+            room: cData.room || "Phòng học trực tuyến / Live Meet",
             profileProgress: 90,
-            price: cData.price || 0,
-            description: cData.description || "Học phần đào tạo bài bản với nội dung kiến thức chuyên sâu và bài tập ứng dụng thực hành thực tế.",
+            price: Number(cData.price) || 0,
+            description: cData.description && cData.description !== "Chưa có mô tả." 
+              ? cData.description 
+              : `Khóa học chuyên sâu về ${currentCourseTitle} thuộc chuyên môn ${currentSubject}. Sinh viên được cung cấp kiến thức nền tảng vững chắc kết hợp phương pháp luận thực chiến và hệ thống bài tập thực hành ứng dụng cao.`,
             teacher: {
               name: cData.teacher_name || cData.teacherName || "Giảng viên phụ trách",
               title: "Giảng viên chuyên môn",
@@ -105,44 +184,55 @@ export default function CourseDetailPage({ onBack }) {
               email: cData.teacher_email || "giangvien@edutech.vn",
               room: "Văn phòng Bộ môn",
               avatar: cleanTeacherImg,
-              experience: "Nhiều năm kinh nghiệm giảng dạy và phát triển các giải pháp công nghệ đào tạo trực tuyến."
+              experience: "Nhiều năm kinh nghiệm giảng dạy và phát triển các giải pháp công nghệ đào tạo thực tế."
             }
           })
-        }
 
-        // 2. Lấy danh sách bài giảng (Lessons)
-        try {
-          const lessonRes = await courseService.getLessonsByCourse(courseId)
-          const lessonList = Array.isArray(lessonRes) ? lessonRes : (lessonRes?.data || [])
-          setLessons(lessonList)
+          // 4. Lấy bài giảng thật hoặc mẫu
+          try {
+            const lessonRes = await courseService.getLessonsByCourse(cData.id || cData.id_course)
+            const lessonList = Array.isArray(lessonRes) ? lessonRes : (lessonRes?.data || [])
 
-          // Rút trích tài liệu học tập thực tế từ bài giảng
-          const extractedDocs = []
-          lessonList.forEach((l, idx) => {
-            if (l.fileUrl || l.file_url) {
-              extractedDocs.push({
-                id: `mat-${l.id || idx}`,
-                name: l.fileName || l.file_name || l.title || `Tài liệu bài học ${idx + 1}`,
-                size: l.fileSize || "3.5 MB",
-                type: (l.fileUrl || l.file_url).endsWith(".zip") ? "ZIP" : "PDF",
-                downloads: Math.floor(Math.random() * 500) + 120,
-                url: l.fileUrl || l.file_url
+            if (lessonList.length > 0) {
+              setChapters([
+                {
+                  id: "c1",
+                  title: `Nội dung bài học chính khóa (${lessonList.length} bài)`,
+                  duration: `${lessonList.length * 2} Tiết`,
+                  lessons: lessonList.map((ls, idx) => ({
+                    name: ls.title || `Bài ${idx + 1}`,
+                    type: ls.videoUrl ? "lab" : "theory",
+                    duration: "45p"
+                  }))
+                },
+                ...generateSampleChapters(currentSubject).slice(1)
+              ])
+
+              const docs = []
+              lessonList.forEach((l, idx) => {
+                if (l.fileUrl || l.file_url) {
+                  docs.push({
+                    id: `mat-${l.id || idx}`,
+                    name: l.fileName || l.file_name || l.title || `Tài liệu bài học ${idx + 1}`,
+                    size: "3.5 MB",
+                    type: (l.fileUrl || l.file_url).endsWith(".zip") ? "ZIP" : "PDF",
+                    downloads: 150,
+                    url: l.fileUrl || l.file_url
+                  })
+                }
               })
+              setMaterials(docs.length > 0 ? docs : generateSampleMaterials(currentCourseTitle))
+            } else {
+              setChapters(generateSampleChapters(currentSubject))
+              setMaterials(generateSampleMaterials(currentCourseTitle))
             }
-          })
-
-          // Nếu chưa có file upload thì cấp tài liệu mẫu
-          if (extractedDocs.length === 0) {
-            setMaterials([
-              { id: "m1", name: `Giao_Trinh_${cData?.title || "Mon_Hoc"}.pdf`, size: "14.2 MB", type: "PDF", downloads: 840 },
-              { id: "m2", name: "Slide_Bai_Giang_Tong_Hop.pdf", size: "8.6 MB", type: "PDF", downloads: 620 }
-            ])
-          } else {
-            setMaterials(extractedDocs)
+          } catch (_) {
+            setChapters(generateSampleChapters(currentSubject))
+            setMaterials(generateSampleMaterials(currentCourseTitle))
           }
-
-        } catch (_) {}
-
+        } else {
+          setCourse(null)
+        }
       } catch (err) {
         console.error("Lỗi khi tải thông tin khóa học:", err)
       } finally {
@@ -151,10 +241,18 @@ export default function CourseDetailPage({ onBack }) {
     }
 
     fetchFullCourseData()
-  }, [courseId])
+  }, [targetId])
 
   const toggleChapter = (id) => {
     setOpenChapters((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const toggleAllChapters = (expand) => {
+    const nextState = {}
+    chapters.forEach((c) => {
+      nextState[c.id] = expand
+    })
+    setOpenChapters(nextState)
   }
 
   const confirmRegister = () => {
@@ -175,7 +273,9 @@ export default function CourseDetailPage({ onBack }) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center space-y-3 font-sans">
         <Loader2 className="w-8 h-8 animate-spin text-blue-900" />
-        <p className="text-xs font-bold text-slate-500">Đang đồng bộ dữ liệu khóa học...</p>
+        <p className="text-xs font-bold text-slate-500">
+          Đang đồng bộ dữ liệu khóa học ID: #{targetId || "..."}
+        </p>
       </div>
     )
   }
@@ -183,8 +283,8 @@ export default function CourseDetailPage({ onBack }) {
   if (!course) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 text-center font-sans space-y-4">
-        <p className="text-sm font-bold text-slate-600">Không tìm thấy thông tin khóa học.</p>
-        <button onClick={handleGoBack} className="px-4 py-2 bg-blue-900 text-white rounded-xl text-xs font-bold">
+        <p className="text-sm font-bold text-slate-600">Không tìm thấy khóa học có mã #{targetId}.</p>
+        <button onClick={handleGoBack} className="px-4 py-2 bg-blue-900 text-white rounded-xl text-xs font-bold cursor-pointer">
           Quay lại trang trước
         </button>
       </div>
@@ -478,7 +578,6 @@ export default function CourseDetailPage({ onBack }) {
         }
       `}</style>
 
-      {/* Toast Notifier */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-700 text-sm font-semibold">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
@@ -486,7 +585,6 @@ export default function CourseDetailPage({ onBack }) {
         </div>
       )}
 
-      {/* Top Navbar */}
       <header className="glass-nav">
         <button className="back-interactive-btn" onClick={handleGoBack}>
           <ArrowLeft className="w-4 h-4" />
@@ -513,7 +611,6 @@ export default function CourseDetailPage({ onBack }) {
         </div>
       </header>
 
-      {/* Stage Hero Banner */}
       <section className="detail-hero-stage">
         <div className="hero-pattern-grid" />
         <div className="hero-light-glow" />
@@ -549,7 +646,6 @@ export default function CourseDetailPage({ onBack }) {
             </div>
           </div>
 
-          {/* Right Floating Card */}
           <div className="glass-side-widget">
             <h3 className="font-extrabold text-sm uppercase tracking-wide text-slate-900 mb-3 pb-2 border-b border-slate-100 flex items-center justify-between">
               <span>Thông tin tuyển sinh</span>
@@ -567,8 +663,8 @@ export default function CourseDetailPage({ onBack }) {
               <span className="font-bold text-slate-900">{course.room}</span>
             </div>
             <div className="side-metric-item">
-              <span className="text-slate-500 font-medium">Tổng bài học</span>
-              <span className="font-bold text-slate-900">{lessons.length || 12} Tiết</span>
+              <span className="text-slate-500 font-medium">Tổng số chương</span>
+              <span className="font-bold text-slate-900">{chapters.length} Chương</span>
             </div>
             <div className="side-metric-item">
               <span className="text-slate-500 font-medium">Tiến độ tuyển sinh</span>
@@ -599,16 +695,14 @@ export default function CourseDetailPage({ onBack }) {
         </div>
       </section>
 
-      {/* Main Container Grid */}
       <main className="detail-body-grid">
         <div>
-          {/* Nav Tabs */}
           <div className="modern-tab-shelf">
             <button
               className={`modern-tab-btn ${activeTab === "curriculum" ? "active" : ""}`}
               onClick={() => setActiveTab("curriculum")}
             >
-              Khung bài học ({lessons.length || 4} Bài học)
+              Khung bài học ({chapters.length} Chương)
             </button>
             <button
               className={`modern-tab-btn ${activeTab === "materials" ? "active" : ""}`}
@@ -624,10 +718,8 @@ export default function CourseDetailPage({ onBack }) {
             </button>
           </div>
 
-          {/* TAB 1: CURRICULUM */}
           {activeTab === "curriculum" && (
             <div>
-              {/* Highlights Box */}
               <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 mb-6">
                 <h4 className="font-extrabold text-sm text-blue-950 mb-2 flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-blue-800" /> Điểm nổi bật của môn học
@@ -652,42 +744,72 @@ export default function CourseDetailPage({ onBack }) {
                 </div>
               </div>
 
-              {/* Danh sách bài học */}
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-xs font-bold text-slate-500">
+                  Tổng thời lượng: 45 tiết chuẩn • {chapters.length} Chương học
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    className="text-xs font-bold text-blue-900 hover:underline cursor-pointer"
+                    onClick={() => toggleAllChapters(true)}
+                  >
+                    Mở tất cả
+                  </button>
+                  <span className="text-slate-300">•</span>
+                  <button
+                    className="text-xs font-bold text-slate-500 hover:underline cursor-pointer"
+                    onClick={() => toggleAllChapters(false)}
+                  >
+                    Thu gọn
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-3">
-                {lessons.length === 0 ? (
-                  <div className="p-8 text-center text-slate-400 bg-white border border-slate-200 rounded-2xl text-xs">
-                    Chưa có bài học nào được đăng tải cho môn học này.
-                  </div>
-                ) : (
-                  lessons.map((ls, idx) => (
-                    <div key={ls.id || idx} className="lesson-row-card shadow-2xs">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-800 font-black text-xs flex items-center justify-center shrink-0">
-                          {idx + 1}
+                {chapters.map((chap) => {
+                  const isOpen = !!openChapters[chap.id]
+                  return (
+                    <div key={chap.id} className="chap-container">
+                      <button className="chap-head-bar" onClick={() => toggleChapter(chap.id)}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-800 font-extrabold text-xs flex items-center justify-center">
+                            {chap.id.toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-extrabold text-slate-900">{chap.title}</h4>
+                            <span className="text-xs text-slate-500 font-medium">
+                              {chap.lessons.length} bài học • {chap.duration}
+                            </span>
+                          </div>
                         </div>
-                        <div className="truncate">
-                          <h5 className="font-extrabold text-sm text-slate-900 truncate">{ls.title || `Bài học ${idx + 1}`}</h5>
-                          <p className="text-[11px] text-slate-500 font-medium truncate">{ls.content || "Nội dung học phần lý thuyết và bài tập"}</p>
+                        {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                      </button>
+
+                      {isOpen && (
+                        <div className="lesson-list-wrap">
+                          {chap.lessons.map((ls, idx) => (
+                            <div key={idx} className="lesson-row-card">
+                              <div className="flex items-center gap-2.5">
+                                <BookOpen className="w-3.5 h-3.5 text-blue-800 shrink-0" />
+                                <span className="font-semibold text-slate-800">{ls.name}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${ls.type === "theory" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700"}`}>
+                                  {ls.type === "theory" ? "Lý thuyết" : "Thực hành"}
+                                </span>
+                                <span className="text-xs text-slate-400 font-medium">{ls.duration}</span>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded bg-blue-100 text-blue-800">
-                          {ls.videoUrl ? "Video" : "Lý thuyết"}
-                        </span>
-                        {ls.fileUrl && (
-                          <a href={ls.fileUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition">
-                            <Download className="w-4 h-4" />
-                          </a>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  ))
-                )}
+                  )
+                })}
               </div>
             </div>
           )}
 
-          {/* TAB 2: MATERIALS */}
           {activeTab === "materials" && (
             <div className="flex flex-col gap-3">
               {materials.map((mat) => (
@@ -722,7 +844,6 @@ export default function CourseDetailPage({ onBack }) {
             </div>
           )}
 
-          {/* TAB 3: REVIEWS */}
           {activeTab === "reviews" && (
             <div>
               <div className="bg-white border border-slate-200 rounded-xl p-6 mb-4 flex items-center gap-6">
@@ -776,9 +897,7 @@ export default function CourseDetailPage({ onBack }) {
           )}
         </div>
 
-        {/* Cột Phải: Giảng Viên & Trợ Giúp */}
         <aside>
-          {/* Card Giảng Viên */}
           <div className="side-instructor-card">
             <h4 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-4">
               Giảng viên phụ trách
@@ -813,7 +932,6 @@ export default function CourseDetailPage({ onBack }) {
             </div>
           </div>
 
-          {/* Card Hỗ Trợ Đăng Ký */}
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs">
             <h5 className="font-extrabold text-xs text-slate-900 uppercase mb-2 flex items-center gap-2">
               <HelpCircle className="w-4 h-4 text-blue-800" /> Hỗ trợ sinh viên
@@ -831,7 +949,6 @@ export default function CourseDetailPage({ onBack }) {
         </aside>
       </main>
 
-      {/* Modal Xác Nhận Đăng Ký */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
