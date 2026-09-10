@@ -34,18 +34,18 @@ const PRESET_IMAGES = [
 // 🎯 Danh sách Logo trường chọn mẫu nhanh
 const PRESET_SCHOOL_LOGOS = [
   { name: "EduTech Academy", logo: "/thekhoahoc/logo.png" },
-  { name: "ĐH Bách Khoa TP.HCM", logo: "https://upload.wikimedia.org/wikipedia/vi/thumb/9/91/FC_B%C3%A1ch_Khoa_logo.png/200px-FC_B%C3%A1ch_Khoa_logo.png" },
-  { name: "ĐH Công nghệ Thông tin", logo: "https://upload.wikimedia.org/wikipedia/vi/thumb/e/e0/Logo_UIT.svg/200px-Logo_UIT.svg.png" },
-  { name: "Đại học FPT", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/FPT_logo_2010.svg/200px-FPT_logo_2010.svg.png" },
-  { name: "Đại học Văn Lang", logo: "https://upload.wikimedia.org/wikipedia/vi/thumb/0/07/Logo_V%C4%83n_Lang.svg/200px-Logo_V%C4%83n_Lang.svg.png" },
+  { name: "ĐH Bách Khoa TP.HCM", logo: "https://bka.hcmut.edu.vn/assets/images/logo/logo-bka.png" },
+  { name: "ĐH Công nghệ Thông tin", logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRLitdLdQZuFnPsIv6MSgejFLGaUqWoAhrFwqAS-wErUx7fScMjsfHBw&s=10" },
+  { name: "Đại học FPT", logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ5Yxf6kGWEYusW6yFfjnimypCEpIab0dMNVXbln-y-wA&s=10" },
+  { name: "Đại học Văn Lang", logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQikXqI2HCuz06FylcC8OuYUmE8zJHsaxdE9CKqdQgpJxrG9Z3JM912PB0&s=10" },
   { name: "ĐH Nguyễn Tất Thành", logo: "/thekhoahoc/logo.png" }
 ]
 
 // 🎯 Danh sách Ảnh Thẻ Đứng chọn mẫu nhanh
 const PRESET_TEACHER_IMGS = [
   { name: "Thầy giáo mẫu 1 (Mặc định)", url: "/thekhoahoc/thaygiao.png" },
-  { name: "Thầy giáo mẫu 2", url: "https://png.pngtree.com/png-clipart/20230913/original/pngtree-teacher-clipart-male-teacher-with-glasses-and-a-blue-shirt-vector-png-image_11068804.png" },
-  { name: "Cô giáo mẫu", url: "https://png.pngtree.com/png-clipart/20230913/original/pngtree-female-teacher-clipart-character-cartoon-character-cute-teacher-standing-smiling-vector-png-image_11068779.png" }
+  { name: "Cô giáo mẫu 1", url: "https://res.cloudinary.com/mlyddegj/image/upload/v1789029946/giaovn1_bwqr0x.png" },
+  { name: "Cô giáo mẫu 2", url: "https://res.cloudinary.com/mlyddegj/image/upload/v1789029999/giaovna_hfu7xn.png" }
 ]
 
 const EXTENDED_SCHOOLS = [
@@ -264,33 +264,37 @@ export default function TeacherRequestCourse() {
       ? `${selectedDays.join(", ")} (${startTime} - ${endTime})`
       : "Chưa xếp lịch"
 
+    // 🎯 TÁCH BIỆT RÕ RÀNG 3 ẢNH: THUMBNAIL (BÌA), TEACHER_IMG (GIÁO VIÊN), SCHOOL_LOGO (TRƯỜNG)
     const payload = {
-  teacher_id: teacherId,
-  teacher_name: teacherName,
-  type: "external",
-  title: formData.title,
-  code: `SKILL-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-  subject: formData.subject,
-  schoolName: formData.schoolName,
-  school_name: formData.schoolName,
-  
-  // 🎯 Đưa link ảnh thật vào thumbnail để DB lưu chắc chắn 100%
-  thumbnail: formData.teacherImg.trim() || formData.thumbnail.trim() || defaultImg,
-  teacher_img: formData.teacherImg.trim() || defaultImg,
-  teacherImg: formData.teacherImg.trim() || defaultImg,
-  
-  // Lưu logo trường vào trường mô tả mở rộng hoặc trường school_logo
-  school_logo: formData.schoolLogo.trim() || "/thekhoahoc/logo.png",
-  schoolLogo: formData.schoolLogo.trim() || "/thekhoahoc/logo.png",
+      teacher_id: teacherId,
+      teacher_name: teacherName,
+      type: "external",
+      title: formData.title,
+      code: `SKILL-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+      subject: formData.subject,
+      schoolName: formData.schoolName,
+      school_name: formData.schoolName,
+      
+      // ✅ 1. Ảnh bìa khóa học (lấy đúng ô thumbnail, không lấy ảnh giáo viên)
+      thumbnail: formData.thumbnail.trim() || defaultImg,
+      
+      // ✅ 2. Ảnh dáng đứng giáo viên (lưu riêng vào cột teacher_img)
+      teacher_img: formData.teacherImg.trim() || "/thekhoahoc/thaygiao.png",
+      teacherImg: formData.teacherImg.trim() || "/thekhoahoc/thaygiao.png",
+      
+      // ✅ 3. Logo trường (lưu riêng vào cột school_logo)
+      school_logo: formData.schoolLogo.trim() || "/thekhoahoc/logo.png",
+      schoolLogo: formData.schoolLogo.trim() || "/thekhoahoc/logo.png",
 
-  grade: formData.grade,
-  maxStudents: Number(formData.maxStudents) || 50,
-  price: Number(formData.price) || 0,
-  schedule: scheduleStr,
-  description: formData.description || "Chưa có mô tả.",
-  status: "PENDING",
-  is_published: false
-}
+      grade: formData.grade,
+      maxStudents: Number(formData.maxStudents) || 50,
+      price: Number(formData.price) || 0,
+      schedule: scheduleStr,
+      description: formData.description || "Chưa có mô tả.",
+      status: "PENDING",
+      is_published: false
+    }
+
     try {
       setIsSubmitting(true)
       await courseService.createCourse(payload)
