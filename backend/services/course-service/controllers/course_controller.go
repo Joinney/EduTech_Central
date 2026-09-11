@@ -1181,52 +1181,60 @@ func GetSharedDocuments(c *gin.Context) {
 }
 
 func CreateSharedDocument(c *gin.Context) {
-	var input models.SharedDocument
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
-		return
-	}
+    var req struct {
+        StudentID   uint   `json:"student_id"`
+        StudentName string `json:"student_name"`
+        Title       string `json:"title"`
+        Description string `json:"description"`
+        FileURL     string `json:"file_url"`
+        Category    string `json:"category"`
+        CategoryID  *uint  `json:"category_id"`
+        Subject     string `json:"subject"`
+        IsPublic    *bool  `json:"is_public"`
+    }
 
-	// 🎯 Tự động map category_id từ chuỗi input.Category nếu chưa có
-	if input.CategoryID == nil && input.Category != "" {
-		var docCat models.DocumentCategory
-		err := configs.DB.Where("LOWER(name) = ? OR slug = ?", 
-			strings.ToLower(strings.TrimSpace(input.Category)), 
-			strings.ToLower(strings.TrimSpace(input.Category))).First(&docCat).Error
-		
-		if err == nil {
-			input.CategoryID = &docCat.ID
-		} else {
-			// Fallback quét từ khóa tương đồng
-			catLower := strings.ToLower(input.Category)
-			switch {
-			case strings.Contains(catLower, "đề thi"):
-				configs.DB.Where("slug = 'de-thi-kiem-tra'").First(&docCat)
-			case strings.Contains(catLower, "ghi chép"):
-				configs.DB.Where("slug = 'ghi-chep-lop-hoc'").First(&docCat)
-			case strings.Contains(catLower, "bài tập"):
-				configs.DB.Where("slug = 'bai-tap-ve-nha'").First(&docCat)
-			case strings.Contains(catLower, "tiểu luận"):
-				configs.DB.Where("slug = 'tieu-luan'").First(&docCat)
-			}
-			if docCat.ID > 0 {
-				input.CategoryID = &docCat.ID
-			}
-		}
-	}
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
+        return
+    }
 
-	input.CreatedAt = time.Now()
-	input.IsApproved = false // Chờ duyệt
-	// Mặc định công khai nếu frontend không gửi
-	if !input.IsPublic {
-		input.IsPublic = true 
-	}
+    // Nếu frontend không gửi is_public thì mặc định true, nếu gửi false thì giữ nguyên false
+    isPublicVal := true
+    if req.IsPublic != nil {
+        isPublicVal = *req.IsPublic
+    }
 
-	if err := configs.DB.Create(&input).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi lưu tài liệu"})
-		return
-	}
-	c.JSON(http.StatusCreated, gin.H{"message": "Đăng tài liệu thành công!", "data": input})
+    input := models.SharedDocument{
+        StudentID:   req.StudentID,
+        StudentName: req.StudentName,
+        Title:       req.Title,
+        Description: req.Description,
+        FileURL:     req.FileURL,
+        Category:    req.Category,
+        CategoryID:  req.CategoryID,
+        Subject:     req.Subject,
+        CreatedAt:   time.Now(),
+        IsApproved:  false,
+        IsPublic:    &isPublicVal, // Truyền con trỏ boolean vào
+    }
+
+    // Tự động map category_id
+    if input.CategoryID == nil && input.Category != "" {
+        var docCat models.DocumentCategory
+        catLower := strings.ToLower(strings.TrimSpace(input.Category))
+        err := configs.DB.Where("LOWER(name) = ? OR slug = ?", catLower, catLower).First(&docCat).Error
+        if err == nil {
+            input.CategoryID = &docCat.ID
+        }
+    }
+
+    // Lưu vào database
+    if err := configs.DB.Create(&input).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi lưu tài liệu"})
+        return
+    }
+
+    c.JSON(http.StatusCreated, gin.H{"message": "Đăng tài liệu thành công!", "data": input})
 }
 
 func ApproveSharedDocument(c *gin.Context) {

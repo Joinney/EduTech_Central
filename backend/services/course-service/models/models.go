@@ -194,21 +194,24 @@ type CourseSchedule struct {
 func (CourseSchedule) TableName() string { return "course_schedules" }
 
 type SharedDocument struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	StudentID   uint      `json:"student_id"`
-	StudentName string    `gorm:"size:255" json:"student_name"`
-	Title       string    `gorm:"size:255;not null" json:"title"`
-	Description string    `gorm:"type:text" json:"description"`
-	FileURL     string    `gorm:"type:text;not null" json:"file_url"`
-	Category    string    `gorm:"size:100" json:"category"`
-	CategoryID  *uint             `gorm:"column:category_id" json:"category_id"`
-	CategoryRel *DocumentCategory `gorm:"foreignKey:CategoryID" json:"category_rel,omitempty"`
-	Subject     string    `gorm:"size:100" json:"subject"`
-	Views       int       `gorm:"default:0" json:"views"`
-	Downloads   int       `gorm:"default:0" json:"downloads"`
-	IsApproved  bool      `gorm:"default:false" json:"is_approved"`
-	IsPublic    bool              `gorm:"default:true" json:"is_public"`
-	CreatedAt   time.Time `json:"created_at"`
+    ID          uint              `gorm:"primaryKey" json:"id"`
+    StudentID   uint              `json:"student_id"`
+    StudentName string            `gorm:"size:255" json:"student_name"`
+    Title       string            `gorm:"size:255;not null" json:"title"`
+    Description string            `gorm:"type:text" json:"description"`
+    FileURL     string            `gorm:"type:text;not null" json:"file_url"`
+    Category    string            `gorm:"size:100" json:"category"`
+    CategoryID  *uint             `gorm:"column:category_id" json:"category_id"`
+    CategoryRel *DocumentCategory `gorm:"foreignKey:CategoryID" json:"category_rel,omitempty"`
+    Subject     string            `gorm:"size:100" json:"subject"`
+    Views       int               `gorm:"default:0" json:"views"`
+    Downloads   int               `gorm:"default:0" json:"downloads"`
+    IsApproved  bool              `gorm:"default:false" json:"is_approved"`
+    
+    // SỬA DÒNG NÀY: Đổi sang *bool để GORM không kích hoạt default:true khi giá trị là false
+    IsPublic    *bool             `gorm:"default:true" json:"is_public"` 
+    
+    CreatedAt   time.Time         `json:"created_at"`
 }
 
 func (SharedDocument) TableName() string { return "shared_documents" }
