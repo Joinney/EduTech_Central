@@ -1,2 +1,7 @@
 node_modules/
 **/node_modules/
+
+.env
+*.env
+backend/services/course-service/.env
+apps/web/.env
