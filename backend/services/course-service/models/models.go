@@ -201,10 +201,13 @@ type SharedDocument struct {
 	Description string    `gorm:"type:text" json:"description"`
 	FileURL     string    `gorm:"type:text;not null" json:"file_url"`
 	Category    string    `gorm:"size:100" json:"category"`
+	CategoryID  *uint             `gorm:"column:category_id" json:"category_id"`
+	CategoryRel *DocumentCategory `gorm:"foreignKey:CategoryID" json:"category_rel,omitempty"`
 	Subject     string    `gorm:"size:100" json:"subject"`
 	Views       int       `gorm:"default:0" json:"views"`
 	Downloads   int       `gorm:"default:0" json:"downloads"`
 	IsApproved  bool      `gorm:"default:false" json:"is_approved"`
+	IsPublic    bool              `gorm:"default:true" json:"is_public"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
@@ -235,3 +238,15 @@ type StudentProfile struct {
 }
 
 func (StudentProfile) TableName() string { return "student_profiles" }
+
+type DocumentCategory struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Name        string    `gorm:"size:150;not null" json:"name"`
+	Slug        string    `gorm:"size:100;unique;not null" json:"slug"`
+	Description string    `gorm:"type:text" json:"description"`
+	Icon        string    `gorm:"size:50;default:'FileText'" json:"icon"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
+func (DocumentCategory) TableName() string { return "document_categories" }
+

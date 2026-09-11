@@ -74,5 +74,8 @@ func SetupRoutes(r *gin.Engine) {
 
 		// --- DANH MỤC KHÓA HỌC ---
 		api.GET("/categories", controllers.GetCategories)
+
+		// --- DANH MỤC TÀI LIỆU ---
+		api.GET("/document-categories", controllers.GetDocumentCategories)
 	}
 }

@@ -38,26 +38,22 @@ export default function Sidebar() {
   
   const [expandedSubmenus, setExpandedSubmenus] = useState({})
 
-  // Danh mục khóa học (Khởi tạo sẵn danh sách fallback chuẩn)
+  // Danh mục khóa học từ DB
   const [courseCategories, setCourseCategories] = useState([
     { name: "Toán học & Giải tích", slug: "toan-hoc" },
     { name: "Tin học & Lập trình", slug: "tin-hoc" },
     { name: "Tiếng Anh & Ngoại ngữ", slug: "tieng-anh" },
     { name: "Vật lý đại cương", slug: "vat-ly" },
-    { name: "Hóa học & Sinh học", slug: "khoa-hoc-tu-nhien" },
-    { name: "Toán cao cấp & Đại số", slug: "toan-cao-cap" },
-    { name: "Triết học & Pháp luật", slug: "dai-cuong" },
-    { name: "Kinh tế vi mô & vĩ mô", slug: "kinh-te" }
+    { name: "Hóa học & Sinh học", slug: "khoa-hoc-tu-nhien" }
   ])
 
-  // Danh mục tài liệu
-  const docCategories = [
-    { name: "Giáo trình & Bài giảng chuẩn", path: `/${role}/docs/giao-trinh` },
-    { name: "Đề thi & Đáp án chi tiết", path: `/${role}/docs/de-thi` },
-    { name: "Sách & Ebook tham khảo", path: `/${role}/docs/ebooks` },
-    { name: "Bài báo & Đề tài nghiên cứu", path: `/${role}/docs/nghien-cuu` },
-    { name: "Slide & Tóm tắt kiến thức", path: `/${role}/docs/slide` }
-  ]
+  // 🎯 Danh mục tài liệu chuẩn từ DB
+  const [docCategories, setDocCategories] = useState([
+    { name: "Đề thi & Kiểm tra", slug: "de-thi-kiem-tra" },
+    { name: "Ghi chép lớp học", slug: "ghi-chep-lop-hoc" },
+    { name: "Bài tập về nhà", slug: "bai-tap-ve-nha" },
+    { name: "Tiểu luận & Nghiên cứu", slug: "tieu-luan" }
+  ])
 
   useEffect(() => {
     const loadUserData = () => {
@@ -71,7 +67,7 @@ export default function Sidebar() {
           const currentRole = parsedUser.role || storedRole || "student"
           setRole(currentRole.toLowerCase())
         } catch (e) {
-          console.error("Lỗi đọc dữ liệu người dùng:", e)
+          console.error("Lỗi đọc dữ liệu:", e)
         }
       } else if (storedRole) {
         setRole(storedRole.toLowerCase())
@@ -83,28 +79,27 @@ export default function Sidebar() {
     return () => window.removeEventListener("storage", loadUserData)
   }, [])
 
-  // 🎯 BƯỚC 3: Fetch danh mục thực tế từ Database backend course-service
+  // 🎯 Fetch cả 2 loại danh mục từ backend
   useEffect(() => {
-    const fetchDBCategories = async () => {
+    const fetchCategories = async () => {
+      const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
       try {
-        const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
-        const res = await fetch(`${baseUrl}/categories`)
-        if (res.ok) {
-          const json = await res.json()
-          const data = Array.isArray(json) ? json : (json?.data || [])
-          if (data.length > 0) {
-            setCourseCategories(data.map(item => ({
-              name: item.name,
-              slug: item.slug
-            })))
-          }
+        const [resCourse, resDoc] = await Promise.all([
+          fetch(`${baseUrl}/categories`).then(r => r.ok ? r.json() : null),
+          fetch(`${baseUrl}/document-categories`).then(r => r.ok ? r.json() : null)
+        ])
+
+        if (resCourse?.data?.length > 0) {
+          setCourseCategories(resCourse.data)
+        }
+        if (resDoc?.data?.length > 0) {
+          setDocCategories(resDoc.data)
         }
       } catch (err) {
-        console.warn("Dùng danh mục mặc định cho Sidebar:", err)
+        console.warn("Dùng danh mục fallback:", err)
       }
     }
-
-    fetchDBCategories()
+    fetchCategories()
   }, [])
 
   const fullName = user?.fullName || user?.full_name || (role === "teacher" ? "Giảng viên EduTech" : "Học viên EduTech")
@@ -117,10 +112,14 @@ export default function Sidebar() {
     return parts.map(p => p[0]).join("").substring(0, 3).toUpperCase()
   }
 
-  // Chuyển mảng danh mục thành đường dẫn URL tương ứng với role
   const dynamicCourseChildren = courseCategories.map(cat => ({
     name: cat.name,
     path: `/${role}/courses/category/${cat.slug}`
+  }))
+
+  const dynamicDocChildren = docCategories.map(cat => ({
+    name: cat.name,
+    path: `/${role}/docs/${cat.slug}`
   }))
 
   const studentNavItems = [
@@ -128,16 +127,8 @@ export default function Sidebar() {
     { name: "Bảng điều khiển", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Chương trình & Khối lớp", path: `/${role}/programs`, icon: GraduationCap },
     { name: "Kho Học liệu & Thư viện", path: `/${role}/library`, icon: Library },
-    { 
-      name: "Danh mục khóa học", 
-      icon: Tags, 
-      children: dynamicCourseChildren 
-    },
-    { 
-      name: "Danh mục tài liệu", 
-      icon: FolderTree, 
-      children: docCategories 
-    },
+    { name: "Danh mục khóa học", icon: Tags, children: dynamicCourseChildren },
+    { name: "Danh mục tài liệu", icon: FolderTree, children: dynamicDocChildren },
     { name: "Môn học của tôi", path: `/${role}/courses`, icon: BookOpen },
     { name: "Video Edu & Bài giảng", path: `/${role}/videos`, icon: Video },
     { name: "Tủ sách & Bộ sưu tập", path: `/${role}/bookshelf`, icon: Bookmark },
@@ -147,16 +138,8 @@ export default function Sidebar() {
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
     { name: "Bảng quản lý Giảng viên", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Quản lý Lớp & Khóa học", path: `/${role}/courses`, icon: FolderPlus },
-    { 
-      name: "Danh mục khóa học", 
-      icon: Tags, 
-      children: dynamicCourseChildren 
-    },
-    { 
-      name: "Danh mục tài liệu", 
-      icon: FolderTree, 
-      children: docCategories 
-    },
+    { name: "Danh mục khóa học", icon: Tags, children: dynamicCourseChildren },
+    { name: "Danh mục tài liệu", icon: FolderTree, children: dynamicDocChildren },
     { name: "Ngân hàng Đề & Bài kiểm tra", path: `/${role}/quizzes`, icon: HelpCircle },
     { name: "Chấm điểm & Đánh giá", path: `/${role}/grading`, icon: FileCheck2 },
     { name: "Danh sách Học viên", path: `/${role}/students`, icon: Users },
@@ -168,17 +151,11 @@ export default function Sidebar() {
   const isTeacher = role === "teacher"
 
   const toggleSubmenu = (name) => {
-    setOpenSubmenu(prev => ({
-      ...prev,
-      [name]: !prev[name]
-    }))
+    setOpenSubmenu(prev => ({ ...prev, [name]: !prev[name] }))
   }
 
   const toggleExpandSubmenu = (name) => {
-    setExpandedSubmenus(prev => ({
-      ...prev,
-      [name]: !prev[name]
-    }))
+    setExpandedSubmenus(prev => ({ ...prev, [name]: !prev[name] }))
   }
 
   const handleLogout = () => {
@@ -193,8 +170,6 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between text-slate-700 select-none shrink-0 p-4 transition-all">
       <div className="space-y-4">
-        
-        {/* Profile Header */}
         <Link
           to={`/${role}/profile`}
           className={`relative group p-3 rounded-2xl border shadow-xs flex items-center space-x-3 transition-all cursor-pointer block ${
@@ -248,7 +223,6 @@ export default function Sidebar() {
           </div>
         </Link>
 
-        {/* Dynamic Navigation */}
         <div className="space-y-1.5">
           <div className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center justify-between pb-1">
             <span>{isTeacher ? "Menu Quản Lý" : "Menu Học Tập"}</span>
@@ -353,14 +327,10 @@ export default function Sidebar() {
                           type="button"
                           onClick={() => toggleExpandSubmenu(item.name)}
                           className={`w-full text-left px-2.5 py-1 text-[11px] font-bold cursor-pointer transition-colors ${
-                            isTeacher 
-                              ? "text-orange-500 hover:text-orange-700" 
-                              : "text-blue-600 hover:text-blue-800"
+                            isTeacher ? "text-orange-500 hover:text-orange-700" : "text-blue-600 hover:text-blue-800"
                           }`}
                         >
-                          {isExpanded 
-                            ? "− Thu gọn" 
-                            : `+ Xem thêm (${item.children.length - ITEM_LIMIT})`}
+                          {isExpanded ? "− Thu gọn" : `+ Xem thêm (${item.children.length - ITEM_LIMIT})`}
                         </button>
                       )}
                     </div>

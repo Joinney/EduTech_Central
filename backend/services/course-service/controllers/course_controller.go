@@ -1157,15 +1157,20 @@ func GetTeacherSubjectsHandler(c *gin.Context) {
 
 func GetSharedDocuments(c *gin.Context) {
 	var docs []models.SharedDocument
-	query := configs.DB.Model(&models.SharedDocument{})
+	query := configs.DB.Preload("CategoryRel").Model(&models.SharedDocument{})
+
 	if subject := c.Query("subject"); subject != "" {
 		query = query.Where("subject = ?", subject)
 	}
+
 	if category := c.Query("category"); category != "" {
-		query = query.Where("category = ?", category)
+		query = query.Joins("LEFT JOIN document_categories ON document_categories.id = shared_documents.category_id").
+			Where("document_categories.slug = ? OR shared_documents.category ILIKE ?", category, "%"+category+"%")
 	}
+
+	// Chỉ học sinh xem: phải được duyệt VÀ đang ở chế độ công khai
 	if c.Query("all") != "true" {
-		query = query.Where("is_approved = ?", true)
+		query = query.Where("is_approved = ? AND is_public = ?", true, true)
 	}
 
 	if err := query.Order("created_at desc").Find(&docs).Error; err != nil {
@@ -1181,8 +1186,41 @@ func CreateSharedDocument(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
 		return
 	}
+
+	// 🎯 Tự động map category_id từ chuỗi input.Category nếu chưa có
+	if input.CategoryID == nil && input.Category != "" {
+		var docCat models.DocumentCategory
+		err := configs.DB.Where("LOWER(name) = ? OR slug = ?", 
+			strings.ToLower(strings.TrimSpace(input.Category)), 
+			strings.ToLower(strings.TrimSpace(input.Category))).First(&docCat).Error
+		
+		if err == nil {
+			input.CategoryID = &docCat.ID
+		} else {
+			// Fallback quét từ khóa tương đồng
+			catLower := strings.ToLower(input.Category)
+			switch {
+			case strings.Contains(catLower, "đề thi"):
+				configs.DB.Where("slug = 'de-thi-kiem-tra'").First(&docCat)
+			case strings.Contains(catLower, "ghi chép"):
+				configs.DB.Where("slug = 'ghi-chep-lop-hoc'").First(&docCat)
+			case strings.Contains(catLower, "bài tập"):
+				configs.DB.Where("slug = 'bai-tap-ve-nha'").First(&docCat)
+			case strings.Contains(catLower, "tiểu luận"):
+				configs.DB.Where("slug = 'tieu-luan'").First(&docCat)
+			}
+			if docCat.ID > 0 {
+				input.CategoryID = &docCat.ID
+			}
+		}
+	}
+
 	input.CreatedAt = time.Now()
-	input.IsApproved = false
+	input.IsApproved = false // Chờ duyệt
+	// Mặc định công khai nếu frontend không gửi
+	if !input.IsPublic {
+		input.IsPublic = true 
+	}
 
 	if err := configs.DB.Create(&input).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi lưu tài liệu"})
@@ -1211,4 +1249,19 @@ func DeleteSharedDocument(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Đã xóa tài liệu"})
+}
+
+// @Summary      Danh mục tài liệu
+// @Description  Lấy danh sách các danh mục tài liệu học thuật
+// @Tags         Document Categories
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Router       /document-categories [get]
+func GetDocumentCategories(c *gin.Context) {
+	var categories []models.DocumentCategory
+	if err := configs.DB.Order("id asc").Find(&categories).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi lấy danh mục tài liệu"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": categories})
 }
