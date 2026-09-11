@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Folder,
   FileText,
@@ -10,12 +11,7 @@ import {
   Loader2,
   RefreshCw,
   X,
-  ShieldAlert,
-  ChevronLeft,
-  ChevronRight,
   AlertTriangle,
-  ZoomIn,
-  ZoomOut,
   User,
   Calendar,
   BookOpen,
@@ -33,15 +29,20 @@ import "react-pdf/dist/Page/TextLayer.css";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-function PdfCardItem({ item, onOpenViewer }) {
+function PdfCardItem({ item, role }) {
   const [cardPages, setCardPages] = useState(null);
+  const navigate = useNavigate();
+
+  const handleCardClick = () => {
+    navigate(`/${role}/documents/${item.rawId || item.id}`);
+  };
 
   return (
     <div
-      onClick={() => onOpenViewer(item)}
+      onClick={handleCardClick}
       className="relative bg-slate-50 rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group w-full h-[380px] cursor-pointer flex flex-col items-center justify-center p-2.5"
     >
-      {/* Khung hiển thị PDF trang 1 */}
+      {/* 1. KHUNG HIỂN THỊ PDF TRANG 1 */}
       <div className="w-full h-full bg-white rounded-xl shadow-xs border border-slate-100 flex items-center justify-center overflow-hidden">
         <Document
           file={item.fileUrl}
@@ -70,13 +71,9 @@ function PdfCardItem({ item, onOpenViewer }) {
         </Document>
       </div>
 
-      {/* Badges góc trên */}
+      {/* Badges góc trên: Đã bỏ nhãn Công khai, chỉ giữ Riêng tư và Chờ duyệt */}
       <div className="absolute top-4 left-4 flex flex-col gap-1 z-10 pointer-events-none">
-        {item.isPublic ? (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-600/90 text-white text-[10px] font-bold rounded-md shadow-xs">
-            <Globe className="w-3 h-3" /> Công khai
-          </span>
-        ) : (
+        {item.isPublic === false && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-600/90 text-white text-[10px] font-bold rounded-md shadow-xs">
             <Lock className="w-3 h-3" /> Riêng tư
           </span>
@@ -93,7 +90,7 @@ function PdfCardItem({ item, onOpenViewer }) {
         PDF
       </span>
 
-      {/* Dải thông tin hover */}
+      {/* 2. DẢI THÔNG TIN HOVER TRƯỢT LÊN */}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-white via-white/95 to-transparent backdrop-blur-xs pt-12 pb-3.5 px-4 text-slate-800 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 flex flex-col justify-end gap-1.5 z-20 pointer-events-none border-t border-slate-100/30">
         <div className="space-y-0.5">
           <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-extrabold uppercase rounded tracking-wide">
@@ -141,6 +138,9 @@ function PdfCardItem({ item, onOpenViewer }) {
 }
 
 export default function Library() {
+  const navigate = useNavigate();
+  const role = localStorage.getItem("role")?.toLowerCase() || "student";
+
   const [materials, setMaterials] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -161,13 +161,6 @@ export default function Library() {
     is_public: true,
     file: null,
   });
-
-  // State đọc PDF
-  const [securePreviewUrl, setSecurePreviewUrl] = useState(null);
-  const [numPages, setNumPages] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [viewCount, setViewCount] = useState(0);
-  const [scale, setScale] = useState(1.0);
 
   const currentUser = useMemo(() => {
     try {
@@ -209,7 +202,7 @@ export default function Library() {
     }
   };
 
-  // 2. Tải danh sách tài liệu cá nhân (kèm all=true để lấy cả bài riêng tư và chờ duyệt của chính mình)
+  // 2. Tải danh sách tài liệu cá nhân
   const fetchLibraryData = async () => {
     setIsLoading(true);
     setErrorMessage(null);
@@ -239,6 +232,7 @@ export default function Library() {
         })
         .map((doc, idx) => ({
           id: `shared-${doc.id || doc._id || idx}`,
+          rawId: doc.id || doc._id,
           title: doc.title || "Tài liệu không tên",
           courseSubject: doc.subject || "Chung",
           category: doc.category || doc.category_rel?.name || "Tài liệu",
@@ -326,29 +320,27 @@ export default function Library() {
       if (!cloudData.secure_url) throw new Error("Upload Cloudinary thất bại");
 
       const payload = {
-  student_id: Number(currentUserId),
-  student_name: currentUserName || "Học viên",
-  title: uploadData.title,
-  file_url: cloudData.secure_url,
-  subject: uploadData.subject,
-  category: uploadData.category,
-  category_id: uploadData.categoryId ? Number(uploadData.categoryId) : undefined,
-  is_public: uploadData.is_public, // true hoặc false từ form
-};
-
-
+        student_id: Number(currentUserId),
+        student_name: currentUserName || "Học viên",
+        title: uploadData.title,
+        file_url: cloudData.secure_url,
+        subject: uploadData.subject,
+        category: uploadData.category,
+        category_id: uploadData.categoryId ? Number(uploadData.categoryId) : undefined,
+        is_public: uploadData.is_public,
+      };
 
       await api.post("http://localhost:8002/api/v1/shared-documents", payload);
       alert("Đã đăng tải tài liệu thành công!");
       setIsUploadModalOpen(false);
-   setUploadData({
-  title: "",
-  subject: "Toán Học",
-  category: categories[0]?.name || "Đề thi & Kiểm tra",
-  categoryId: categories[0]?.id || null,
-  is_public: true, // Reset về true sau khi đăng xong
-  file: null,
-});
+      setUploadData({
+        title: "",
+        subject: "Toán Học",
+        category: categories[0]?.name || "Đề thi & Kiểm tra",
+        categoryId: categories[0]?.id || null,
+        is_public: true,
+        file: null,
+      });
       fetchLibraryData();
     } catch (error) {
       console.error(error);
@@ -356,13 +348,6 @@ export default function Library() {
     } finally {
       setIsUploading(false);
     }
-  };
-
-  const handleOpenViewer = (item) => {
-    setSecurePreviewUrl(item.fileUrl);
-    setViewCount(item.views || 0);
-    setPageNumber(1);
-    setScale(1.0);
   };
 
   return (
@@ -504,7 +489,7 @@ export default function Library() {
                   <PdfCardItem
                     key={item.id}
                     item={item}
-                    onOpenViewer={handleOpenViewer}
+                    role={role}
                   />
                 ))}
               </div>
@@ -550,7 +535,7 @@ export default function Library() {
         </div>
       </div>
 
-      {/* Modal Upload với Dropdown Danh mục từ DB và Toggle Public/Private */}
+      {/* Modal Upload */}
       {isUploadModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
@@ -702,115 +687,6 @@ export default function Library() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal xem PDF */}
-      {securePreviewUrl && (
-        <div
-          className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="h-12 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between px-4 shrink-0">
-              <div className="flex items-center space-x-2 text-emerald-400">
-                <ShieldAlert className="w-4 h-4" />
-                <span className="text-[11px] font-bold tracking-wide uppercase hidden sm:inline">
-                  Chế độ bảo mật
-                </span>
-
-                <div className="px-2 py-0.5 bg-slate-800 rounded-full flex items-center space-x-1.5 border border-slate-700 text-[11px]">
-                  <Eye className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="font-bold text-white">{viewCount}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1 bg-slate-800/80 px-2 py-1 rounded-lg text-slate-300">
-                  <button
-                    onClick={() => setScale((s) => Math.max(0.8, s - 0.1))}
-                    className="p-1 hover:text-white transition cursor-pointer"
-                    title="Thu nhỏ"
-                  >
-                    <ZoomOut className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-[10px] font-mono w-9 text-center">
-                    {Math.round(scale * 100)}%
-                  </span>
-                  <button
-                    onClick={() => setScale((s) => Math.min(1.4, s + 0.1))}
-                    className="p-1 hover:text-white transition cursor-pointer"
-                    title="Phóng to"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {numPages && (
-                  <div className="flex items-center space-x-1.5 bg-slate-800 px-2.5 py-1 rounded-lg text-white text-xs font-bold">
-                    <button
-                      disabled={pageNumber <= 1}
-                      onClick={() => setPageNumber((p) => p - 1)}
-                      className="disabled:opacity-30 hover:text-emerald-400 transition cursor-pointer"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-[11px]">
-                      {pageNumber} / {numPages}
-                    </span>
-                    <button
-                      disabled={pageNumber >= numPages}
-                      onClick={() => setPageNumber((p) => p + 1)}
-                      className="disabled:opacity-30 hover:text-emerald-400 transition cursor-pointer"
-                    >
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => {
-                    setSecurePreviewUrl(null);
-                    setPageNumber(1);
-                    setNumPages(null);
-                  }}
-                  className="p-1.5 bg-slate-800 hover:bg-red-500 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
-                  title="Đóng"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-auto bg-slate-950/40 p-4 flex justify-center items-start select-none pointer-events-none">
-              <div className="bg-white rounded-lg shadow-xl overflow-hidden pointer-events-auto transition-all">
-                <Document
-                  file={securePreviewUrl}
-                  onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                  loading={
-                    <div className="p-16 text-slate-400 flex flex-col items-center gap-2">
-                      <Loader2 className="w-7 h-7 animate-spin text-emerald-500" />
-                      <span className="text-xs">Đang tải trang...</span>
-                    </div>
-                  }
-                  error={
-                    <div className="p-16 text-red-400 text-xs">
-                      Không thể hiển thị tệp PDF này.
-                    </div>
-                  }
-                >
-                  <Page
-                    pageNumber={pageNumber}
-                    scale={scale}
-                    width={560}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                    className="max-w-full"
-                  />
-                </Document>
-              </div>
-            </div>
           </div>
         </div>
       )}

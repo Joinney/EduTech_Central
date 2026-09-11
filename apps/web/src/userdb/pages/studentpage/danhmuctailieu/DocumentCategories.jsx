@@ -9,15 +9,24 @@ import {
   GraduationCap, 
   Search,
   SlidersHorizontal,
-  Download,
   Eye,
   ArrowLeft,
   ArrowRight,
   Sparkles,
   Layers,
   Loader2,
-  ExternalLink
+  User,
+  Calendar,
+  Lock,
+  Clock
 } from "lucide-react"
+
+// Thư viện đọc và kết xuất PDF
+import { Document, Page, pdfjs } from "react-pdf"
+import "react-pdf/dist/Page/AnnotationLayer.css"
+import "react-pdf/dist/Page/TextLayer.css"
+
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
 const ICON_MAPPING = {
   "de-thi-kiem-tra": { icon: FileCheck2, bgLight: "bg-emerald-50 text-emerald-600 border-emerald-100" },
@@ -26,70 +35,120 @@ const ICON_MAPPING = {
   "tieu-luan": { icon: GraduationCap, bgLight: "bg-purple-50 text-purple-600 border-purple-100" }
 }
 
-// 🎯 Hàm lấy ảnh trang đầu tiên trực tiếp từ Cloudinary URL
-const getDocumentCoverUrl = (fileUrl) => {
-  if (!fileUrl) return null
-  const cleanUrl = fileUrl.trim()
+// 🎯 Component Card hiển thị Bìa PDF trang 1 kèm Dải Hover trượt lên
+function DocumentCardItem({ item, role, isTeacher }) {
+  const [cardPages, setCardPages] = useState(null)
+  const navigate = useNavigate()
 
-  // Nếu là file PDF trên Cloudinary: Chuyển đổi thành ảnh preview trang đầu tiên (page 1)
-  if (cleanUrl.includes("res.cloudinary.com") && cleanUrl.toLowerCase().endsWith(".pdf")) {
-    return cleanUrl.replace(/\.pdf$/i, ".jpg")
-  }
-  
-  // Nếu đã là link ảnh
-  if (/\.(jpg|jpeg|png|webp)$/i.test(cleanUrl)) {
-    return cleanUrl
+  const handleCardClick = () => {
+    navigate(`/${role}/documents/${item.id}`)
   }
 
-  return null
-}
-
-// 🎯 Component hiển thị trang đầu của tài liệu
-function DocumentPageThumbnail({ fileUrl, title }) {
-  const [loadError, setLoadError] = useState(false)
-  const previewImgUrl = useMemo(() => getDocumentCoverUrl(fileUrl), [fileUrl])
-  const isPdf = fileUrl?.toLowerCase().endsWith(".pdf")
-  const isDocx = fileUrl?.toLowerCase().endsWith(".docx")
-
-  if (previewImgUrl && !loadError) {
-    return (
-      <div className="relative w-full h-full bg-slate-100 overflow-hidden flex items-center justify-center">
-        <img
-          src={previewImgUrl}
-          alt={title}
-          className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-          onError={() => setLoadError(true)}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-3">
-          <span className="text-[11px] font-bold text-white bg-slate-900/80 px-2.5 py-1 rounded-lg backdrop-blur-xs flex items-center gap-1">
-            <Eye className="w-3.5 h-3.5" /> Xem trước trang 1
-          </span>
-        </div>
-      </div>
-    )
-  }
-
-  // Fallback nếu là file Docx hoặc Cloudinary chưa kịp generate thumbnail: Nhúng trực tiếp iframe xem trước từ Google Docs Viewer
-  if (fileUrl) {
-    return (
-      <div className="relative w-full h-full bg-white overflow-hidden select-none">
-        <iframe
-          src={`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`}
-          title={title}
-          className="w-[140%] h-[140%] -translate-x-[20%] -translate-y-[10%] pointer-events-none scale-75 border-none"
-          loading="lazy"
-        />
-        <div className="absolute inset-0 bg-transparent" />
-      </div>
-    )
-  }
-
-  // Fallback mặc định
   return (
-    <div className="w-full h-full bg-slate-50 flex flex-col items-center justify-center p-4 text-center">
-      <FileText className="w-12 h-12 text-slate-300 mb-2" />
-      <span className="text-xs font-bold text-slate-500 line-clamp-2">{title}</span>
+    <div
+      onClick={handleCardClick}
+      className="relative bg-slate-50 rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group w-full h-[380px] cursor-pointer flex flex-col items-center justify-center p-2.5"
+    >
+      {/* 1. KHUNG HIỂN THỊ TRANG BÌA PDF */}
+      <div className="w-full h-full bg-white rounded-xl shadow-xs border border-slate-100 flex items-center justify-center overflow-hidden">
+        {item.file_url?.toLowerCase().endsWith(".pdf") ? (
+          <Document
+            file={item.file_url}
+            onLoadSuccess={({ numPages }) => setCardPages(numPages)}
+            loading={
+              <div className="flex flex-col items-center gap-2 text-slate-400 text-xs">
+                <Loader2 className={`w-6 h-6 animate-spin ${isTeacher ? "text-orange-600" : "text-blue-600"}`} />
+                <span>Đang kết xuất...</span>
+              </div>
+            }
+            error={
+              <div className="p-4 text-center text-xs text-slate-400">
+                <FileText className="w-10 h-10 mx-auto text-slate-300 mb-1" />
+                <span>Tài liệu PDF</span>
+              </div>
+            }
+          >
+            <Page
+              pageNumber={1}
+              height={360}
+              devicePixelRatio={Math.min(window.devicePixelRatio || 1, 2)}
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+              className="pointer-events-none drop-shadow-xs"
+            />
+          </Document>
+        ) : (
+          <div className="flex flex-col items-center gap-2 text-slate-400 text-xs p-4 text-center">
+            <FileText className="w-12 h-12 text-slate-300" />
+            <span className="font-bold text-slate-500 line-clamp-2">{item.title}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Badges góc trên bên trái: Đã gỡ nút "Công khai", chỉ giữ lại badge khi là Riêng tư hoặc Chờ duyệt */}
+      <div className="absolute top-4 left-4 flex flex-col gap-1 z-10 pointer-events-none">
+        {item.is_public === false && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-600/90 text-white text-[10px] font-bold rounded-md shadow-xs">
+            <Lock className="w-3 h-3" /> Riêng tư
+          </span>
+        )}
+
+        {item.is_approved === false && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-500/90 text-white text-[10px] font-bold rounded-md shadow-xs">
+            <Clock className="w-3 h-3" /> Chờ duyệt
+          </span>
+        )}
+      </div>
+
+      {/* Badge loại file góc trên bên phải */}
+      <span className="absolute top-4 right-4 px-2 py-0.5 bg-red-600 text-white text-[10px] font-black rounded uppercase shadow-sm z-10 pointer-events-none">
+        {item.file_url?.toLowerCase().endsWith(".docx") ? "DOCX" : "PDF"}
+      </span>
+
+      {/* 2. DẢI MỜ TRẮNG DƯỚI CHÂN (HOVER TRƯỢT LÊN) */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-white via-white/95 to-transparent backdrop-blur-xs pt-12 pb-3.5 px-4 text-slate-800 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 flex flex-col justify-end gap-1.5 z-20 pointer-events-none border-t border-slate-100/30">
+        <div className="space-y-0.5">
+          <span className={`inline-block px-2 py-0.5 text-[9px] font-extrabold uppercase rounded tracking-wide ${
+            isTeacher ? "bg-orange-100 text-orange-800" : "bg-blue-100 text-blue-800"
+          }`}>
+            {item.category_rel?.name || item.category || "Tài liệu"}
+          </span>
+          <h4 className="font-black text-xs text-slate-900 line-clamp-1" title={item.title}>
+            {item.title}
+          </h4>
+        </div>
+
+        <div className="space-y-1 text-[11px] text-slate-600 border-t border-slate-200/60 pt-1.5">
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="flex items-center gap-1.5 truncate max-w-[65%]">
+              <User className={`w-3 h-3 shrink-0 ${isTeacher ? "text-orange-600" : "text-blue-600"}`} />
+              <strong className="text-slate-800 truncate">{item.student_name || "Tác giả"}</strong>
+            </span>
+            <span className="flex items-center gap-1 text-slate-500 shrink-0">
+              <Calendar className="w-3 h-3 text-slate-400" />
+              {item.created_at ? new Date(item.created_at).toLocaleDateString("vi-VN") : "Gần đây"}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+            <span>{cardPages ? `${cardPages} trang` : "Tài liệu"}</span>
+            <span className={`flex items-center gap-1 font-bold ${isTeacher ? "text-orange-700" : "text-blue-700"}`}>
+              <Eye className="w-3 h-3" />
+              {item.views || 0} lượt xem
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className={`w-full mt-1 py-1.5 text-white font-bold text-[11px] rounded-lg shadow-sm transition flex items-center justify-center gap-1.5 ${
+            isTeacher ? "bg-orange-600 hover:bg-orange-700" : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          <span>Đọc tài liệu</span>
+        </button>
+      </div>
     </div>
   )
 }
@@ -175,7 +234,7 @@ export default function DocumentCategories() {
     const Icon = IconConfig.icon
 
     return (
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
         <div className="flex items-center space-x-3">
           <button
             type="button"
@@ -237,7 +296,7 @@ export default function DocumentCategories() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer"
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer outline-none"
             >
               <option value="popular">Tải nhiều nhất</option>
               <option value="views">Lượt xem nhiều</option>
@@ -245,88 +304,22 @@ export default function DocumentCategories() {
           </div>
         </div>
 
-        {/* Danh sách tài liệu: Thumbnail trang đầu thực tế */}
+        {/* Danh sách thẻ Card PDF trang đầu tiên */}
         {isLoading ? (
-          <div className="py-20 flex flex-col items-center justify-center space-y-3">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <p className="text-xs font-bold text-slate-400">Đang nạp dữ liệu và tạo ảnh xem trước...</p>
+          <div className="py-20 flex flex-col items-center justify-center space-y-3 bg-white rounded-3xl border border-slate-200/80">
+            <Loader2 className={`w-8 h-8 animate-spin ${isTeacher ? "text-orange-600" : "text-blue-600"}`} />
+            <p className="text-xs font-bold text-slate-400">Đang nạp dữ liệu và kết xuất tài liệu...</p>
           </div>
         ) : filteredDocs.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredDocs.map((doc) => {
-              const isPdf = (doc.file_url || "").toLowerCase().endsWith(".pdf")
-              const isDocx = (doc.file_url || "").toLowerCase().endsWith(".docx")
-
-              return (
-                <div
-                  key={doc.id}
-                  className="bg-white rounded-2xl border border-slate-200/80 hover:border-slate-300 hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden group"
-                >
-                  {/* Khung bìa hiển thị nội dung trang đầu tiên */}
-                  <div className="relative w-full aspect-3/4 bg-slate-100 border-b border-slate-100 overflow-hidden">
-                    <DocumentPageThumbnail fileUrl={doc.file_url} title={doc.title} />
-
-                    {/* Tag loại file góc trên */}
-                    <span className={`absolute top-3 right-3 px-2 py-0.5 font-black text-[9px] rounded-md shadow-xs uppercase ${
-                      isPdf ? "bg-red-600 text-white" : isDocx ? "bg-blue-600 text-white" : "bg-slate-700 text-white"
-                    }`}>
-                      {isPdf ? "PDF" : isDocx ? "DOCX" : "DOC"}
-                    </span>
-
-                    {/* Tag môn học góc dưới */}
-                    <div className="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded">
-                      {doc.subject || "Chuyên ngành"}
-                    </div>
-                  </div>
-
-                  {/* Thông tin mô tả bên dưới */}
-                  <div className="p-4 flex flex-col flex-1 justify-between space-y-3">
-                    <div>
-                      <h3 className="text-sm font-extrabold text-slate-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors" title={doc.title}>
-                        {doc.title}
-                      </h3>
-                      <p className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-                        <span>Đăng bởi: <strong>{doc.student_name || "Ẩn danh"}</strong></span>
-                        <span>{new Date(doc.created_at).toLocaleDateString("vi-VN")}</span>
-                      </p>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100">
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium mb-2.5">
-                        <span className="truncate max-w-[120px]">{doc.category_rel?.name || doc.category}</span>
-                        <div className="flex items-center gap-2.5 shrink-0">
-                          <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" />{doc.views || 0}</span>
-                          <span className="flex items-center gap-1"><Download className="w-3.5 h-3.5" />{doc.downloads || 0}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Link
-  to={`/${role}/documents/${doc.id}`}
-  className={`flex-1 text-center py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 ${
-    isTeacher 
-      ? "bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white" 
-      : "bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white"
-  }`}
->
-  <span>Xem toàn bộ</span>
-  <ExternalLink className="w-3 h-3" />
-</Link>
-
-                        <a
-                          href={doc.file_url}
-                          download
-                          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
-                          title="Tải tệp về máy"
-                        >
-                          <Download className="w-4 h-4" />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+            {filteredDocs.map((doc) => (
+              <DocumentCardItem
+                key={doc.id}
+                item={doc}
+                role={role}
+                isTeacher={isTeacher}
+              />
+            ))}
           </div>
         ) : (
           <div className="bg-white border border-slate-200/80 rounded-3xl p-12 text-center space-y-3">
@@ -341,7 +334,7 @@ export default function DocumentCategories() {
 
   // ================= 2. GIAO DIỆN TỔNG HỢP DANH MỤC (/document-categories) =================
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 font-sans">
       <div className={`p-6 md:p-8 rounded-3xl border shadow-2xs ${
         isTeacher 
           ? "bg-gradient-to-r from-orange-500/10 via-amber-50/40 to-white border-orange-200/70"
