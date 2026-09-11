@@ -68,6 +68,22 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+// Cập nhật Mật khẩu
+exports.changePassword = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.id_users;
+    const { oldPassword, newPassword } = req.body;
+    
+    // Gọi sang authService (giả định team bạn đã/sẽ viết hàm changePassword trong auth.service.js)
+    const authService = require('../services/auth.service');
+    await authService.changePassword(userId, oldPassword, newPassword);
+    
+    res.status(200).json({ success: true, message: "Đổi mật khẩu thành công!" });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
 // Onboarding Học sinh
 exports.studentOnboarding = async (req, res) => {
   try {

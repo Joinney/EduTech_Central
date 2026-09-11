@@ -302,6 +302,48 @@ exports.updateUserProfile = async (userId, data) => {
   return updatedUser;
 };
 
+// 🟢 THAY ĐỔI MẬT KHẨU CÁ NHÂN
+exports.changePassword = async (userId, oldPassword, newPassword) => {
+  const id = Number(userId);
+  if (isNaN(id)) {
+    throw new Error('ID người dùng không hợp lệ');
+  }
+
+  if (!oldPassword || !newPassword) {
+    throw new Error('Vui lòng cung cấp đầy đủ mật khẩu hiện tại và mật khẩu mới');
+  }
+
+  // 1. Tìm người dùng trong Database
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) {
+    throw new Error('Không tìm thấy người dùng trên hệ thống');
+  }
+
+  // 2. Kiểm tra nếu tài khoản đăng nhập qua Google/Facebook (không có pass)
+  if (!user.password) {
+    throw new Error('Tài khoản này được xác thực qua liên kết ngoài, không thể đổi mật khẩu');
+  }
+
+  // 3. Đối chiếu mật khẩu cũ
+  const isMatch = await bcrypt.compare(oldPassword, user.password);
+  if (!isMatch) {
+    throw new Error('Mật khẩu hiện tại không chính xác');
+  }
+
+  // 4. Mã hóa (Hash) mật khẩu mới
+  const salt = await bcrypt.genSalt(10);
+  const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+  // 5. Lưu xuống DB
+  await prisma.user.update({
+    where: { id },
+    data: { password: hashedNewPassword }
+  });
+
+  console.log(`✅ [AUTH SERVICE] User ID ${id} đã đổi mật khẩu thành công`);
+  return true;
+};
+
 // 🟢 LƯU THÔNG TIN ONBOARDING GIẢNG VIÊN
 exports.saveTeacherOnboarding = async (data) => {
   const { userId, degree, workplace, specialization, yearsOfExperience, bio } = data;

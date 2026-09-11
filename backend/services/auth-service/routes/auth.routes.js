@@ -12,6 +12,7 @@ router.post('/refresh-token', authController.refreshToken);
 // Protected User Endpoints
 router.get('/me', verifyToken, authController.getMe);
 router.put('/profile', verifyToken, authController.updateProfile);
+router.put('/change-password', verifyToken, authController.changePassword);
 
 // Protected Onboarding Endpoints
 router.post('/onboarding/student', verifyToken, authController.studentOnboarding);
