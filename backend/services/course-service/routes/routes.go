@@ -64,6 +64,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		// --- CHIA SẺ TÀI LIỆU (STUDOCU CLONE) ---
 		api.GET("/shared-documents", controllers.GetSharedDocuments)
+		api.GET("/shared-documents/:id", controllers.GetSharedDocumentByID)
 		api.POST("/shared-documents", controllers.CreateSharedDocument)
 		api.PUT("/shared-documents/:id/approve", controllers.ApproveSharedDocument)
 		api.DELETE("/shared-documents/:id", controllers.DeleteSharedDocument)

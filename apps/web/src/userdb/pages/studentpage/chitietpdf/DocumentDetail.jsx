@@ -1,5 +1,8 @@
-import React, { useState } from "react"
+/* eslint-disable react/prop-types */
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import { Document, Page, pdfjs } from "react-pdf"
 import {
   ArrowLeft,
   Download,
@@ -9,837 +12,539 @@ import {
   ThumbsUp,
   Eye,
   Calendar,
-  Layers,
   CheckCircle2,
-  ExternalLink,
-  ShieldCheck,
+  Loader2,
+  BookOpen,
+  User,
+  FolderTree,
   ZoomIn,
   ZoomOut,
-  Maximize2,
   ChevronLeft,
   ChevronRight,
-  Star,
-  MessageSquare,
-  Send,
-  UserCheck
+  List,
+  RotateCw,
+  Maximize2,
+  Minimize2,
+  ScrollText,
+  PanelRightClose,
+  PanelRightOpen
 } from "lucide-react"
 
-// Mock danh sách tài liệu đầy đủ kèm dữ liệu đánh giá
-const ALL_DOCUMENTS = [
-  {
-    id: 1,
-    title: "Tiểu Luận Nhóm 10 - Pháp Luật Đại Cương",
-    subTitle: "Nghiên cứu về quy định sở hữu tài sản trong Bộ luật Dân sự 2015",
-    faculty: "Khoa Luật & Khoa học Xã hội",
-    author: "Nhóm 10 - Lớp K15",
-    pages: 47,
-    fileSize: "3.4 MB",
-    fileType: "PDF",
-    uploadDate: "15/10/2025",
-    downloads: 1420,
-    views: 3890,
-    likes: 312,
-    rating: 4.9,
-    ratingCount: 86,
-    tag: "ĐH",
-    color: "text-red-600 bg-red-100",
-    description:
-      "Tài liệu tổng hợp phân tích cấu trúc pháp luật, khái niệm quyền sở hữu, chiếm hữu và các bài tập tình huống thực tiễn áp dụng cho sinh viên các khối ngành đại trà.",
-    outline: [
-      "Phần 1: Mở đầu & Tính cấp thiết của đề tài",
-      "Phần 2: Khái quát chung về quyền sở hữu tài sản",
-      "Phần 3: Thực trạng áp dụng pháp luật và bài học thực tiễn",
-      "Phần 4: Kết luận & Kiến nghị sửa đổi"
-    ],
-    ratingBreakdown: {
-      5: 78,
-      4: 16,
-      3: 4,
-      2: 1,
-      1: 1
-    },
-    reviews: [
-      {
-        id: "r1",
-        author: "Trần Minh Quân",
-        classBadge: "CNTT K15",
-        score: 5,
-        date: "2 ngày trước",
-        comment: "Bố cục bài tiểu luận rất chuẩn chỉnh theo format của trường, phần trích dẫn điều luật dân sự rất chính xác. Mình đã tham khảo để làm bài thi giữa kỳ đạt 9.5.",
-        upvotes: 14
-      },
-      {
-        id: "r2",
-        author: "Nguyễn Hà Linh",
-        classBadge: "Kinh Tế K14",
-        score: 5,
-        date: "1 tuần trước",
-        comment: "Tài liệu hay, lời văn gãy gọn và có nhiều ví dụ thực tế về tranh chấp tài sản thừa kế. Rất đáng để tải về tham khảo!",
-        upvotes: 8
-      },
-      {
-        id: "r3",
-        author: "Lê Đức Thắng",
-        classBadge: "Khoa Luật K15",
-        score: 4,
-        date: "3 tuần trước",
-        comment: "Nội dung rất tốt, tuy nhiên ở phần kiến nghị sửa đổi nếu có thêm dẫn chứng từ luật so sánh quốc tế thì bài sẽ trọn vẹn hơn nữa.",
-        upvotes: 3
-      }
-    ],
-    relatedDocs: [
-      { id: 2, title: "- Tiểu Luận PLĐC", pages: 61, size: "4.1 MB" },
-      { id: 3, title: "Tiểu Luận Pháp Luật Đại Cương", pages: 25, size: "1.8 MB" }
-    ]
-  },
-  {
-    id: 2,
-    title: "- Tiểu Luận PLĐC",
-    subTitle: "Đề tài trách nhiệm dân sự do vi phạm hợp đồng thương mại",
-    faculty: "Khoa Luật Kinh Tế",
-    author: "Ủy Ban Học Tập UB",
-    pages: 61,
-    fileSize: "4.1 MB",
-    fileType: "PDF",
-    uploadDate: "02/11/2025",
-    downloads: 980,
-    views: 2410,
-    likes: 188,
-    rating: 4.8,
-    ratingCount: 42,
-    tag: "UB",
-    color: "text-blue-700 bg-blue-100",
-    description: "Đề tài nghiên cứu các yếu tố cấu thành trách nhiệm dân sự và bồi thường thiệt hại ngoài hợp đồng.",
-    outline: [
-      "Chương I: Cơ sở lý luận về chế định hợp đồng",
-      "Chương II: Phân tích thực trạng vi phạm nghĩa vụ hợp đồng",
-      "Chương III: Biện pháp phòng tránh rủi ro pháp lý"
-    ],
-    ratingBreakdown: { 5: 80, 4: 15, 3: 5, 2: 0, 1: 0 },
-    reviews: [
-      {
-        id: "r201",
-        author: "Phạm Tấn Đạt",
-        classBadge: "QTKD K15",
-        score: 5,
-        date: "5 ngày trước",
-        comment: "Rất chi tiết về hợp đồng thương mại, bảng đối chiếu điều khoản làm rất công phu.",
-        upvotes: 6
-      }
-    ],
-    relatedDocs: [
-      { id: 1, title: "Tiểu Luận Nhóm 10", pages: 47, size: "3.4 MB" }
-    ]
-  },
-  {
-    id: 3,
-    title: "Tiểu Luận Pháp Luật Đại Cương",
-    subTitle: "Khái cương về hệ thống cơ quan quản lý nhà nước",
-    faculty: "Khoa Lý Luận Chính Trị",
-    author: "Ban Học Cụ PL",
-    pages: 25,
-    fileSize: "1.8 MB",
-    fileType: "PDF",
-    uploadDate: "20/12/2025",
-    downloads: 750,
-    views: 1800,
-    likes: 120,
-    rating: 4.7,
-    ratingCount: 28,
-    tag: "PL",
-    color: "text-sky-600 bg-sky-100",
-    description: "Tóm tắt các quy chế lập pháp, hành pháp và tư pháp theo Hiến pháp năm 2013.",
-    outline: ["Chương I: Bộ máy nhà nước CHXHCN Việt Nam", "Chương II: Cơ chế vận hành quyền lực"],
-    ratingBreakdown: { 5: 70, 4: 25, 3: 5, 2: 0, 1: 0 },
-    reviews: [],
-    relatedDocs: []
-  },
-  {
-    id: 4,
-    title: "430206 - Nguyễn Tuấn Anh",
-    subTitle: "Bài thu hoạch môn học pháp chế đại cương",
-    faculty: "Khoa CNTT",
-    author: "Nguyễn Tuấn Anh",
-    pages: 16,
-    fileSize: "1.2 MB",
-    fileType: "PDF",
-    uploadDate: "05/01/2026",
-    downloads: 410,
-    views: 920,
-    likes: 45,
-    rating: 4.5,
-    ratingCount: 12,
-    tag: "NTA",
-    color: "text-slate-800 bg-slate-200",
-    description: "Bài tập cá nhân tổng hợp kiến thức học phần.",
-    outline: ["Nội dung 1: Tóm tắt bài giảng", "Nội dung 2: Liên hệ bản thân"],
-    ratingBreakdown: { 5: 60, 4: 30, 3: 10, 2: 0, 1: 0 },
-    reviews: [],
-    relatedDocs: []
-  },
-  {
-    id: 5,
-    title: "Tiểu Luận PLDC",
-    subTitle: "Nghiên cứu văn hóa pháp lý học đường",
-    faculty: "Khoa Xã Hội Học",
-    author: "Nhóm TM",
-    pages: 22,
-    fileSize: "1.5 MB",
-    fileType: "PDF",
-    uploadDate: "12/02/2026",
-    downloads: 530,
-    views: 1100,
-    likes: 72,
-    rating: 4.6,
-    ratingCount: 19,
-    tag: "TM",
-    color: "text-amber-700 bg-amber-100",
-    description: "Đánh giá mức độ hiểu biết pháp luật của sinh viên năm nhất.",
-    outline: ["Phần mở đầu", "Khảo sát thực tế", "Giải pháp tuyên truyền"],
-    ratingBreakdown: { 5: 65, 4: 25, 3: 10, 2: 0, 1: 0 },
-    reviews: [],
-    relatedDocs: []
-  },
-  {
-    id: 6,
-    title: "Luật HNGĐ",
-    subTitle: "Luật Hôn Nhân và Gia Đình - Tài liệu phân tích chuyên đề",
-    faculty: "Khoa Dân Sự",
-    author: "Ban Soạn Thảo HNGĐ",
-    pages: 205,
-    fileSize: "12.8 MB",
-    fileType: "PDF",
-    uploadDate: "28/02/2026",
-    downloads: 3200,
-    views: 8900,
-    likes: 850,
-    rating: 5.0,
-    ratingCount: 140,
-    tag: "HNGĐ",
-    color: "text-emerald-700 bg-emerald-100",
-    description: "Bộ tài liệu chuyên sâu 205 trang phân tích toàn diện Luật Hôn nhân & Gia đình và các án lệ thực tế.",
-    outline: [
-      "Phần 1: Những nguyên tắc cơ bản của chế độ HNGĐ",
-      "Phần 2: Điều kiện kết hôn và hệ quả kết hôn trái pháp luật",
-      "Phần 3: Chế độ tài sản của vợ chồng theo luật định và theo thỏa thuận",
-      "Phần 4: Ly hôn và giải quyết tranh chấp nuôi con, chia tài sản"
-    ],
-    ratingBreakdown: { 5: 95, 4: 5, 3: 0, 2: 0, 1: 0 },
-    reviews: [
-      {
-        id: "r601",
-        author: "Võ Hoàng Yến",
-        classBadge: "Thạc sĩ Luật",
-        score: 5,
-        date: "3 ngày trước",
-        comment: "Tài liệu cực kỳ đầy đủ và có giá trị tham khảo học thuật rất cao. Hệ thống án lệ phân loại chi tiết.",
-        upvotes: 27
-      }
-    ],
-    relatedDocs: [
-      { id: 1, title: "Tiểu Luận Nhóm 10", pages: 47, size: "3.4 MB" }
-    ]
-  }
-]
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
 export default function DocumentDetail() {
   const { docId } = useParams()
   const navigate = useNavigate()
+  const readerContainerRef = useRef(null)
 
+  const [document, setDocument] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // PDF Controls
+  const [numPages, setNumPages] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [zoomLevel, setZoomLevel] = useState(100)
+  const [inputPage, setInputPage] = useState("1")
+  const [scale, setScale] = useState(1.15)
+  const [rotation, setRotation] = useState(0)
+  const [isContinuousScroll, setIsContinuousScroll] = useState(false)
+  const [showSidebar, setShowSidebar] = useState(false)
+  const [showMetaPanel, setShowMetaPanel] = useState(true)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
   const [isLiked, setIsLiked] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [toastMsg, setToastMsg] = useState("")
 
-  // State đánh giá nhận xét
-  const [userRating, setUserRating] = useState(5)
-  const [hoverRating, setHoverRating] = useState(0)
-  const [commentInput, setCommentInput] = useState("")
+  const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
 
   const triggerToast = (msg) => {
     setToastMsg(msg)
     setTimeout(() => setToastMsg(""), 3000)
   }
 
-  const doc = ALL_DOCUMENTS.find((d) => String(d.id) === String(docId))
+  useEffect(() => {
+    const fetchDocDetail = async () => {
+      setIsLoading(true)
+      try {
+        let found = null
+        try {
+          const directRes = await fetch(`${baseUrl}/shared-documents/${docId}`)
+          if (directRes.ok) {
+            const directJson = await directRes.json()
+            found = directJson?.data || directJson
+          }
+        } catch (_) {}
 
-  if (!doc) {
+        if (!found || !found.id) {
+          const listRes = await fetch(`${baseUrl}/shared-documents?all=true`)
+          if (listRes.ok) {
+            const listJson = await listRes.json()
+            const list = Array.isArray(listJson) ? listJson : (listJson?.data || [])
+            found = list.find((item) => String(item.id) === String(docId))
+          }
+        }
+
+        setDocument(found || null)
+      } catch (err) {
+        console.error("Lỗi nạp tài liệu:", err)
+        setDocument(null)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (docId) fetchDocDetail()
+  }, [docId, baseUrl])
+
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages)
+    setCurrentPage(1)
+    setInputPage("1")
+  }
+
+  const handleJumpToPage = (p) => {
+    const pageNum = Math.max(1, Math.min(numPages || 1, Number(p) || 1))
+    setCurrentPage(pageNum)
+    setInputPage(String(pageNum))
+  }
+
+  const handleRotate = () => {
+    setRotation((prev) => (prev + 90) % 360)
+  }
+
+  const toggleFullscreen = () => {
+    if (typeof window === "undefined" || !window.document) return
+    if (!isFullscreen) {
+      if (readerContainerRef.current?.requestFullscreen) {
+        readerContainerRef.current.requestFullscreen()
+      }
+      setIsFullscreen(true)
+    } else {
+      if (window.document.exitFullscreen) {
+        window.document.exitFullscreen()
+      }
+      setIsFullscreen(false)
+    }
+  }
+
+  const handleDownload = () => {
+    if (document?.file_url) {
+      triggerToast(`Đang tải tệp: ${document.title}`)
+      window.open(document.file_url, "_blank")
+    }
+  }
+
+  if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] p-6 text-center">
-        <FileText className="w-14 h-14 text-slate-400 mb-3" />
-        <h2 className="text-xl font-bold text-slate-800">Không tìm thấy tài liệu #{docId}</h2>
-        <p className="text-sm text-slate-500 mt-1 mb-4">Tệp tin có thể đã bị gỡ hoặc đường dẫn không đúng.</p>
+      <div className="flex flex-col items-center justify-center w-full h-[calc(100vh-80px)] space-y-3 bg-white text-slate-700 font-sans">
+        <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+        <p className="text-xs font-bold text-slate-500">Đang chuẩn bị trình đọc EduTech...</p>
+      </div>
+    )
+  }
+
+  if (!document) {
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-[calc(100vh-80px)] p-6 text-center space-y-3 bg-white font-sans">
+        <FileText className="w-14 h-14 text-slate-300" />
+        <h2 className="text-lg font-bold text-slate-800">Không tìm thấy tài liệu #{docId}</h2>
         <button
-          onClick={() => navigate("/student/home")}
-          className="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm font-semibold hover:bg-blue-800 transition"
+          onClick={() => navigate(-1)}
+          className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition cursor-pointer"
         >
-          Quay lại trang chủ
+          Quay lại danh mục
         </button>
       </div>
     )
   }
 
-  const handleDownload = () => {
-    triggerToast(`Đang tải tệp: ${doc.title}.pdf`)
-  }
-
-  const handleSubmitReview = (e) => {
-    e.preventDefault()
-    if (!commentInput.trim()) {
-      triggerToast("Vui lòng nhập lời nhận xét trước khi gửi!")
-      return
-    }
-    triggerToast("Cảm ơn bạn đã gửi đánh giá cho tài liệu!")
-    setCommentInput("")
-  }
+  const isPdf = (document.file_url || "").toLowerCase().endsWith(".pdf")
 
   return (
-    <div className="doc-detail-universe">
-      <style>{`
-        .doc-detail-universe {
-          min-height: 100vh;
-          background: #f8fafc;
-          font-family: 'Inter', -apple-system, sans-serif;
-          color: #0f172a;
-          padding-bottom: 50px;
-        }
-
-        .doc-nav-bar {
-          position: sticky;
-          top: 0;
-          z-index: 40;
-          background: #ffffff;
-          border-bottom: 1px solid #e2e8f0;
-          padding: 12px 24px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .doc-back-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          background: #f1f5f9;
-          border: 1px solid #cbd5e1;
-          color: #1e3a8a;
-          font-size: 13px;
-          font-weight: 700;
-          padding: 7px 14px;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .doc-back-btn:hover {
-          background: #e0e7ff;
-          border-color: #1e3a8a;
-        }
-
-        .doc-body-grid {
-          max-width: 1280px;
-          margin: 24px auto 0;
-          padding: 0 20px;
-          display: grid;
-          grid-template-columns: 1fr 360px;
-          gap: 24px;
-          align-items: start;
-        }
-
-        /* Khung Preview PDF Mockup */
-        .preview-stage-card {
-          background: #ffffff;
-          border: 1px solid #cbd5e1;
-          border-radius: 14px;
-          overflow: hidden;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-        }
-
-        .preview-toolbar {
-          background: #1e293b;
-          color: #ffffff;
-          padding: 10px 16px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          font-size: 13px;
-        }
-
-        .preview-canvas-viewport {
-          background: #475569;
-          min-height: 520px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 24px;
-          overflow: auto;
-        }
-
-        .simulated-pdf-sheet {
-          background: #ffffff;
-          width: 100%;
-          max-width: 480px;
-          min-height: 600px;
-          border-radius: 6px;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-          padding: 40px 32px;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          transition: transform 0.2s ease;
-        }
-
-        .mock-sheet-header {
-          border-bottom: 2px solid #0f172a;
-          padding-bottom: 12px;
-          text-align: center;
-        }
-
-        .mock-skeleton-line {
-          height: 8px;
-          background: #e2e8f0;
-          border-radius: 4px;
-          margin-bottom: 8px;
-        }
-
-        /* Review Section */
-        .rating-summary-box {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
-          padding: 20px;
-          margin-top: 20px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-        }
-
-        .rating-bar-track {
-          flex: 1;
-          height: 6px;
-          background: #f1f5f9;
-          border-radius: 9999px;
-          overflow: hidden;
-        }
-
-        .rating-bar-fill {
-          height: 100%;
-          background: #f59e0b;
-          border-radius: 9999px;
-        }
-
-        .review-card-item {
-          padding: 14px 16px;
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          margin-bottom: 12px;
-          transition: all 0.2s ease;
-        }
-
-        .review-card-item:hover {
-          background: #ffffff;
-          border-color: #cbd5e1;
-        }
-
-        /* Cột bên phải */
-        .doc-meta-card {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
-          padding: 20px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-          margin-bottom: 18px;
-        }
-
-        .doc-download-main-btn {
-          width: 100%;
-          padding: 13px;
-          border-radius: 10px;
-          border: none;
-          background: linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%);
-          color: #ffffff;
-          font-size: 14px;
-          font-weight: 800;
-          text-transform: uppercase;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          box-shadow: 0 6px 16px rgba(2, 132, 199, 0.25);
-          transition: all 0.2s;
-        }
-
-        .doc-download-main-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 20px rgba(2, 132, 199, 0.35);
-        }
-
-        @media (max-width: 960px) {
-          .doc-body-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-
+    <div 
+      ref={readerContainerRef} 
+      className="w-full h-[calc(100vh-70px)] flex flex-col bg-white font-sans select-none overflow-hidden"
+    >
       {/* Toast thông báo */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 text-sm font-semibold">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-orange-400/40 text-xs font-semibold animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-orange-400 shrink-0" />
           <span>{toastMsg}</span>
         </div>
       )}
 
-      {/* Navigation Bar */}
-      <nav className="doc-nav-bar">
-        <button className="doc-back-btn" onClick={() => navigate("/student/home")}>
-          <ArrowLeft className="w-4 h-4" />
-          <span>Quay lại trang chủ</span>
-        </button>
-
-        <div className="flex items-center gap-2">
+      {/* 🎯 1. THANH CÔNG CỤ TRÊN CÙNG - NỀN TRẮNG SÁNG & TÔNG CAM */}
+      <header className="w-full px-4 py-2 bg-white border-b border-slate-200 text-slate-700 flex flex-wrap items-center justify-between gap-2.5 text-xs z-20 shrink-0 shadow-2xs">
+        
+        {/* Cụm trái: Quay lại, Mục lục, Chế độ xem, Tên file */}
+        <div className="flex items-center gap-2 min-w-0">
           <button
-            className={`p-2 border rounded-lg transition ${isLiked ? "text-emerald-600 bg-emerald-50 border-emerald-300" : "bg-white border-slate-200 text-slate-600"}`}
-            onClick={() => {
-              setIsLiked(!isLiked)
-              triggerToast(isLiked ? "Đã bỏ thích" : "Đã thích tài liệu")
-            }}
-            title="Thích tài liệu"
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-xl bg-slate-100 hover:bg-orange-50 hover:text-orange-600 text-slate-600 border border-slate-200 transition cursor-pointer shrink-0"
+            title="Quay lại danh mục"
           >
-            <ThumbsUp className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
+
           <button
-            className={`p-2 border rounded-lg transition ${isBookmarked ? "text-amber-500 bg-amber-50 border-amber-300" : "bg-white border-slate-200 text-slate-600"}`}
-            onClick={() => {
-              setIsBookmarked(!isBookmarked)
-              triggerToast(isBookmarked ? "Đã bỏ lưu" : "Đã lưu vào bộ sưu tập")
-            }}
-            title="Lưu tài liệu"
+            onClick={() => setShowSidebar(!showSidebar)}
+            className={`p-2 px-3 rounded-xl border transition cursor-pointer flex items-center gap-1.5 font-bold text-xs shrink-0 ${
+              showSidebar 
+                ? "bg-orange-500 border-orange-500 text-white shadow-xs" 
+                : "bg-white border-slate-200 text-slate-700 hover:border-orange-400 hover:text-orange-600"
+            }`}
+            title="Mục lục & Trang thu nhỏ"
           >
-            <Bookmark className="w-4 h-4" />
+            <List className="w-4 h-4" />
+            <span className="hidden sm:inline">Mục lục</span>
           </button>
+
           <button
-            className="p-2 border border-slate-200 bg-white rounded-lg text-slate-600 hover:bg-slate-50 transition"
-            onClick={() => triggerToast("Đã sao chép liên kết tài liệu")}
-            title="Chia sẻ"
+            onClick={() => setIsContinuousScroll(!isContinuousScroll)}
+            className={`p-2 px-3 rounded-xl border transition cursor-pointer flex items-center gap-1.5 font-bold text-xs shrink-0 ${
+              isContinuousScroll 
+                ? "bg-orange-500 border-orange-500 text-white shadow-xs" 
+                : "bg-white border-slate-200 text-slate-700 hover:border-orange-400 hover:text-orange-600"
+            }`}
+            title="Chuyển chế độ xem"
           >
-            <Share2 className="w-4 h-4" />
+            <ScrollText className="w-4 h-4" />
+            <span className="hidden md:inline">{isContinuousScroll ? "Cuộn dọc" : "Từng trang"}</span>
           </button>
-        </div>
-      </nav>
 
-      {/* Thân bài */}
-      <main className="doc-body-grid">
-        {/* Cột trái: Preview PDF, Đề cương & Đánh giá */}
-        <div>
-          {/* 1. Preview PDF */}
-          <div className="preview-stage-card mb-6">
-            <div className="preview-toolbar">
-              <div className="flex items-center gap-3">
-                <span className="bg-red-500 text-white font-black text-[10px] px-2 py-0.5 rounded">PDF</span>
-                <span className="font-semibold text-xs truncate max-w-[240px] md:max-w-[360px]">{doc.title}.pdf</span>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 bg-slate-800 px-2 py-1 rounded-md text-xs">
-                  <button
-                    disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className="hover:text-sky-400 disabled:opacity-40"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span>{currentPage} / {doc.pages}</span>
-                  <button
-                    disabled={currentPage >= doc.pages}
-                    onClick={() => setCurrentPage((p) => Math.min(doc.pages, p + 1))}
-                    className="hover:text-sky-400 disabled:opacity-40"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    className="p-1 hover:text-sky-400"
-                    onClick={() => setZoomLevel((z) => Math.max(70, z - 10))}
-                    title="Thu nhỏ"
-                  >
-                    <ZoomOut className="w-4 h-4" />
-                  </button>
-                  <span className="text-xs w-10 text-center">{zoomLevel}%</span>
-                  <button
-                    className="p-1 hover:text-sky-400"
-                    onClick={() => setZoomLevel((z) => Math.min(150, z + 10))}
-                    title="Phóng to"
-                  >
-                    <ZoomIn className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="preview-canvas-viewport">
-              <div
-                className="simulated-pdf-sheet"
-                style={{ transform: `scale(${zoomLevel / 100})` }}
-              >
-                <div>
-                  <div className="mock-sheet-header mb-6">
-                    <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">
-                      {doc.faculty}
-                    </div>
-                    <h3 className="text-base font-extrabold text-slate-900 leading-snug">
-                      {doc.title}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mt-1 italic">{doc.subTitle}</p>
-                  </div>
-
-                  <div className="space-y-2 mt-6">
-                    <div className="mock-skeleton-line w-full" />
-                    <div className="mock-skeleton-line w-[90%]" />
-                    <div className="mock-skeleton-line w-[95%]" />
-                    <div className="mock-skeleton-line w-[80%]" />
-                    <div className="mock-skeleton-line w-[88%]" />
-                  </div>
-
-                  <div className="mt-8 p-3 bg-slate-50 border border-dashed border-slate-300 rounded text-[11px] text-slate-600 leading-relaxed">
-                    <strong>Nội dung tóm tắt trang {currentPage}:</strong> {doc.description}
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400">
-                  <span>Hệ thống thư viện số trực tuyến</span>
-                  <span>Trang {currentPage}</span>
-                </div>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 truncate pl-2 border-l border-slate-200">
+            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase shrink-0 ${
+              isPdf ? "bg-orange-500 text-white" : "bg-blue-600 text-white"
+            }`}>
+              {isPdf ? "PDF" : "DOCX"}
+            </span>
+            <span className="truncate max-w-[180px] md:max-w-[320px] font-extrabold text-slate-900" title={document.title}>
+              {document.title}
+            </span>
           </div>
-
-          {/* 2. Đề cương mục lục tài liệu */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6">
-            <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide mb-3 flex items-center gap-2">
-              <Layers className="w-4 h-4 text-blue-900" /> Cấu trúc & Đề cương tài liệu
-            </h4>
-            <div className="space-y-2">
-              {doc.outline.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-900 shrink-0" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 3. KHU VỰC ĐÁNH GIÁ & NHẬN XÉT CHI TIẾT */}
-          <section className="rating-summary-box">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-5">
-              <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide flex items-center gap-2">
-                <Star className="w-4 h-4 text-amber-500 fill-amber-500" /> Đánh giá & Nhận xét từ sinh viên
-              </h4>
-              <span className="text-xs font-semibold text-slate-500">
-                {doc.ratingCount || 0} lượt xếp hạng
-              </span>
-            </div>
-
-            {/* Thống kê điểm sao & phân bổ */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center p-4 bg-slate-50 border border-slate-200 rounded-xl mb-6">
-              <div className="md:col-span-4 text-center md:border-r border-slate-200 md:pr-4">
-                <div className="text-4xl font-black text-slate-900 leading-none mb-1">
-                  {typeof doc.rating === "number" ? doc.rating.toFixed(1) : doc.rating}
-                </div>
-                <div className="flex items-center justify-center gap-1 text-amber-400 my-1.5">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-amber-400" />
-                  ))}
-                </div>
-                <span className="text-[11px] text-slate-500 font-medium">Đánh giá chung cộng đồng</span>
-              </div>
-
-              <div className="md:col-span-8 space-y-1.5 text-xs text-slate-600">
-                {[5, 4, 3, 2, 1].map((star) => {
-                  const percent = doc.ratingBreakdown ? doc.ratingBreakdown[star] || 0 : star === 5 ? 85 : 15
-                  return (
-                    <div key={star} className="flex items-center gap-2.5">
-                      <span className="w-10 font-bold flex items-center gap-1">
-                        {star} <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                      </span>
-                      <div className="rating-bar-track">
-                        <div className="rating-bar-fill" style={{ width: `${percent}%` }} />
-                      </div>
-                      <span className="w-8 text-right font-medium text-slate-400">{percent}%</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Khung gửi nhận xét mới */}
-            <form onSubmit={handleSubmitReview} className="p-4 border border-slate-200 rounded-xl bg-white mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-slate-800">Đánh giá của bạn về tài liệu này:</span>
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setUserRating(star)}
-                      onMouseEnter={() => setHoverRating(star)}
-                      onMouseLeave={() => setHoverRating(0)}
-                      className="p-0.5 text-slate-300 hover:text-amber-400 transition"
-                    >
-                      <Star
-                        className={`w-5 h-5 ${
-                          (hoverRating || userRating) >= star ? "text-amber-400 fill-amber-400" : ""
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="relative">
-                <textarea
-                  rows="3"
-                  value={commentInput}
-                  onChange={(e) => setCommentInput(e.target.value)}
-                  placeholder="Chia sẻ nhận xét về nội dung, tính thực tiễn hay độ chính xác của tài liệu để hỗ trợ các sinh viên khác..."
-                  className="w-full text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-sky-500 focus:bg-white transition resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end mt-2">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 shadow-sm transition"
-                >
-                  <Send className="w-3.5 h-3.5" /> Gửi đánh giá
-                </button>
-              </div>
-            </form>
-
-            {/* Danh sách các bình luận đánh giá */}
-            <div className="space-y-3">
-              {doc.reviews && doc.reviews.length > 0 ? (
-                doc.reviews.map((rev) => (
-                  <div key={rev.id} className="review-card-item">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-xs text-slate-900">{rev.author}</span>
-                        <span className="bg-sky-100 text-sky-800 text-[10px] font-black px-2 py-0.5 rounded">
-                          {rev.classBadge}
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-slate-400">{rev.date}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1 text-amber-400 mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-3.5 h-3.5 ${i < rev.score ? "fill-amber-400" : "text-slate-300"}`}
-                        />
-                      ))}
-                    </div>
-
-                    <p className="text-xs text-slate-700 leading-relaxed mb-3">{rev.comment}</p>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-[11px] text-slate-500">
-                      <span className="flex items-center gap-1 text-slate-400">
-                        <UserCheck className="w-3.5 h-3.5 text-emerald-600" /> Đã xác thực sinh viên
-                      </span>
-                      <button
-                        onClick={() => triggerToast(`Đã ghi nhận hữu ích từ nhận xét của ${rev.author}!`)}
-                        className="hover:text-blue-900 flex items-center gap-1 font-semibold transition"
-                      >
-                        <ThumbsUp className="w-3 h-3" /> Hữu ích ({rev.upvotes})
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="p-6 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  Chưa có nhận xét nào. Hãy là người đầu tiên để lại đánh giá cho tài liệu này!
-                </div>
-              )}
-            </div>
-          </section>
         </div>
 
-        {/* Cột phải: Thông số & Nút tải về */}
-        <aside>
-          <div className="doc-meta-card">
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-extrabold text-base shadow-xs ${doc.color}`}>
-                {doc.tag}
-              </div>
-              <div className="min-width-0 flex-1">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Học liệu chính quy</span>
-                <h3 className="text-sm font-extrabold text-slate-900 truncate">{doc.title}</h3>
-              </div>
-            </div>
+        {/* Cụm giữa: Điều khiển trang */}
+        <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1 rounded-xl border border-slate-200 shrink-0">
+          <button
+            disabled={currentPage <= 1 || isContinuousScroll}
+            onClick={() => handleJumpToPage(currentPage - 1)}
+            className="p-1 hover:text-orange-600 text-slate-600 disabled:opacity-30 cursor-pointer"
+            title="Trang trước"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
 
-            <p className="text-xs text-slate-600 leading-relaxed mb-4 pb-3 border-b border-slate-100">
-              {doc.description}
-            </p>
+          <div className="flex items-center gap-1 text-[11px] font-bold text-slate-700">
+            <span>Trang</span>
+            <input
+              type="number"
+              min="1"
+              max={numPages || 1}
+              value={inputPage}
+              onChange={(e) => setInputPage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleJumpToPage(inputPage)
+              }}
+              className="w-11 text-center bg-white border border-slate-300 focus:border-orange-500 text-slate-900 font-extrabold rounded py-0.5 text-xs outline-none"
+            />
+            <span className="text-slate-400">/ {numPages || "..."}</span>
+          </div>
 
-            <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Tác giả / Nhóm:</span>
-                <span className="font-bold text-slate-800">{doc.author}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Số trang:</span>
-                <span className="font-bold text-slate-800">{doc.pages} trang</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Dung lượng tệp:</span>
-                <span className="font-bold text-slate-800">{doc.fileSize}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Lượt tải về:</span>
-                <span className="font-bold text-emerald-600">{doc.downloads} lượt</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-slate-500">Đánh giá chung:</span>
-                <span className="font-bold text-amber-600 flex items-center gap-1">
-                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                  {typeof doc.rating === "number" ? `${doc.rating} / 5.0` : doc.rating}
-                </span>
-              </div>
-            </div>
+          <button
+            disabled={currentPage >= (numPages || 1) || isContinuousScroll}
+            onClick={() => handleJumpToPage(currentPage + 1)}
+            className="p-1 hover:text-orange-600 text-slate-600 disabled:opacity-30 cursor-pointer"
+            title="Trang sau"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
 
-            <button className="doc-download-main-btn mt-5" onClick={handleDownload}>
-              <Download className="w-4 h-4" />
-              <span>TẢI TẬP TIN PDF</span>
+        {/* Cụm phải: Zoom, Xoay, Toàn màn hình & Ẩn/Hiện bảng Học liệu */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setScale((s) => Math.max(0.6, s - 0.15))}
+              className="p-1 hover:text-orange-600 text-slate-600 cursor-pointer"
+              title="Thu nhỏ"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setScale(1.15)}
+              className="text-[11px] w-10 text-center font-bold text-slate-700 hover:text-orange-600 cursor-pointer"
+              title="Đặt lại zoom mặc định"
+            >
+              {Math.round(scale * 100)}%
+            </button>
+            <button
+              onClick={() => setScale((s) => Math.min(2.2, s + 0.15))}
+              className="p-1 hover:text-orange-600 text-slate-600 cursor-pointer"
+              title="Phóng to"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Tài liệu liên quan */}
-          {doc.relatedDocs && doc.relatedDocs.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <h5 className="text-xs font-extrabold uppercase text-slate-400 tracking-wide mb-3">
-                Tài liệu cùng chủ đề
-              </h5>
-              <div className="space-y-2">
-                {doc.relatedDocs.map((rel) => (
-                  <div
-                    key={rel.id}
-                    onClick={() => navigate(`/student/documents/${rel.id}`)}
-                    className="p-2.5 bg-slate-50 hover:bg-blue-50 border border-slate-200 rounded-lg cursor-pointer transition flex items-center justify-between"
-                  >
-                    <div>
-                      <h6 className="text-xs font-bold text-slate-800">{rel.title}</h6>
-                      <span className="text-[10px] text-slate-500">{rel.pages} trang • {rel.size}</span>
-                    </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-                  </div>
-                ))}
-              </div>
+          <button
+            onClick={handleRotate}
+            className="p-2 bg-slate-50 hover:bg-orange-50 border border-slate-200 text-slate-600 hover:text-orange-600 rounded-xl transition cursor-pointer"
+            title="Xoay trang 90 độ"
+          >
+            <RotateCw className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 bg-slate-50 hover:bg-orange-50 border border-slate-200 text-slate-600 hover:text-orange-600 rounded-xl transition cursor-pointer"
+            title={isFullscreen ? "Thu nhỏ" : "Toàn màn hình"}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+
+          <button
+            onClick={() => setShowMetaPanel(!showMetaPanel)}
+            className={`p-2 px-3 rounded-xl border transition cursor-pointer flex items-center gap-1.5 font-bold text-xs ${
+              showMetaPanel 
+                ? "bg-orange-500 border-orange-500 text-white shadow-xs" 
+                : "bg-white border-slate-200 text-slate-700 hover:border-orange-400 hover:text-orange-600"
+            }`}
+            title={showMetaPanel ? "Ẩn bảng thông tin" : "Hiện bảng thông tin"}
+          >
+            {showMetaPanel ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+            <span className="hidden lg:inline">Thông tin</span>
+          </button>
+        </div>
+      </header>
+
+      {/* 🎯 2. THÂN GIAO DIỆN TRÀN TOÀN TRANG (Mục lục trắng - Canvas sáng - Panel thông tin) */}
+      <div className="flex flex-1 w-full h-[calc(100%-49px)] overflow-hidden bg-slate-100/90 relative">
+        
+        {/* SIDEBAR MỤC LỤC & THUMBNAIL (NỀN TRẮNG SÁNG) */}
+        {showSidebar && isPdf && (
+          <aside className="w-60 md:w-64 bg-white border-r border-slate-200 p-3 overflow-y-auto flex flex-col gap-3 shrink-0 z-10 animate-in slide-in-from-left duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-slate-700 text-xs font-bold">
+              <span>Mục lục ({numPages || 0} trang)</span>
+              <span className="text-[10px] text-slate-400">Nhấn để nhảy</span>
             </div>
+
+            <Document file={document.file_url} className="space-y-3 flex flex-col items-center">
+              {Array.from(new Array(numPages || 0), (_, index) => {
+                const pNum = index + 1
+                const isSelected = currentPage === pNum
+
+                return (
+                  <div
+                    key={`thumb_${pNum}`}
+                    onClick={() => handleJumpToPage(pNum)}
+                    className={`w-full p-2 rounded-xl cursor-pointer transition flex flex-col items-center gap-1.5 border ${
+                      isSelected 
+                        ? "bg-orange-50 border-orange-500 text-orange-600 font-extrabold shadow-xs" 
+                        : "bg-slate-50 border-slate-200/80 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="w-24 shadow-sm rounded-xs overflow-hidden pointer-events-none bg-white border border-slate-200">
+                      <Page
+                        pageNumber={pNum}
+                        width={96}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
+                    </div>
+                    <span className="text-[11px]">Trang {pNum}</span>
+                  </div>
+                )
+              })}
+            </Document>
+          </aside>
+        )}
+
+        {/* KHU VỰC HIỂN THỊ TRANG GIẤY TỰ NHIÊN (NỀN SÁNG DỊU MẮT) */}
+        <main className="flex-1 overflow-auto flex justify-center p-4 md:p-8 bg-slate-100/90">
+          {isPdf ? (
+            <Document
+              file={document.file_url}
+              onLoadSuccess={onDocumentLoadSuccess}
+              loading={
+                <div className="flex flex-col items-center justify-center p-16 space-y-2">
+                  <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                  <span className="text-xs font-bold text-slate-500">Đang tạo bản vẽ trang...</span>
+                </div>
+              }
+              error={
+                <div className="p-8 text-center text-xs text-red-500 font-bold">
+                  Không thể nạp tệp PDF. Vui lòng bấm nút tải về để xem trên máy.
+                </div>
+              }
+            >
+              {isContinuousScroll ? (
+                <div className="flex flex-col gap-6 items-center">
+                  {Array.from(new Array(numPages || 0), (_, index) => (
+                    <div
+                      key={`page_${index + 1}`}
+                      className="shadow-xl rounded-xs overflow-hidden bg-white border border-slate-300"
+                    >
+                      <Page
+                        pageNumber={index + 1}
+                        scale={scale}
+                        rotate={rotation}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="shadow-xl rounded-xs overflow-hidden bg-white border border-slate-300">
+                  <Page
+                    pageNumber={currentPage}
+                    scale={scale}
+                    rotate={rotation}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                  />
+                </div>
+              )}
+            </Document>
+          ) : (
+            <iframe
+              src={`https://docs.google.com/viewer?url=${encodeURIComponent(document.file_url)}&embedded=true`}
+              title={document.title}
+              className="w-full max-w-5xl h-full border-none bg-white shadow-xl"
+            />
           )}
-        </aside>
-      </main>
+        </main>
+
+        {/* 🎯 BẢNG "HỌC LIỆU CHÍNH QUY" NỀN TRẮNG & TÔNG CAM (BÊN PHẢI) */}
+        {showMetaPanel && (
+          <aside className="w-72 md:w-80 bg-white border-l border-slate-200 p-5 overflow-y-auto flex flex-col justify-between shrink-0 shadow-lg z-10 animate-in slide-in-from-right duration-150">
+            <div className="space-y-4">
+              {/* Header học liệu */}
+              <div className="flex items-start gap-3 pb-3.5 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-extrabold bg-orange-50 text-orange-600 border border-orange-200 shadow-2xs shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-black text-orange-600 tracking-wider block">
+                    Học liệu chính quy
+                  </span>
+                  <h3 className="text-sm font-extrabold text-slate-900 line-clamp-2 leading-snug mt-0.5" title={document.title}>
+                    {document.title}
+                  </h3>
+                </div>
+              </div>
+
+              {/* Danh sách thông số */}
+              <div className="space-y-3 text-xs">
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-slate-400" /> Môn học:
+                  </span>
+                  <span className="font-bold text-orange-600 truncate max-w-[140px]">{document.subject}</span>
+                </div>
+
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-slate-400" /> Người đăng:
+                  </span>
+                  <span className="font-bold text-slate-800 truncate max-w-[140px]">{document.student_name || "Ẩn danh"}</span>
+                </div>
+
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <FolderTree className="w-3.5 h-3.5 text-slate-400" /> Danh mục:
+                  </span>
+                  <span className="font-bold text-slate-800 truncate max-w-[140px]">
+                    {document.category_rel?.name || document.category || "Tài liệu"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" /> Ngày đăng:
+                  </span>
+                  <span className="font-bold text-slate-800">{new Date(document.created_at).toLocaleDateString("vi-VN")}</span>
+                </div>
+
+                <div className="flex items-center justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <Eye className="w-3.5 h-3.5 text-slate-400" /> Lượt xem:
+                  </span>
+                  <span className="font-bold text-slate-800">{document.views || 0} lượt</span>
+                </div>
+
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-slate-500 flex items-center gap-1.5">
+                    <Download className="w-3.5 h-3.5 text-slate-400" /> Lượt tải:
+                  </span>
+                  <span className="font-bold text-emerald-600">{document.downloads || 0} lượt</span>
+                </div>
+              </div>
+
+              {document.description && (
+                <div className="pt-2 border-t border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Mô tả:</span>
+                  <p className="text-xs text-slate-600 leading-relaxed bg-orange-50/40 p-2.5 rounded-lg border border-orange-100">
+                    {document.description}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Các nút tương tác & tải tệp */}
+            <div className="pt-4 border-t border-slate-100 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  className={`flex-1 py-2 rounded-xl border transition cursor-pointer text-xs font-bold flex items-center justify-center gap-1.5 ${
+                    isLiked ? "text-orange-600 bg-orange-50 border-orange-300" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                  }`}
+                  onClick={() => {
+                    setIsLiked(!isLiked)
+                    triggerToast(isLiked ? "Đã bỏ thích" : "Đã thích tài liệu")
+                  }}
+                >
+                  <ThumbsUp className="w-3.5 h-3.5" />
+                  <span>Thích</span>
+                </button>
+
+                <button
+                  className={`flex-1 py-2 rounded-xl border transition cursor-pointer text-xs font-bold flex items-center justify-center gap-1.5 ${
+                    isBookmarked ? "text-orange-600 bg-orange-50 border-orange-300" : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                  }`}
+                  onClick={() => {
+                    setIsBookmarked(!isBookmarked)
+                    triggerToast(isBookmarked ? "Đã gỡ khỏi lưu trữ" : "Đã lưu")
+                  }}
+                >
+                  <Bookmark className="w-3.5 h-3.5" />
+                  <span>Lưu</span>
+                </button>
+
+                <button
+                  className="p-2 border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-600 transition cursor-pointer"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(window.location.href)
+                    triggerToast("Đã sao chép liên kết tài liệu")
+                  }}
+                  title="Sao chép liên kết"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <button
+                onClick={handleDownload}
+                className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>TẢI TỆP TIN VỀ MÁY</span>
+              </button>
+            </div>
+          </aside>
+        )}
+
+      </div>
     </div>
   )
 }

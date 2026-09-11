@@ -301,19 +301,17 @@ export default function DocumentCategories() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <a
-                          href={doc.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`flex-1 text-center py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 ${
-                            isTeacher 
-                              ? "bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white" 
-                              : "bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white"
-                          }`}
-                        >
-                          <span>Xem toàn bộ</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
+                        <Link
+  to={`/${role}/documents/${doc.id}`}
+  className={`flex-1 text-center py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1 ${
+    isTeacher 
+      ? "bg-orange-50 text-orange-600 hover:bg-orange-600 hover:text-white" 
+      : "bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white"
+  }`}
+>
+  <span>Xem toàn bộ</span>
+  <ExternalLink className="w-3 h-3" />
+</Link>
 
                         <a
                           href={doc.file_url}

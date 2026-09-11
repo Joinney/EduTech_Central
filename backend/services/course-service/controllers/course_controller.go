@@ -1265,3 +1265,27 @@ func GetDocumentCategories(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": categories})
 }
+
+// @Summary      Chi tiết tài liệu chia sẻ
+// @Description  Lấy thông tin 1 tài liệu theo ID và tăng lượt xem
+// @Tags         Shared Documents
+// @Produce      json
+// @Param        id   path      int  true  "Document ID"
+// @Success      200  {object}  models.SharedDocument
+// @Failure      404  {object}  map[string]interface{}
+// @Router       /shared-documents/{id} [get]
+func GetSharedDocumentByID(c *gin.Context) {
+	id := c.Param("id")
+	var doc models.SharedDocument
+
+	if err := configs.DB.Preload("CategoryRel").First(&doc, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy tài liệu"})
+		return
+	}
+
+	// Tự động tăng lượt xem
+	configs.DB.Model(&doc).UpdateColumn("views", gorm.Expr("views + ?", 1))
+	doc.Views++
+
+	c.JSON(http.StatusOK, gin.H{"data": doc})
+}

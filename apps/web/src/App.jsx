@@ -128,6 +128,7 @@ export default function App() {
             <Route path="schedule" element={<Schedule />} />
             <Route path="library" element={<Library />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="documents/:docId" element={<DocumentDetail />} />
           </Route>
         </Route>
 
