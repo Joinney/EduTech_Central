@@ -31,9 +31,10 @@ export default function Sidebar() {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState("student")
   
+  // 🎯 Mặc định đóng cả 2 submenu, không tự bung ra
   const [openSubmenu, setOpenSubmenu] = useState({
-    "Danh mục khóa học": true,
-    "Danh mục tài liệu": true
+    "Danh mục khóa học": false,
+    "Danh mục tài liệu": false
   })
   
   const [expandedSubmenus, setExpandedSubmenus] = useState({})
@@ -47,7 +48,7 @@ export default function Sidebar() {
     { name: "Hóa học & Sinh học", slug: "khoa-hoc-tu-nhien" }
   ])
 
-  // 🎯 Danh mục tài liệu chuẩn từ DB
+  // Danh mục tài liệu chuẩn từ DB
   const [docCategories, setDocCategories] = useState([
     { name: "Đề thi & Kiểm tra", slug: "de-thi-kiem-tra" },
     { name: "Ghi chép lớp học", slug: "ghi-chep-lop-hoc" },
@@ -79,7 +80,7 @@ export default function Sidebar() {
     return () => window.removeEventListener("storage", loadUserData)
   }, [])
 
-  // 🎯 Fetch cả 2 loại danh mục từ backend
+  // Fetch cả 2 loại danh mục từ backend
   useEffect(() => {
     const fetchCategories = async () => {
       const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
@@ -101,6 +102,15 @@ export default function Sidebar() {
     }
     fetchCategories()
   }, [])
+
+  // 🎯 Tự động mở đúng danh mục khi người dùng đang ở trong đường dẫn con của mục đó
+  useEffect(() => {
+    if (location.pathname.includes("/courses/category/")) {
+      setOpenSubmenu(prev => ({ ...prev, "Danh mục khóa học": true }))
+    } else if (location.pathname.includes("/docs/")) {
+      setOpenSubmenu(prev => ({ ...prev, "Danh mục tài liệu": true }))
+    }
+  }, [location.pathname])
 
   const fullName = user?.fullName || user?.full_name || (role === "teacher" ? "Giảng viên EduTech" : "Học viên EduTech")
   const avatarUrl = user?.avatar || ""

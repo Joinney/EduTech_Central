@@ -28,6 +28,7 @@ import Bookshelf from "./userdb/pages/studentpage/Tusach/Bookshelf.jsx"
 import ExamRoom from "./userdb/pages/studentpage/Monhoccuatoi/ExamRoom.jsx"
 import PaymentResult from "./userdb/pages/studentpage/Monhoccuatoi/PaymentResult.jsx"
 import StudentTransactions from "./userdb/pages/studentpage/StudentTransactions.jsx"
+import UpgradeEdu from "./userdb/pages/studentpage/nangcap/UpgradeEdu.jsx"
 
 // ================= TEACHER PAGES =================
 import TeacherHome from "./userdb/pages/teacherpage/TeacherHome.jsx"
@@ -129,6 +130,8 @@ export default function App() {
             <Route path="library" element={<Library />} />
             <Route path="profile" element={<Profile />} />
             <Route path="documents/:docId" element={<DocumentDetail />} />
+            {/* 🎯 NÂNG CẤP GÓI EDU DÀNH CHO TEACHER */}
+            <Route path="upgrade" element={<UpgradeEdu />} />
           </Route>
         </Route>
 
@@ -157,6 +160,8 @@ export default function App() {
             <Route path="videos" element={<Videos />} />
             <Route path="profile" element={<Profile />} />
             <Route path="bookshelf" element={<Bookshelf />} />
+            {/* 🎯 NÂNG CẤP GÓI EDU DÀNH CHO STUDENT */}
+            <Route path="upgrade" element={<UpgradeEdu />} />
           </Route>
         </Route>
 

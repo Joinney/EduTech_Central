@@ -11,7 +11,8 @@ import {
   User as UserIcon,
   LayoutDashboard,
   Receipt,
-  CreditCard,
+  Crown,
+  Sparkles
 } from "lucide-react";
 
 import api from "../../api/axios.js";
@@ -79,6 +80,7 @@ export default function Header() {
 
   const dashboardPath = isTeacher ? "/teacher/dashboard" : "/student/dashboard";
   const profilePath = isTeacher ? "/teacher/profile" : "/student/profile";
+  const upgradePath = isTeacher ? "/teacher/upgrade" : "/student/upgrade";
 
   const fullName =
     user?.fullName ||
@@ -134,13 +136,11 @@ export default function Header() {
       </div>
 
       <div className="flex items-center space-x-3 shrink-0">
-        {/* 🟢 ĐÃ CẬP NHẬT: Nút Trợ lý AI */}
+        {/* Nút Trợ lý AI */}
         <button
           type="button"
           onClick={() => {
-            // Phát tín hiệu mở khung chat
             window.dispatchEvent(new CustomEvent("open-ai-chat"));
-            // Hack fallback: Click trực tiếp vào widget nếu có
             const aiWidgetBtn = document.getElementById(
               "edutech-ai-widget-btn",
             );
@@ -150,6 +150,16 @@ export default function Header() {
         >
           <Bot className="w-4 h-4" />
           <span>Trợ lý AI</span>
+        </button>
+
+        {/* 🎯 NÚT NÂNG CẤP TÀI KHOẢN EDU (Màu cam nổi bật) */}
+        <button
+          type="button"
+          onClick={() => navigate(upgradePath)}
+          className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-full text-xs font-black shadow-xs shadow-orange-500/25 transition cursor-pointer"
+        >
+          <Crown className="w-3.5 h-3.5 fill-white" />
+          <span>Nâng cấp Edu</span>
         </button>
 
         {/* Badge Cấp học / Vai trò */}
@@ -191,7 +201,7 @@ export default function Header() {
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="px-4 py-2.5 border-b border-slate-100">
                 <p className="text-xs font-extrabold text-slate-900 truncate">
                   {fullName}
@@ -231,7 +241,19 @@ export default function Header() {
                   <span>Trang cá nhân</span>
                 </button>
 
-                {/* 🎯 NÚT LỊCH SỬ GIAO DỊCH DÀNH CHO HỌC SINH */}
+                {/* 🎯 NÚT NÂNG CẤP TÀI KHOẢN TRONG DROPDOWN */}
+                <button
+                  onClick={() => {
+                    setShowDropdown(false);
+                    navigate(upgradePath);
+                  }}
+                  className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 transition cursor-pointer"
+                >
+                  <Crown className="w-4 h-4 text-orange-500 fill-orange-400" />
+                  <span>Nâng cấp tài khoản Edu Pro</span>
+                </button>
+
+                {/* NÚT LỊCH SỬ GIAO DỊCH DÀNH CHO HỌC SINH */}
                 {!isTeacher && (
                   <button
                     onClick={() => {
