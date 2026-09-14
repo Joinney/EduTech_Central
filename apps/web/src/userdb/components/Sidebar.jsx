@@ -134,6 +134,7 @@ export default function Sidebar() {
 
   const studentNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
+    { name: "Trợ lý Học tập AI", path: `/${role}/ai-assistant`, icon: Sparkles },
     { name: "Bảng điều khiển", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Chương trình & Khối lớp", path: `/${role}/programs`, icon: GraduationCap },
     { name: "Kho Học liệu & Thư viện", path: `/${role}/library`, icon: Library },
@@ -146,6 +147,7 @@ export default function Sidebar() {
 
   const teacherNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
+    { name: "Trợ lý Trợ giảng AI", path: `/${role}/ai-assistant`, icon: Sparkles },
     { name: "Bảng quản lý Giảng viên", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Quản lý Lớp & Khóa học", path: `/${role}/courses`, icon: FolderPlus },
     { name: "Danh mục khóa học", icon: Tags, children: dynamicCourseChildren },

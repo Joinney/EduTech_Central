@@ -1,4 +1,5 @@
-﻿import React from "react"
+﻿/* eslint-disable no-unused-vars */
+import React from "react"
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 import AdminCreateSchoolCourse from "./admindb/pages/AdminCreateSchoolCourse"
 
@@ -12,6 +13,9 @@ import AdminLogin from "./admindb/pages/AdminLogin.jsx"
 import UserLayout from "./userdb/layouts/UserLayout.jsx"
 import AdminLayout from "./admindb/layouts/AdminLayout.jsx"
 import ProtectedRoute from "./userdb/components/ProtectedRoute.jsx"
+
+// ================= TRỢ LÝ HỌC TẬP AI =================
+import TroLyAIPage from "./userdb/pages/studentpage/trolyai/TroLyAIPage.jsx"
 
 // ================= STUDENT PAGES =================
 import StudentHome from "./userdb/pages/studentpage/StudentHome.jsx"
@@ -113,6 +117,10 @@ export default function App() {
           <Route path="/teacher" element={<UserLayout />}>
             <Route index element={<Navigate to="/teacher/home" replace />} />
             <Route path="home" element={<TeacherHome />} />
+            
+            {/* 🎯 TRỢ LÝ TRỢ GIẢNG AI CHO TEACHER */}
+            <Route path="ai-assistant" element={<TroLyAIPage />} />
+
             <Route path="dashboard" element={<TeacherHome />} />
             <Route path="courses" element={<CourseManagement />} />
             <Route path="courses/request" element={<TeacherRequestCourse />} />
@@ -130,6 +138,7 @@ export default function App() {
             <Route path="library" element={<Library />} />
             <Route path="profile" element={<Profile />} />
             <Route path="documents/:docId" element={<DocumentDetail />} />
+            
             {/* 🎯 NÂNG CẤP GÓI EDU DÀNH CHO TEACHER */}
             <Route path="upgrade" element={<UpgradeEdu />} />
           </Route>
@@ -140,6 +149,10 @@ export default function App() {
           <Route path="/student" element={<UserLayout />}>
             <Route index element={<Navigate to="/student/home" replace />} />
             <Route path="home" element={<StudentHome />} />
+            
+            {/* 🎯 TRỢ LÝ HỌC TẬP AI CHO STUDENT */}
+            <Route path="ai-assistant" element={<TroLyAIPage />} />
+
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="programs" element={<Programs />} />
             <Route path="library" element={<Library />} />
@@ -160,6 +173,7 @@ export default function App() {
             <Route path="videos" element={<Videos />} />
             <Route path="profile" element={<Profile />} />
             <Route path="bookshelf" element={<Bookshelf />} />
+            
             {/* 🎯 NÂNG CẤP GÓI EDU DÀNH CHO STUDENT */}
             <Route path="upgrade" element={<UpgradeEdu />} />
           </Route>
