@@ -14,8 +14,9 @@ import UserLayout from "./userdb/layouts/UserLayout.jsx"
 import AdminLayout from "./admindb/layouts/AdminLayout.jsx"
 import ProtectedRoute from "./userdb/components/ProtectedRoute.jsx"
 
-// ================= TRỢ LÝ HỌC TẬP AI =================
+// ================= TRỢ LÝ HỌC TẬP AI & LỊCH SỬ =================
 import TroLyAIPage from "./userdb/pages/studentpage/trolyai/TroLyAIPage.jsx"
+import ChatHistorySidebar from "./userdb/pages/studentpage/trolyai/components/ChatHistorySidebar.jsx"
 
 // ================= STUDENT PAGES =================
 import StudentHome from "./userdb/pages/studentpage/StudentHome.jsx"
@@ -118,8 +119,9 @@ export default function App() {
             <Route index element={<Navigate to="/teacher/home" replace />} />
             <Route path="home" element={<TeacherHome />} />
             
-            {/* 🎯 TRỢ LÝ TRỢ GIẢNG AI CHO TEACHER */}
+            {/* 🎯 TRỢ LÝ TRỢ GIẢNG AI & LỊCH SỬ CHO TEACHER */}
             <Route path="ai-assistant" element={<TroLyAIPage />} />
+            <Route path="ai-history" element={<ChatHistorySidebar />} />
 
             <Route path="dashboard" element={<TeacherHome />} />
             <Route path="courses" element={<CourseManagement />} />
@@ -151,8 +153,9 @@ export default function App() {
             <Route index element={<Navigate to="/student/home" replace />} />
             <Route path="home" element={<StudentHome />} />
             
-            {/* 🎯 TRỢ LÝ HỌC TẬP AI CHO STUDENT */}
+            {/* 🎯 TRỢ LÝ HỌC TẬP AI & LỊCH SỬ CHO STUDENT */}
             <Route path="ai-assistant" element={<TroLyAIPage />} />
+            <Route path="ai-history" element={<ChatHistorySidebar />} />
 
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="programs" element={<Programs />} />

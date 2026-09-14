@@ -22,7 +22,9 @@ import {
   HelpCircle,
   CalendarDays,
   Tags,
-  FolderTree
+  FolderTree,
+  History,
+  MessageSquare
 } from "lucide-react"
 
 export default function Sidebar() {
@@ -31,10 +33,12 @@ export default function Sidebar() {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState("student")
   
-  // 🎯 Mặc định đóng cả 2 submenu, không tự bung ra
+  // 🎯 Quản lý trạng thái mở/đóng submenu
   const [openSubmenu, setOpenSubmenu] = useState({
     "Danh mục khóa học": false,
-    "Danh mục tài liệu": false
+    "Danh mục tài liệu": false,
+    "Trợ lý Học tập AI": false,
+    "Trợ lý Trợ giảng AI": false
   })
   
   const [expandedSubmenus, setExpandedSubmenus] = useState({})
@@ -103,12 +107,18 @@ export default function Sidebar() {
     fetchCategories()
   }, [])
 
-  // 🎯 Tự động mở đúng danh mục khi người dùng đang ở trong đường dẫn con của mục đó
+  // 🎯 Tự động mở submenu khi URL đang ở trang AI hoặc các trang con liên quan
   useEffect(() => {
     if (location.pathname.includes("/courses/category/")) {
       setOpenSubmenu(prev => ({ ...prev, "Danh mục khóa học": true }))
     } else if (location.pathname.includes("/docs/")) {
       setOpenSubmenu(prev => ({ ...prev, "Danh mục tài liệu": true }))
+    } else if (location.pathname.includes("/ai-assistant") || location.pathname.includes("/ai-history")) {
+      setOpenSubmenu(prev => ({ 
+        ...prev, 
+        "Trợ lý Học tập AI": true,
+        "Trợ lý Trợ giảng AI": true 
+      }))
     }
   }, [location.pathname])
 
@@ -132,9 +142,27 @@ export default function Sidebar() {
     path: `/${role}/docs/${cat.slug}`
   }))
 
+  // 🎯 Menu con của Trợ lý AI: gồm Chat mới và Lịch sử trò chuyện
+  const dynamicAIChildren = [
+    { 
+      name: "Trò chuyện AI mới", 
+      path: `/${role}/ai-assistant`,
+      icon: MessageSquare
+    },
+    { 
+      name: "Lịch sử trò chuyện & Phiên học", 
+      path: `/${role}/ai-history`,
+      icon: History
+    }
+  ]
+
   const studentNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
-    { name: "Trợ lý Học tập AI", path: `/${role}/ai-assistant`, icon: Sparkles },
+    { 
+      name: "Trợ lý Học tập AI", 
+      icon: Sparkles, 
+      children: dynamicAIChildren 
+    },
     { name: "Bảng điều khiển", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Chương trình & Khối lớp", path: `/${role}/programs`, icon: GraduationCap },
     { name: "Kho Học liệu & Thư viện", path: `/${role}/library`, icon: Library },
@@ -148,7 +176,11 @@ export default function Sidebar() {
   // 🎯 ĐÃ BỔ SUNG "Video Edu & Bài giảng" CHO GIẢNG VIÊN
   const teacherNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
-    { name: "Trợ lý Trợ giảng AI", path: `/${role}/ai-assistant`, icon: Sparkles },
+    { 
+      name: "Trợ lý Trợ giảng AI", 
+      icon: Sparkles, 
+      children: dynamicAIChildren 
+    },
     { name: "Bảng quản lý Giảng viên", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Quản lý Lớp & Khóa học", path: `/${role}/courses`, icon: FolderPlus },
     { name: "Video Edu & Bài giảng", path: `/${role}/videos`, icon: Video },
@@ -184,6 +216,7 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between text-slate-700 select-none shrink-0 p-4 transition-all">
       <div className="space-y-4">
+        {/* User Card */}
         <Link
           to={`/${role}/profile`}
           className={`relative group p-3 rounded-2xl border shadow-xs flex items-center space-x-3 transition-all cursor-pointer block ${
@@ -237,6 +270,7 @@ export default function Sidebar() {
           </div>
         </Link>
 
+        {/* Navigation List */}
         <div className="space-y-1.5">
           <div className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center justify-between pb-1">
             <span>{isTeacher ? "Menu Quản Lý" : "Menu Học Tập"}</span>
@@ -251,7 +285,10 @@ export default function Sidebar() {
             {navItems.map((item) => {
               const Icon = item.icon
               const hasChildren = Boolean(item.children && item.children.length > 0)
-              const isChildActive = hasChildren && item.children.some(c => location.pathname === c.path)
+              
+              const isChildActive = hasChildren && item.children.some(c => 
+                (location.pathname + location.search) === c.path || location.pathname === c.path
+              )
               const isActive = (!hasChildren && location.pathname === item.path) || isChildActive
               const isOpen = Boolean(openSubmenu[item.name])
               const isExpanded = Boolean(expandedSubmenus[item.name])
@@ -274,7 +311,7 @@ export default function Sidebar() {
                           : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                       }`}
                     >
-                      <div className="flex items-center space-x-2.5">
+                      <div className="flex items-center space-x-2.5 min-w-0">
                         <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                           isChildActive
                             ? isTeacher ? "text-orange-600" : "text-blue-600"
@@ -284,9 +321,9 @@ export default function Sidebar() {
                       </div>
 
                       {isOpen ? (
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
                       ) : (
-                        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
                       )}
                     </button>
                   ) : (
@@ -300,7 +337,7 @@ export default function Sidebar() {
                           : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                       }`}
                     >
-                      <div className="flex items-center space-x-2.5">
+                      <div className="flex items-center space-x-2.5 min-w-0">
                         <Icon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                           isActive 
                             ? "text-white" 
@@ -311,27 +348,32 @@ export default function Sidebar() {
                         <span className="truncate">{item.name}</span>
                       </div>
 
-                      <ChevronRight className={`w-3.5 h-3.5 opacity-0 -translate-x-1 transition-all duration-200 ${
+                      <ChevronRight className={`w-3.5 h-3.5 opacity-0 -translate-x-1 transition-all duration-200 shrink-0 ${
                         isActive ? "opacity-100 translate-x-0 text-white/80" : "group-hover:opacity-100 group-hover:translate-x-0 text-slate-400"
                       }`} />
                     </Link>
                   )}
 
+                  {/* 🎯 Hiển thị mục con khi submenu được mở */}
                   {hasChildren && isOpen && (
                     <div className="mt-1 ml-4 pl-2 border-l-2 border-slate-100 space-y-0.5 animate-in fade-in duration-200">
                       {visibleChildren.map((sub) => {
-                        const isSubActive = location.pathname === sub.path
+                        const currentFullPath = location.pathname + location.search
+                        const isSubActive = currentFullPath === sub.path || location.pathname === sub.path
+                        const SubIcon = sub.icon
                         return (
                           <Link
                             key={sub.path}
                             to={sub.path}
-                            className={`block px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
+                            className={`flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors truncate ${
                               isSubActive
                                 ? isTeacher ? "text-orange-600 bg-orange-50 font-bold" : "text-blue-600 bg-blue-50 font-bold"
                                 : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                             }`}
+                            title={sub.name}
                           >
-                            {sub.name}
+                            {SubIcon && <SubIcon className="w-3.5 h-3.5 shrink-0 opacity-70" />}
+                            <span className="truncate">{sub.name}</span>
                           </Link>
                         )
                       })}
@@ -356,6 +398,7 @@ export default function Sidebar() {
         </div>
       </div>
 
+      {/* Footer Sidebar */}
       <div className="pt-3 border-t border-slate-100 space-y-2">
         <div className={`p-3 rounded-2xl border space-y-1.5 ${
           isTeacher 

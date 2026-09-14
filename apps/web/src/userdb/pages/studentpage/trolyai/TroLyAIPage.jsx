@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
@@ -962,6 +963,182 @@ export default function TroLyAIPage() {
           </div>
         </div>
       )}
+=======
+import ChatHistorySidebar from "./components/ChatHistorySidebar.jsx";
+import React, { useState } from "react";
+import {
+  Sparkles,
+  Paperclip,
+  Camera,
+  Mic,
+  ArrowUp,
+  BookOpen,
+  FileText,
+  Edit3,
+  ListChecks,
+  ChevronDown,
+  GraduationCap
+} from "lucide-react";
+
+export default function TroLyAIPage() {
+  const [inputMessage, setInputMessage] = useState("");
+
+  const promptSuggestions = [
+    {
+      icon: BookOpen,
+      iconBg: "bg-indigo-50 text-indigo-500",
+      title: "Giải chi tiết bài toán tích phân",
+      desc: "Từng bước phương pháp đổi biến, vi phân",
+      prompt: "Hãy hướng dẫn giải chi tiết bài toán tích phân theo từng bước: phương pháp đổi biến số và vi phân.",
+    },
+    {
+      icon: FileText,
+      iconBg: "bg-emerald-50 text-emerald-500",
+      title: "Tóm tắt chương tài liệu PDF",
+      desc: "Rút gọn ý chính, công thức cốt lõi",
+      prompt: "Hãy tóm tắt ngắn gọn các ý chính và công thức cốt lõi của chương tài liệu này.",
+    },
+    {
+      icon: Edit3,
+      iconBg: "bg-amber-50 text-amber-500",
+      title: "Kiểm tra lỗi ngữ pháp bài luận",
+      desc: "Sửa văn phong IELTS, nâng cấp collocation",
+      prompt: "Sửa lỗi ngữ pháp và nâng cấp từ vựng, collocations chuẩn văn phong IELTS cho bài luận sau:",
+    },
+    {
+      icon: ListChecks,
+      iconBg: "bg-purple-50 text-purple-500",
+      title: "Tạo bộ 10 câu trắc nghiệm ôn tập",
+      desc: "Kèm đáp án và giải thích tường tận",
+      prompt: "Tạo 10 câu trắc nghiệm ôn tập kèm đáp án và giải thích chi tiết cho tôi.",
+    },
+  ];
+
+  const handleSend = (text) => {
+    const query = text || inputMessage;
+    if (!query.trim()) return;
+    console.log("Gửi câu hỏi:", query);
+    setInputMessage("");
+  };
+
+  return (
+    <div className="flex flex-col justify-between h-[calc(100vh-4.5rem)] w-full bg-white font-sans text-slate-800 antialiased overflow-hidden p-4 md:p-6 select-none">
+      {/* 1. KHU VỰC TRUNG TÂM (LOGO THƯƠNG HIỆU & 4 THẺ GỢI Ý) */}
+      <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full text-center space-y-7 my-auto animate-in fade-in duration-300">
+        {/* Logo AI chuẩn theo nhận diện thương hiệu EduTech */}
+        <div className="relative">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-xl shadow-blue-500/25 border-2 border-white">
+            <GraduationCap className="w-7 h-7 stroke-[2.2]" />
+          </div>
+          {/* Badge icon AI vàng rực góc trên bên phải */}
+          <span className="w-4 h-4 bg-amber-400 border-2 border-white rounded-full absolute -top-1 -right-1 flex items-center justify-center shadow-xs">
+            <Sparkles className="w-2.5 h-2.5 text-white fill-white" />
+          </span>
+        </div>
+
+        {/* Tiêu đề & Giới thiệu */}
+        <div className="space-y-2.5">
+          <h1 className="text-2xl md:text-[28px] font-extrabold text-slate-900 tracking-tight leading-snug">
+            EduTech AI có thể giúp gì cho việc học<br />của bạn hôm nay?
+          </h1>
+          <p className="text-xs md:text-[13px] text-slate-500 max-w-lg mx-auto leading-relaxed">
+            Hỏi bất kỳ bài toán, tải tài liệu PDF để phân tích, hoặc kiểm tra và củng cố kiến thức theo giáo trình THPT & Đại học.
+          </p>
+        </div>
+
+        {/* Lưới 4 thẻ gợi ý */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full text-left pt-2">
+          {promptSuggestions.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSend(item.prompt)}
+                className="p-3.5 rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-xs transition-all flex items-start space-x-3 bg-white text-left cursor-pointer group"
+              >
+                <div className={`p-2 rounded-xl shrink-0 ${item.iconBg}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                    {item.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                    {item.desc}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. THANH NHẬP LIỆU GẮN ĐÁY */}
+      <div className="w-full max-w-3xl mx-auto space-y-2 pb-1">
+        <div className="rounded-3xl border border-slate-200/90 shadow-2xs hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-50 transition-all bg-white px-4 pt-3 pb-2 space-y-2">
+          <input
+            type="text"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Hỏi EduTech AI bất kỳ điều gì, dán đề bài hoặc nhập công thức..."
+            className="w-full bg-transparent border-none outline-none text-[13px] text-slate-800 placeholder:text-slate-400 py-1"
+          />
+
+          <div className="flex items-center justify-between pt-0.5">
+            {/* Cụm công cụ bên trái */}
+            <div className="flex items-center space-x-1 text-slate-400">
+              <button
+                type="button"
+                title="Đính kèm tệp"
+                className="p-1.5 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                title="Scan hình ảnh"
+                className="p-1.5 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+
+              {/* Tag lựa chọn model AI */}
+              <div className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-slate-50 text-[11px] font-medium text-slate-600 border border-slate-100 ml-1.5 cursor-pointer hover:bg-slate-100 transition">
+                <Sparkles className="w-3 h-3 text-blue-500 fill-blue-500" />
+                <span>EduTech 4.5 Turbo</span>
+                <ChevronDown className="w-3 h-3 text-slate-400 ml-0.5" />
+              </div>
+            </div>
+
+            {/* Cụm nút bên phải: Mic & Nút gửi */}
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                title="Nhập giọng nói"
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                disabled={!inputMessage.trim()}
+                onClick={() => handleSend()}
+                className="w-7 h-7 rounded-full bg-[#0f172a] hover:bg-blue-600 disabled:bg-slate-200 text-white flex items-center justify-center transition cursor-pointer shrink-0 shadow-xs"
+              >
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Dòng ghi chú mờ ở chân trang */}
+        <p className="text-[10px] text-slate-400 text-center select-none">
+          EduTech AI có thể đưa ra kết quả chưa chính xác. Hãy kiểm tra lại các công thức và tài liệu quan trọng.
+        </p>
+      </div>
+>>>>>>> a5fe2fc (style(ui): hoàn thiện giao diện Trợ lý AI và thanh điều hướng lịch sử)
     </div>
   );
 }
