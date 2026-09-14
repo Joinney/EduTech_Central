@@ -12,21 +12,47 @@ import {
   Download, 
   ThumbsUp, 
   CheckCircle2, 
-  FileCheck,
   Loader2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Eye,
+  Play,
+  Video
 } from "lucide-react"
 
 import { courseService } from "../../../api/course.api"
 
-const DEFAULT_TEACHER_IMG = "/thekhoahoc/thaygiao.png";
-const DEFAULT_LOGO_IMG = "/thekhoahoc/logo.png";
+// Import 3 components con đã tách ra
+import CardCanvas from "../../components/context/home/CardCanvas"
+import PdfCoverPreview from "../../components/context/home/PdfCoverPreview"
+import VerticalVideoModal from "../../components/context/home/VerticalVideoModal"
 
-// Số khóa học hiển thị trên 1 trang (2 hàng x 3 cột)
-const COURSES_PER_PAGE = 6;
+const DEFAULT_TEACHER_IMG = "/thekhoahoc/thaygiao.png"
+const DEFAULT_LOGO_IMG = "/thekhoahoc/logo.png"
+const COURSES_PER_PAGE = 6
+const DOCS_PER_PAGE = 4
 
-// Map logo có sẵn chữ trường (đảm bảo hiển thị không bị lỗi hotlink)
+const SAMPLE_VERTICAL_VIDEOS = [
+  {
+    id: "v-1",
+    title: "Mẹo giải nhanh bài toán Quy hoạch động trong 60s",
+    author: "Thầy Thành AI",
+    duration: "0:58",
+    views: "12.4k",
+    thumbnail: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&auto=format&fit=crop&q=60",
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+  },
+  {
+    id: "v-2",
+    title: "Phân biệt Năng lực Pháp luật & Năng lực Hành vi",
+    author: "Khoa Luật Kinh Tế",
+    duration: "1:15",
+    views: "8.9k",
+    thumbnail: "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=500&auto=format&fit=crop&q=60",
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
+  }
+]
+
 const PRESET_SCHOOL_LOGOS = {
   bka: "https://bka.hcmut.edu.vn/assets/images/logo/logo-bka.png",
   hcmut: "https://upload.wikimedia.org/wikipedia/vi/thumb/9/91/FC_B%C3%A1ch_Khoa_logo.png/200px-FC_B%C3%A1ch_Khoa_logo.png",
@@ -34,172 +60,65 @@ const PRESET_SCHOOL_LOGOS = {
   uit: "https://upload.wikimedia.org/wikipedia/vi/thumb/e/e0/Logo_UIT.svg/200px-Logo_UIT.svg.png",
   fpt: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/FPT_logo_2010.svg/200px-FPT_logo_2010.svg.png",
   vanlang: "https://upload.wikimedia.org/wikipedia/vi/thumb/0/07/Logo_V%C4%83n_Lang.svg/200px-Logo_V%C4%83n_Lang.svg.png"
-};
+}
 
 const resolveSchoolLogo = (schoolName = "", customLogo = "") => {
-  if (customLogo && !customLogo.includes("/thekhoahoc/logo.png")) {
-    return customLogo;
-  }
-  const nameLower = schoolName.toLowerCase();
-  if (nameLower.includes("bka") || nameLower.includes("alumni")) return PRESET_SCHOOL_LOGOS.bka;
-  if (nameLower.includes("hà nội") || nameLower.includes("hust")) return PRESET_SCHOOL_LOGOS.hust;
-  if (nameLower.includes("bách khoa") || nameLower.includes("hcmut")) return PRESET_SCHOOL_LOGOS.hcmut;
-  if (nameLower.includes("thông tin") || nameLower.includes("uit")) return PRESET_SCHOOL_LOGOS.uit;
-  if (nameLower.includes("fpt")) return PRESET_SCHOOL_LOGOS.fpt;
-  if (nameLower.includes("văn lang")) return PRESET_SCHOOL_LOGOS.vanlang;
-  return DEFAULT_LOGO_IMG;
-};
-
-const INITIAL_COURSES = [
-  { id: 1, courseName: "Trí Tuệ Nhân Tạo AI", teacherName: "Nguyễn Tất Thành", subject: "Trí Tuệ Nhân Tạo", grade: "Đại học Bách Khoa", schedule: "Thứ 2 - 4 - 6", profileProgress: 90, notificationCount: 1, teacherImg: DEFAULT_TEACHER_IMG, logoImg: PRESET_SCHOOL_LOGOS.bka },
-  { id: 2, courseName: "Học Máy Nâng Cao", teacherName: "Trần Quang Minh", subject: "Học Máy", grade: "Đại học FPT", schedule: "Thứ 3 - 5 - 7", profileProgress: 85, notificationCount: 2, teacherImg: DEFAULT_TEACHER_IMG, logoImg: PRESET_SCHOOL_LOGOS.fpt }
-];
-
-const INITIAL_ESSAYS = [
-  { id: 101, title: "Tiểu Luận Nhóm 10 - Pháp Luật Đại Cương", desc: "Nghiên cứu về quy định sở hữu tài sản & quyền định đoạt.", author: "Nhóm 10", faculty: "Khoa Luật", pages: 47, downloads: "1.4k", likes: 312, tag: "ĐH", color: "text-red-600 bg-red-100", date: "15/10/2026" },
-  { id: 102, title: "Tiểu Luận PLĐC: Trách Nhiệm Dân Sự", desc: "Phân tích các chế định trách nhiệm do vi phạm nghĩa vụ hợp đồng.", author: "Ủy Ban Học Tập", faculty: "Luật Kinh Tế", pages: 61, downloads: "980", likes: 188, tag: "UB", color: "text-blue-700 bg-blue-100", date: "02/11/2026" }
-];
-
-function CardCanvas() {
-  const canvasRef = useRef(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext("2d")
-    let animationFrameId
-    let width, height
-
-    function resizeCanvas() {
-      if (!canvas) return
-      width = canvas.width = canvas.offsetWidth || 300
-      height = canvas.height = canvas.offsetHeight || 210
-    }
-    resizeCanvas()
-    window.addEventListener("resize", resizeCanvas)
-
-    const mouse = { x: width / 2, y: height / 2, targetX: width / 2, targetY: height / 2 }
-    const card = canvas.closest(".card-container")
-
-    const handleMouseMove = (e) => {
-      const rect = canvas.getBoundingClientRect()
-      mouse.targetX = e.clientX - rect.left
-      mouse.targetY = e.clientY - rect.top
-    }
-    if (card) card.addEventListener("mousemove", handleMouseMove)
-
-    const spheres = [
-      { originX: width * 0.12, originY: height * 0.25, z: 1.2, r: width * 0.045, isBlue: true, angle: 0, speed: 0.018, orbitRadius: 6, pulse: 0 },
-      { originX: width * 0.65, originY: height * 0.20, z: 1.3, r: width * 0.048, isBlue: false, angle: Math.PI / 2, speed: 0.015, orbitRadius: 7, pulse: 1 },
-      { originX: width * 0.85, originY: height * 0.75, z: 1.3, r: width * 0.05, isBlue: false, angle: (Math.PI * 3) / 2, speed: 0.016, orbitRadius: 8, pulse: 3 }
-    ]
-
-    const nodes = []
-    const nodeColors = ["#1e3a8a", "#38bdf8", "#ea580c", "#ffaa00", "#c0c0c0"]
-    for (let i = 0; i < 35; i++) {
-      nodes.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        z: Math.random() * 0.8 + 0.2,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        baseR: Math.random() * 2 + 1,
-        color: nodeColors[Math.floor(Math.random() * nodeColors.length)],
-        glow: Math.random() * Math.PI * 2
-      })
-    }
-
-    function render() {
-      mouse.x += (mouse.targetX - mouse.x) * 0.08
-      mouse.y += (mouse.targetY - mouse.y) * 0.08
-      ctx.clearRect(0, 0, width, height)
-
-      spheres.forEach((s) => {
-        s.angle += s.speed
-        s.pulse += 0.02
-        const px = s.originX + Math.cos(s.angle) * s.orbitRadius + (mouse.x - width / 2) * 0.015 * s.z
-        const py = s.originY + Math.sin(s.angle) * s.orbitRadius + (mouse.y - height / 2) * 0.015 * s.z
-        const currentR = s.r + Math.sin(s.pulse) * 2
-
-        ctx.beginPath()
-        ctx.arc(px, py, Math.max(1, currentR), 0, Math.PI * 2)
-        const grad = ctx.createRadialGradient(px - currentR * 0.3, py - currentR * 0.3, currentR * 0.05, px, py, currentR)
-        grad.addColorStop(0, "#ffffff")
-        grad.addColorStop(1, s.isBlue ? "#1e3a8a" : "#ea580c")
-        ctx.fillStyle = grad
-        ctx.fill()
-      })
-
-      for (let i = 0; i < nodes.length; i++) {
-        const n = nodes[i]
-        n.x += n.vx
-        n.y += n.vy
-        n.glow += 0.03
-        if (n.x < 0 || n.x > width) n.vx *= -1
-        if (n.y < 0 || n.y > height) n.vy *= -1
-
-        const nx = n.x + (mouse.x - width / 2) * 0.01 * n.z
-        const ny = n.y + (mouse.y - height / 2) * 0.01 * n.z
-
-        ctx.beginPath()
-        ctx.arc(nx, ny, n.baseR, 0, Math.PI * 2)
-        ctx.fillStyle = n.color
-        ctx.fill()
-      }
-
-      animationFrameId = requestAnimationFrame(render)
-    }
-
-    render()
-
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-      window.removeEventListener("resize", resizeCanvas)
-      if (card) card.removeEventListener("mousemove", handleMouseMove)
-    }
-  }, [])
-
-  return <canvas ref={canvasRef} className="card-canvas" />
+  if (customLogo && !customLogo.includes("/thekhoahoc/logo.png")) return customLogo
+  const nameLower = schoolName.toLowerCase()
+  if (nameLower.includes("bka") || nameLower.includes("alumni")) return PRESET_SCHOOL_LOGOS.bka
+  if (nameLower.includes("hà nội") || nameLower.includes("hust")) return PRESET_SCHOOL_LOGOS.hust
+  if (nameLower.includes("bách khoa") || nameLower.includes("hcmut")) return PRESET_SCHOOL_LOGOS.hcmut
+  if (nameLower.includes("thông tin") || nameLower.includes("uit")) return PRESET_SCHOOL_LOGOS.uit
+  if (nameLower.includes("fpt")) return PRESET_SCHOOL_LOGOS.fpt
+  if (nameLower.includes("văn lang")) return PRESET_SCHOOL_LOGOS.vanlang
+  return DEFAULT_LOGO_IMG
 }
 
 export default function StudentHome() {
   const navigate = useNavigate()
+  const role = localStorage.getItem("role")?.toLowerCase() || "student"
+
   const [searchKeyword, setSearchKeyword] = useState("")
   const [toastMessage, setToastMessage] = useState("")
   const [showToast, setShowToast] = useState(false)
   const [essayFilter, setEssayFilter] = useState("all")
   
   const [courses, setCourses] = useState([])
-  const [essays, setEssays] = useState([])
+  const [documents, setDocuments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // 🎯 State phân trang khóa học
-  const [currentCoursePage, setCurrentCoursePage] = useState(1);
-  const coursesSectionRef = useRef(null);
+  const [currentCoursePage, setCurrentCoursePage] = useState(1)
+  const coursesSectionRef = useRef(null)
+
+  const [currentDocPage, setCurrentDocPage] = useState(1)
+  const docsSectionRef = useRef(null)
+
+  const [isExpandedDocs, setIsExpandedDocs] = useState(false)
+  const [selectedVideo, setSelectedVideo] = useState(null)
+
+  const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
 
   useEffect(() => {
     const fetchHomeData = async () => {
-      setIsLoading(true);
+      setIsLoading(true)
       try {
-        const rawCourses = await courseService.getAllCourses().catch(() => []);
-        const coursesList = Array.isArray(rawCourses) ? rawCourses : (rawCourses?.data || []);
+        const rawCourses = await courseService.getAllCourses().catch(() => [])
+        const coursesList = Array.isArray(rawCourses) ? rawCourses : (rawCourses?.data || [])
 
         if (coursesList.length > 0) {
-          // Lọc chỉ lấy các khóa học mở rộng
-          const externalCourses = coursesList.filter(c => c.type === "external" || !c.type || c.type === "skill");
-          const targetList = externalCourses.length > 0 ? externalCourses : coursesList;
+          const externalCourses = coursesList.filter(c => c.type === "external" || !c.type || c.type === "skill")
+          const targetList = externalCourses.length > 0 ? externalCourses : coursesList
 
           const formattedCourses = targetList.map(c => {
             const realUploadedImg = 
               (c.thumbnail && !c.thumbnail.includes("unsplash.com") && !c.thumbnail.includes("thekhoahoc")) 
                 ? c.thumbnail 
-                : (c.teacher_img || c.teacherImg || c.teacher_avatar);
+                : (c.teacher_img || c.teacherImg || c.teacher_avatar)
 
-            const isUIAvatar = realUploadedImg && realUploadedImg.includes("ui-avatars.com");
-            const cleanTeacherImg = (realUploadedImg && !isUIAvatar) ? realUploadedImg : DEFAULT_TEACHER_IMG;
-
-            const schoolName = c.schoolName || c.school_name || c.grade || "Trường đào tạo";
-            const cleanSchoolLogo = resolveSchoolLogo(schoolName, c.school_logo || c.schoolLogo);
+            const isUIAvatar = realUploadedImg && realUploadedImg.includes("ui-avatars.com")
+            const cleanTeacherImg = (realUploadedImg && !isUIAvatar) ? realUploadedImg : DEFAULT_TEACHER_IMG
+            const schoolName = c.schoolName || c.school_name || c.grade || "Trường đào tạo"
+            const cleanSchoolLogo = resolveSchoolLogo(schoolName, c.school_logo || c.schoolLogo)
 
             return {
               id: c.id || c.id_course,
@@ -212,67 +131,50 @@ export default function StudentHome() {
               notificationCount: Math.floor(Math.random() * 3) + 1,
               teacherImg: cleanTeacherImg,
               logoImg: cleanSchoolLogo
-            };
-          });
-          setCourses(formattedCourses);
+            }
+          })
+          setCourses(formattedCourses)
+        }
 
-          const allDocs = [];
-          const colors = [
-            "text-red-600 bg-red-100", "text-blue-700 bg-blue-100", 
-            "text-sky-600 bg-sky-100", "text-amber-700 bg-amber-100", 
-            "text-emerald-700 bg-emerald-100"
-          ];
+        try {
+          const docRes = await fetch(`${baseUrl}/shared-documents?all=true`)
+          if (docRes.ok) {
+            const docJson = await docRes.json()
+            const rawDocs = Array.isArray(docJson) ? docJson : (docJson?.data || [])
 
-          await Promise.all(
-            coursesList.slice(0, 6).map(async (c, cIdx) => {
-              const cId = c.id || c.id_course;
-              try {
-                const lessonsRes = await courseService.getLessonsByCourse(cId);
-                const lessons = Array.isArray(lessonsRes) ? lessonsRes : (lessonsRes?.data || []);
-                
-                lessons.forEach((l, lIdx) => {
-                  if (l.fileUrl || l.file_url) {
-                    allDocs.push({
-                      id: `doc-${cId}-${lIdx}`,
-                      title: l.title || `Tài liệu môn ${c.title}`,
-                      desc: l.content || l.description || "Tài liệu học tập được chia sẻ công khai.",
-                      author: c.teacher_name || "Giảng viên",
-                      faculty: c.subject || "Chuyên ngành",
-                      pages: Math.floor(Math.random() * 40) + 10,
-                      fileUrl: l.fileUrl || l.file_url,
-                      downloads: `${Math.floor(Math.random() * 900) + 100}`,
-                      likes: Math.floor(Math.random() * 300) + 20,
-                      tag: (c.subject || "TL").substring(0, 2).toUpperCase(),
-                      color: colors[(cIdx + lIdx) % colors.length],
-                      date: new Date(l.created_at || Date.now()).toLocaleDateString("vi-VN")
-                    });
-                  }
-                });
-              } catch (_) {}
-            })
-          );
-          setEssays(allDocs.length > 0 ? allDocs : INITIAL_ESSAYS);
-        } else {
-          setCourses(INITIAL_COURSES);
-          setEssays(INITIAL_ESSAYS);
+            const formattedDocs = rawDocs.map((item) => ({
+              id: item.id,
+              title: item.title,
+              desc: item.description || "Tài liệu học tập được chia sẻ công khai.",
+              author: item.student_name || "Thành viên EduTech",
+              faculty: item.subject || item.category_rel?.name || item.category || "Học thuật",
+              pages: item.pages || 15,
+              fileUrl: item.file_url,
+              downloads: item.downloads || 0,
+              likes: item.views ? Math.floor(item.views / 2) + 5 : 12,
+              date: item.created_at ? new Date(item.created_at).toLocaleDateString("vi-VN") : "Gần đây"
+            }))
+
+            setDocuments(formattedDocs)
+          }
+        } catch (docErr) {
+          console.error("Lỗi tải tài liệu:", docErr)
         }
 
       } catch (error) {
-        console.error("Lỗi tải data trang chủ:", error);
-        setCourses(INITIAL_COURSES);
-        setEssays(INITIAL_ESSAYS);
+        console.error("Lỗi nạp dữ liệu:", error)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    fetchHomeData();
-  }, []);
+    fetchHomeData()
+  }, [baseUrl])
 
-  // Tự động reset trang về 1 khi người dùng đổi từ khóa tìm kiếm
   useEffect(() => {
-    setCurrentCoursePage(1);
-  }, [searchKeyword]);
+    setCurrentCoursePage(1)
+    setCurrentDocPage(1)
+  }, [searchKeyword, essayFilter])
 
   const triggerToast = (msg) => {
     setToastMessage(msg)
@@ -281,15 +183,13 @@ export default function StudentHome() {
   }
 
   const handleRegisterCourse = (courseId, teacherName) => {
-    triggerToast(`Đã gửi yêu cầu đăng ký lớp của GV: ${teacherName}`);
+    triggerToast(`Đã gửi yêu cầu đăng ký lớp của GV: ${teacherName}`)
   }
 
   const handleDownload = (e, filename, url) => {
     e.stopPropagation()
-    triggerToast(`Đang tải tệp tin: ${filename}`)
-    if (url) {
-      window.open(url, '_blank');
-    }
+    triggerToast(`Đang mở tệp: ${filename}`)
+    if (url) window.open(url, '_blank')
   }
 
   const filteredCourses = useMemo(() => courses.filter(
@@ -297,607 +197,211 @@ export default function StudentHome() {
       c.courseName.toLowerCase().includes(searchKeyword.toLowerCase()) ||
       c.teacherName.toLowerCase().includes(searchKeyword.toLowerCase()) ||
       c.subject.toLowerCase().includes(searchKeyword.toLowerCase())
-  ), [courses, searchKeyword]);
+  ), [courses, searchKeyword])
 
-  // 🎯 Tính toán phân trang cho Khóa học mở rộng
-  const totalCoursePages = Math.ceil(filteredCourses.length / COURSES_PER_PAGE) || 1;
+  const totalCoursePages = Math.ceil(filteredCourses.length / COURSES_PER_PAGE) || 1
 
   const paginatedCourses = useMemo(() => {
-    const startIdx = (currentCoursePage - 1) * COURSES_PER_PAGE;
-    return filteredCourses.slice(startIdx, startIdx + COURSES_PER_PAGE);
-  }, [filteredCourses, currentCoursePage]);
+    const startIdx = (currentCoursePage - 1) * COURSES_PER_PAGE
+    return filteredCourses.slice(startIdx, startIdx + COURSES_PER_PAGE)
+  }, [filteredCourses, currentCoursePage])
 
-  const handlePageChange = (newPage) => {
+  const handleCoursePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalCoursePages && newPage !== currentCoursePage) {
-      setCurrentCoursePage(newPage);
-      if (coursesSectionRef.current) {
-        coursesSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      setCurrentCoursePage(newPage)
+      coursesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
     }
-  };
+  }
 
-  const filteredEssays = useMemo(() => {
-    let list = essays.filter(
+  const filteredDocuments = useMemo(() => {
+    let list = documents.filter(
       (d) =>
         d.title.toLowerCase().includes(searchKeyword.toLowerCase()) ||
         d.desc.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        d.author.toLowerCase().includes(searchKeyword.toLowerCase())
-    );
+        d.author.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        d.faculty.toLowerCase().includes(searchKeyword.toLowerCase())
+    )
     if (essayFilter === "popular") {
-      list = [...list].sort((a, b) => b.likes - a.likes);
+      list = [...list].sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
     }
-    return list;
-  }, [essays, searchKeyword, essayFilter]);
+    return list
+  }, [documents, searchKeyword, essayFilter])
+
+  const totalDocPages = Math.ceil(filteredDocuments.length / DOCS_PER_PAGE) || 1
+
+  const paginatedDocuments = useMemo(() => {
+    const startIdx = (currentDocPage - 1) * DOCS_PER_PAGE
+    return filteredDocuments.slice(startIdx, startIdx + DOCS_PER_PAGE)
+  }, [filteredDocuments, currentDocPage])
+
+  const handleDocPageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalDocPages && newPage !== currentDocPage) {
+      setCurrentDocPage(newPage)
+      docsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }
 
   return (
     <div className="home-root-wrapper">
       <style>{`
         .home-root-wrapper {
-          width: 100%;
-          min-height: 100%;
-          padding: 0 0 50px 0;
-          box-sizing: border-box;
+          width: 100%; min-height: 100%; padding: 0 0 50px 0; box-sizing: border-box;
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
-        .home-wireframe-grid {
-          display: grid;
-          grid-template-columns: 1fr 310px;
-          gap: 20px;
-          align-items: start;
-          width: 100%;
-        }
-        .home-left-col {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-          min-width: 0;
-        }
-        .home-right-col {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
+        .home-wireframe-grid { display: grid; grid-template-columns: 1fr 310px; gap: 20px; align-items: start; width: 100%; }
+        .home-left-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+        .home-right-col { display: flex; flex-direction: column; gap: 20px; }
 
         .search-hero-box {
-          position: relative;
-          background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0284c7 100%);
-          border: 2px solid #cbd5e1;
-          border-radius: 16px;
-          min-height: 200px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 24px;
-          box-shadow: 0 8px 24px rgba(30, 58, 138, 0.12);
-          overflow: hidden;
+          position: relative; background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0284c7 100%);
+          border: 2px solid #cbd5e1; border-radius: 16px; min-height: 200px;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          padding: 24px; box-shadow: 0 8px 24px rgba(30, 58, 138, 0.12); overflow: hidden;
         }
         .search-hero-box::before {
-          content: '';
-          position: absolute;
-          inset: 0;
+          content: ''; position: absolute; inset: 0;
           background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
-          background-size: 20px 20px;
-          pointer-events: none;
+          background-size: 20px 20px; pointer-events: none;
         }
         .search-hero-title {
-          position: relative;
-          color: #ffffff;
-          font-size: 20px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.8px;
-          margin-bottom: 14px;
-          text-align: center;
+          position: relative; color: #ffffff; font-size: 20px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; text-align: center;
         }
         .pill-search-bar {
-          position: relative;
-          width: 100%;
-          max-width: 680px;
-          background: #ffffff;
-          border: 3px solid #38bdf8;
-          border-radius: 50px;
-          display: flex;
-          align-items: center;
-          padding: 6px 10px 6px 22px;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-          transition: all 0.25s ease;
+          position: relative; width: 100%; max-width: 680px; background: #ffffff;
+          border: 3px solid #38bdf8; border-radius: 50px; display: flex; align-items: center;
+          padding: 6px 10px 6px 22px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); transition: all 0.25s ease;
         }
-        .pill-search-bar:focus-within {
-          border-color: #f59e0b;
-          box-shadow: 0 12px 35px rgba(245, 158, 11, 0.35);
-          transform: scale(1.01);
-        }
-        .pill-search-bar input {
-          flex: 1;
-          border: none;
-          outline: none;
-          font-size: 14px;
-          font-weight: 600;
-          color: #0f172a;
-          background: transparent;
-        }
+        .pill-search-bar:focus-within { border-color: #f59e0b; box-shadow: 0 12px 35px rgba(245, 158, 11, 0.35); transform: scale(1.01); }
+        .pill-search-bar input { flex: 1; border: none; outline: none; font-size: 14px; font-weight: 600; color: #0f172a; background: transparent; }
         .search-btn {
-          background: #1e3a8a;
-          color: #ffffff;
-          border: none;
-          padding: 9px 20px;
-          border-radius: 40px;
-          font-size: 13px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          cursor: pointer;
-          transition: background 0.2s;
-          display: flex;
-          align-items: center;
-          gap: 6px;
+          background: #1e3a8a; color: #ffffff; border: none; padding: 9px 20px; border-radius: 40px;
+          font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+          cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 6px;
         }
-        .search-btn:hover {
-          background: #0284c7;
-        }
-        .quick-tags {
-          position: relative;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-top: 12px;
-          font-size: 12px;
-          color: #e2e8f0;
-          flex-wrap: wrap;
-          justify-content: center;
-        }
-        .tag-pill {
-          background: rgba(255, 255, 255, 0.15);
-          border: 1px solid rgba(255, 255, 255, 0.25);
-          color: #ffffff;
-          padding: 3px 10px;
-          border-radius: 20px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .tag-pill:hover {
-          background: #ffffff;
-          color: #1e3a8a;
-        }
+        .search-btn:hover { background: #0284c7; }
+        .quick-tags { position: relative; display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: #e2e8f0; flex-wrap: wrap; justify-content: center; }
+        .tag-pill { background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); color: #ffffff; padding: 3px 10px; border-radius: 20px; cursor: pointer; transition: all 0.2s; }
+        .tag-pill:hover { background: #ffffff; color: #1e3a8a; }
 
-        .courses-section {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .section-header-bar {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
+        .courses-section { display: flex; flex-direction: column; gap: 12px; }
+        .section-header-bar { display: flex; justify-content: space-between; align-items: center; }
         .section-header-bar h3 {
-          font-size: 15px;
-          font-weight: 800;
-          color: #0f172a;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
+          font-size: 15px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;
+          display: flex; align-items: center; gap: 8px;
         }
-        .section-header-bar h3::before {
-          content: '';
-          width: 4px;
-          height: 18px;
-          background: #1e3a8a;
-          border-radius: 2px;
-          display: inline-block;
-        }
-        .three-cards-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-        }
-        .card-wrapper {
-          position: relative;
-          width: 100%;
-          container-type: inline-size;
-          display: flex;
-          flex-direction: column;
-        }
+        .section-header-bar h3::before { content: ''; width: 4px; height: 18px; background: #1e3a8a; border-radius: 2px; display: inline-block; }
+        .three-cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .card-wrapper { position: relative; width: 100%; container-type: inline-size; display: flex; flex-direction: column; }
 
         .school-logo-corner {
-          position: absolute;
-          top: 2cqw;
-          right: 5cqw;
-          z-index: 10;
-          height: 9cqw;
-          max-height: 40px;
-          max-width: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          pointer-events: none;
+          position: absolute; top: 2cqw; right: 5cqw; z-index: 10; height: 9cqw; max-height: 40px;
+          max-width: 50%; display: flex; align-items: center; justify-content: flex-end; pointer-events: none;
         }
-
-        .school-logo-img {
-          height: 100%;
-          width: auto;
-          max-width: 100%;
-          object-fit: contain;
-          display: block;
-          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
-        }
-
+        .school-logo-img { height: 100%; width: auto; max-width: 100%; object-fit: contain; display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12)); }
         .card-container {
-          position: relative;
-          width: 100%;
-          aspect-ratio: 900 / 520;
-          background-image: url('/thekhoahoc/khung.png');
-          background-color: #ffffff;
-          background-size: 100% 100%;
-          background-repeat: no-repeat;
-          background-position: center;
-          border-radius: 3cqw;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-          border: 1px solid #cbd5e1;
-          transition: all 0.3s ease;
+          position: relative; width: 100%; aspect-ratio: 900 / 520; background-image: url('/thekhoahoc/khung.png');
+          background-color: #ffffff; background-size: 100% 100%; background-repeat: no-repeat; background-position: center;
+          border-radius: 3cqw; box-shadow: 0 4px 12px rgba(0,0,0,0.06); border: 1px solid #cbd5e1; transition: all 0.3s ease;
         }
-        .card-container:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 10px 20px rgba(30, 58, 138, 0.12);
-          border-color: #1e3a8a;
-        }
-        .card-canvas {
-          position: absolute;
-          top: -8cqw;
-          left: -8cqw;
-          width: calc(100% + 16cqw);
-          height: calc(100% + 16cqw);
-          z-index: 5;
-          pointer-events: none;
-          opacity: 0;
-          transition: opacity 0.3s ease;
-        }
-        .card-container:hover .card-canvas {
-          opacity: 1;
-        }
+        .card-container:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(30, 58, 138, 0.12); border-color: #1e3a8a; }
+        .card-canvas { position: absolute; top: -8cqw; left: -8cqw; width: calc(100% + 16cqw); height: calc(100% + 16cqw); z-index: 5; pointer-events: none; opacity: 0; transition: opacity 0.3s ease; }
+        .card-container:hover .card-canvas { opacity: 1; }
         
         .teacher-image-zone {
-          position: absolute;
-          left: 1%;
-          bottom: 4%;
-          width: 33%;
-          height: 92%;
-          z-index: 2;
-          display: flex;
-          align-items: flex-end;
-          justify-content: center;
-          overflow: hidden;
+          position: absolute; left: 1%; bottom: 4%; width: 33%; height: 92%; z-index: 2;
+          display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
         }
-        .teacher-img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          object-position: bottom center;
-          filter: drop-shadow(0 8px 12px rgba(0,0,0,0.15));
-        }
-
+        .teacher-img { width: 100%; height: 100%; object-fit: contain; object-position: bottom center; filter: drop-shadow(0 8px 12px rgba(0,0,0,0.15)); }
         .content-box {
-          position: absolute;
-          top: 18%;
-          left: 32%;
-          width: 55%;
-          height: 75%;
-          z-index: 3;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
+          position: absolute; top: 18%; left: 32%; width: 55%; height: 75%; z-index: 3;
+          display: flex; flex-direction: column; justify-content: space-between;
         }
-        .info-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 2px solid #1e3a8a;
-          padding-bottom: 2px;
-        }
-        .info-header h2 {
-          color: #1e3a8a;
-          font-size: 2.5cqw;
-          font-weight: 800;
-          text-transform: uppercase;
-        }
-        .notification-badge {
-          position: relative;
-          color: #1e3a8a;
-          font-size: 2.6cqw;
-        }
+        .info-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 2px; }
+        .info-header h2 { color: #1e3a8a; font-size: 2.5cqw; font-weight: 800; text-transform: uppercase; }
+        .notification-badge { position: relative; color: #1e3a8a; font-size: 2.6cqw; }
         .notification-badge .count {
-          position: absolute;
-          top: -4px;
-          right: -6px;
-          background: #ef4444;
-          color: white;
-          font-size: 1.6cqw;
-          width: 2cqw;
-          height: 2cqw;
-          min-width: 13px;
-          min-height: 13px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
+          position: absolute; top: -4px; right: -6px; background: #ef4444; color: white;
+          font-size: 1.6cqw; width: 2cqw; height: 2cqw; min-width: 13px; min-height: 13px;
+          border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;
         }
-        .info-list {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        .info-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-bottom: 1px solid #f1f5f9;
-          padding-bottom: 1px;
-          font-size: 2cqw;
-          line-height: 1.25;
-        }
+        .info-list { display: flex; flex-direction: column; gap: 2px; }
+        .info-item { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 1px; font-size: 2cqw; line-height: 1.25; }
         .info-label { font-weight: 700; color: #334155; }
         .info-value { color: #64748b; font-weight: 500; }
         
         .progress-container { margin-top: 1px; }
-        .progress-label {
-          display: flex;
-          justify-content: flex-end;
-          font-size: 1.7cqw;
-          color: #64748b;
-          margin-bottom: 1px;
-          font-weight: 600;
-        }
-        .progress-bar {
-          width: 100%;
-          height: 4px;
-          background: #e2e8f0;
-          border-radius: 4px;
-          overflow: hidden;
-        }
-        .progress-fill {
-          height: 100%;
-          background: #1e3a8a;
-        }
-        .action-buttons {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 5px;
-          margin-top: 2px;
-        }
+        .progress-label { display: flex; justify-content: flex-end; font-size: 1.7cqw; color: #64748b; margin-bottom: 1px; font-weight: 600; }
+        .progress-bar { width: 100%; height: 4px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #1e3a8a; }
+        .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 2px; }
         .card-btn {
-          width: 100%;
-          padding: 1cqw 0.5cqw;
-          border: none;
-          border-radius: 5px;
-          font-size: 1.8cqw;
-          font-weight: 700;
-          color: #ffffff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 4px;
-          text-transform: uppercase;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: background 0.2s;
+          width: 100%; padding: 1cqw 0.5cqw; border: none; border-radius: 5px; font-size: 1.8cqw;
+          font-weight: 700; color: #ffffff; display: flex; align-items: center; justify-content: center;
+          gap: 4px; text-transform: uppercase; cursor: pointer; white-space: nowrap; transition: background 0.2s;
         }
         .btn-detail { background-color: #1e3a8a; }
         .btn-detail:hover { background-color: #1d4ed8; }
         .btn-register { background-color: #ea580c; }
         .btn-register:hover { background-color: #c2410c; }
 
-        .essays-section {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 18px;
-          padding: 20px;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
-        }
-        .two-columns-essay-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 16px;
-        }
+        .essays-section { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 20px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02); }
+        .two-columns-essay-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
         .essay-card-box {
-          background: #ffffff;
-          border: 1.5px solid #e2e8f0;
-          border-radius: 14px;
-          padding: 16px;
-          display: flex;
-          gap: 14px;
-          cursor: pointer;
-          transition: all 0.25s ease;
-          position: relative;
+          background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 14px;
+          display: flex; gap: 14px; cursor: pointer; transition: all 0.25s ease; position: relative;
         }
-        .essay-card-box:hover {
-          border-color: #38bdf8;
-          box-shadow: 0 8px 20px rgba(30, 58, 138, 0.09);
-          transform: translateY(-2px);
-          background: #f8fafc;
-        }
-        .essay-cover-mockup {
-          width: 82px;
-          height: 114px;
-          background: #ffffff;
-          border: 1px solid #cbd5e1;
-          border-radius: 6px;
-          flex-shrink: 0;
-          position: relative;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          padding: 4px;
-          overflow: hidden;
-        }
-        .essay-cover-mockup::after {
-          content: '';
-          position: absolute;
-          left: 0; top: 0; bottom: 0;
-          width: 4px;
-          background: rgba(15, 23, 42, 0.15);
-        }
-        .cover-badge-top {
-          position: absolute;
-          top: 3px; right: 3px;
-          background: #dc2626; color: white;
-          font-size: 7px; font-weight: 900;
-          padding: 1px 3px; border-radius: 2px;
-        }
-        .cover-inner-body {
-          width: 100%; height: 100%;
-          border: 1px dashed #e2e8f0;
-          border-radius: 4px; padding: 4px 2px;
-          display: flex; flex-direction: column;
-          align-items: center; justify-content: center;
-          text-align: center;
-        }
-        .cover-logo-icon {
-          width: 20px; height: 20px;
-          border-radius: 50%; font-size: 7px;
-          font-weight: 800; display: flex;
-          align-items: center; justify-content: center;
-          margin-bottom: 4px;
-        }
-        .cover-preview-lines {
-          width: 70%; height: 1.5px;
-          background: #94a3b8; margin: 1.5px 0;
-        }
-        .cover-title-text {
-          font-size: 6.5px; font-weight: 800;
-          color: #1e293b; line-height: 1.1;
-          margin-top: 3px; max-width: 90%;
-        }
-        .essay-details {
-          flex: 1; min-width: 0;
-          display: flex; flex-direction: column;
-          justify-content: space-between;
-        }
+        .essay-card-box:hover { border-color: #38bdf8; box-shadow: 0 8px 20px rgba(30, 58, 138, 0.09); transform: translateY(-2px); background: #f8fafc; }
+        .essay-details { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
         .essay-title-text {
-          font-size: 13px; font-weight: 800;
-          color: #0f172a; line-height: 1.35;
-          margin-bottom: 4px; display: -webkit-box;
-          -webkit-line-clamp: 2; line-clamp: 2;
-          -webkit-box-orient: vertical; overflow: hidden;
+          font-size: 13px; font-weight: 800; color: #0f172a; line-height: 1.35; margin-bottom: 4px;
+          display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
         .essay-desc-text {
-          font-size: 11px; color: #64748b;
-          line-height: 1.4; margin-bottom: 8px;
-          display: -webkit-box; -webkit-line-clamp: 2;
-          line-clamp: 2; -webkit-box-orient: vertical;
-          overflow: hidden;
+          font-size: 11px; color: #64748b; line-height: 1.4; margin-bottom: 8px;
+          display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
-        .essay-meta-row {
-          display: flex; align-items: center;
-          justify-content: space-between;
-          padding-top: 8px; border-top: 1px solid #f1f5f9;
-          font-size: 11px; color: #64748b;
-        }
+        .essay-meta-row { display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px solid #f1f5f9; font-size: 11px; color: #64748b; }
 
-        .pdf-panel {
-          background: #ffffff; border: 2px solid #e2e8f0;
-          border-radius: 16px; padding: 14px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.02);
-          display: flex; flex-direction: column;
-        }
-        .pdf-panel-header {
-          display: flex; justify-content: space-between;
-          align-items: center; border-bottom: 2px solid #f1f5f9;
-          padding-bottom: 10px; margin-bottom: 12px;
-        }
-        .pdf-panel-title {
-          font-size: 14px; font-weight: 800;
-          color: #0f172a; text-transform: uppercase;
-          letter-spacing: 0.3px; display: flex;
-          align-items: center; gap: 6px;
-        }
-        .pdf-pill-badge {
-          background: #0f172a; color: #ffffff;
-          font-size: 9px; font-weight: 900;
-          padding: 2px 6px; border-radius: 4px;
-        }
-        .doc-list {
-          display: flex; flex-direction: column; gap: 10px;
-          list-style: none; overflow-y: auto;
-          max-height: 480px; padding-right: 2px;
-        }
+        .pdf-panel { background: #ffffff; border: 2px solid #e2e8f0; border-radius: 16px; padding: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); display: flex; flex-direction: column; }
+        .pdf-panel-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 12px; }
+        .pdf-panel-title { font-size: 14px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.3px; display: flex; align-items: center; gap: 6px; }
+        .pdf-pill-badge { background: #0f172a; color: #ffffff; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 4px; }
+        .doc-list { display: flex; flex-direction: column; gap: 10px; list-style: none; padding-right: 2px; }
         .doc-item {
-          display: flex; align-items: flex-start; gap: 10px;
-          padding: 8px; background: #ffffff;
-          border: 1px solid #e2e8f0; border-radius: 8px;
-          cursor: pointer; transition: all 0.2s ease;
+          display: flex; align-items: flex-start; gap: 10px; padding: 8px; background: #ffffff;
+          border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;
         }
-        .doc-item:hover {
-          transform: translateX(2px); box-shadow: 0 4px 14px rgba(30, 58, 138, 0.08);
-          border-color: #38bdf8; background: #f8fafc;
-        }
-        .doc-cover-thumb {
-          position: relative; width: 44px; height: 60px;
-          background: #ffffff; border: 1px solid #cbd5e1;
-          border-radius: 4px; flex-shrink: 0;
-          display: flex; flex-direction: column;
-          justify-content: space-between; padding: 2px;
-          box-shadow: 0 2px 5px rgba(0,0,0,0.08); overflow: hidden;
-        }
-        .doc-badge-pdf {
-          position: absolute; top: 1px; left: 1px;
-          background: #0f172a; color: #ffffff;
-          font-size: 6px; font-weight: 900;
-          padding: 1px 2px; border-radius: 2px; z-index: 2;
-        }
-        .doc-cover-inner {
-          width: 100%; height: 100%; border: 1px solid #e2e8f0;
-          border-radius: 2px; display: flex; flex-direction: column;
-          align-items: center; justify-content: center;
-          text-align: center; padding: 2px;
-          background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-        }
-        .doc-cover-logo {
-          width: 12px; height: 12px; border-radius: 50%;
-          background: #fee2e2; color: #dc2626;
-          font-size: 5px; font-weight: 800; display: flex;
-          align-items: center; justify-content: center; margin-bottom: 2px;
-        }
-        .doc-cover-lines { width: 75%; height: 1px; background: #94a3b8; margin: 1px 0; }
-        .doc-cover-text { font-size: 4.5px; font-weight: 800; color: #1e293b; line-height: 1.1; margin-top: 1px; }
-        .doc-info {
-          flex: 1; min-width: 0; display: flex; flex-direction: column;
-          justify-content: space-between; height: 60px; padding: 1px 0;
-        }
+        .doc-item:hover { transform: translateX(2px); box-shadow: 0 4px 14px rgba(30, 58, 138, 0.08); border-color: #38bdf8; background: #f8fafc; }
+        .doc-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; height: 60px; padding: 1px 0; }
         .doc-rating { font-size: 10px; color: #64748b; font-weight: 500; display: flex; align-items: center; gap: 3px; }
         .doc-rating.active { color: #059669; font-weight: 700; }
         .doc-info h4 {
-          font-size: 12px; font-weight: 800; color: #0f172a; line-height: 1.25;
-          margin: 1px 0; display: -webkit-box; -webkit-line-clamp: 2;
-          line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+          font-size: 12px; font-weight: 800; color: #0f172a; line-height: 1.25; margin: 1px 0;
+          display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
         .doc-footer-meta { display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #64748b; font-weight: 600; }
         .download-btn { background: transparent; border: none; color: #64748b; cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: color 0.2s; }
         .download-btn:hover { color: #1e3a8a; }
-        .pdf-quick-list { display: flex; flex-direction: column; gap: 8px; }
-        .pdf-quick-item {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 8px 10px; background: #f8fafc; border: 1px solid #e2e8f0;
-          border-radius: 8px; transition: all 0.2s ease; cursor: pointer;
+
+        .vertical-video-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .vertical-video-card {
+          position: relative; aspect-ratio: 9 / 14; border-radius: 12px; overflow: hidden;
+          cursor: pointer; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+          transition: all 0.25s ease; background: #0f172a;
         }
-        .pdf-quick-item:hover {
-          border-color: #38bdf8; background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        .vertical-video-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.15); border-color: #f97316; }
+        .vertical-video-thumb { width: 100%; height: 100%; object-fit: cover; opacity: 0.82; transition: opacity 0.2s; }
+        .vertical-video-card:hover .vertical-video-thumb { opacity: 0.95; }
+        .vertical-video-overlay {
+          position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.85) 100%);
+          display: flex; flex-direction: column; justify-content: space-between; padding: 8px; color: #ffffff;
         }
-        .pdf-quick-meta { display: flex; align-items: center; gap: 8px; }
-        .pdf-quick-icon {
-          width: 28px; height: 28px; border-radius: 6px; background: #e0f2fe;
-          color: #0369a1; display: flex; align-items: center; justify-content: center;
-          font-size: 12px; font-weight: 800;
+        .play-float-badge {
+          width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.9);
+          color: #ea580c; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
         }
-        .pdf-quick-details h5 {
-          font-size: 11px; font-weight: 700; color: #1e293b; max-width: 160px;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .pdf-quick-details span { font-size: 9px; color: #64748b; }
+        .video-meta-tag { font-size: 8px; background: rgba(15, 23, 42, 0.7); padding: 1px 4px; border-radius: 4px; font-weight: bold; }
 
         @media (max-width: 1200px) {
           .home-wireframe-grid { grid-template-columns: 1fr; }
@@ -919,8 +423,15 @@ export default function StudentHome() {
         </div>
       )}
 
+      {/* MODAL VIDEO DỌC TÁCH RIÊNG */}
+      <VerticalVideoModal 
+        video={selectedVideo} 
+        onClose={() => setSelectedVideo(null)} 
+      />
+
       <div className="home-wireframe-grid">
         <div className="home-left-col">
+          {/* SEARCH HERO */}
           <section className="search-hero-box">
             <h2 className="search-hero-title">Diễn Đàn Chia Sẻ Khóa Học & Tiểu Luận Học Thuật</h2>
             
@@ -943,12 +454,12 @@ export default function StudentHome() {
               <span className="tag-pill" onClick={() => setSearchKeyword("Tiểu Luận")}>Tiểu Luận Pháp Luật</span>
               <span className="tag-pill" onClick={() => setSearchKeyword("Trí Tuệ Nhân Tạo")}>Trí Tuệ Nhân Tạo</span>
               <span className="tag-pill" onClick={() => setSearchKeyword("Học Máy")}>Học Máy Nâng Cao</span>
-              <span className="tag-pill" onClick={() => setSearchKeyword("HNGĐ")}>Luật HNGĐ</span>
+              <span className="tag-pill" onClick={() => setSearchKeyword("Đề thi")}>Đề thi & Kiểm tra</span>
               <span className="tag-pill" onClick={() => setSearchKeyword("")}>Tất cả</span>
             </div>
           </section>
 
-          {/* 🎯 SECTION KHÓA HỌC MỞ RỘNG (KÈM PHÂN TRANG) */}
+          {/* SECTION KHÓA HỌC MỞ RỘNG */}
           <section className="courses-section" ref={coursesSectionRef}>
             <div className="section-header-bar">
               <h3>CÁC KHÓA HỌC MỞ RỘNG</h3>
@@ -961,8 +472,6 @@ export default function StudentHome() {
             <div className="three-cards-grid">
               {paginatedCourses.map((c) => (
                 <div key={c.id} className="card-wrapper" data-course={c.courseName} data-teacher={c.teacherName}>
-                  
-                  {/* LOGO TRƯỜNG GÓC TRÊN */}
                   <div className="school-logo-corner">
                     <img 
                       src={c.logoImg} 
@@ -979,9 +488,9 @@ export default function StudentHome() {
                     className="card-container" 
                     style={{ backgroundImage: 'url("/thekhoahoc/khung.png")' }}
                   >
+                    {/* COMPONENT CANVAS CON */}
                     <CardCanvas />
 
-                    {/* ẢNH DÁNG ĐỨNG CỦA GIÁO VIÊN */}
                     <div className="teacher-image-zone">
                       <img 
                         src={c.teacherImg} 
@@ -1055,7 +564,7 @@ export default function StudentHome() {
               )}
             </div>
 
-            {/* 🎯 BỘ ĐIỀU HƯỚNG PHÂN TRANG (PAGINATION) */}
+            {/* BỘ PHÂN TRANG KHÓA HỌC */}
             {filteredCourses.length > COURSES_PER_PAGE && (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 mt-1 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
                 <div className="text-xs font-medium text-slate-500">
@@ -1065,7 +574,7 @@ export default function StudentHome() {
                 <div className="flex items-center space-x-1.5">
                   <button
                     type="button"
-                    onClick={() => handlePageChange(currentCoursePage - 1)}
+                    onClick={() => handleCoursePageChange(currentCoursePage - 1)}
                     disabled={currentCoursePage === 1}
                     className={`p-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                       currentCoursePage === 1
@@ -1079,8 +588,7 @@ export default function StudentHome() {
 
                   <div className="flex items-center space-x-1">
                     {Array.from({ length: totalCoursePages }).map((_, idx) => {
-                      const pageNum = idx + 1;
-                      // Chỉ hiện trang đầu, cuối và lân cận trang hiện tại
+                      const pageNum = idx + 1
                       if (
                         pageNum === 1 || 
                         pageNum === totalCoursePages || 
@@ -1090,7 +598,7 @@ export default function StudentHome() {
                           <button
                             key={pageNum}
                             type="button"
-                            onClick={() => handlePageChange(pageNum)}
+                            onClick={() => handleCoursePageChange(pageNum)}
                             className={`w-8 h-8 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
                               currentCoursePage === pageNum
                                 ? "bg-blue-900 text-white shadow-md shadow-blue-900/20 font-black"
@@ -1099,20 +607,20 @@ export default function StudentHome() {
                           >
                             {pageNum}
                           </button>
-                        );
+                        )
                       } else if (
                         pageNum === currentCoursePage - 2 || 
                         pageNum === currentCoursePage + 2
                       ) {
-                        return <span key={pageNum} className="px-1 text-slate-400 font-bold text-xs">...</span>;
+                        return <span key={pageNum} className="px-1 text-slate-400 font-bold text-xs">...</span>
                       }
-                      return null;
+                      return null
                     })}
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => handlePageChange(currentCoursePage + 1)}
+                    onClick={() => handleCoursePageChange(currentCoursePage + 1)}
                     disabled={currentCoursePage === totalCoursePages}
                     className={`p-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                       currentCoursePage === totalCoursePages
@@ -1128,15 +636,15 @@ export default function StudentHome() {
             )}
           </section>
 
-          {/* SECTION TIỂU LUẬN & BÁO CÁO HỌC THUẬT */}
-          <section className="essays-section">
+          {/* SECTION TIỂU LUẬN & BÁO CÁO HỌC THUẬT (4 TÀI LIỆU / TRANG) */}
+          <section className="essays-section" ref={docsSectionRef}>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 mb-4">
               <div>
                 <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-900" />
                   <span>Kho Tài Liệu PDF / Báo Cáo Học Thuật</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Tài liệu tham khảo được chia sẻ trực tiếp từ hệ thống bài giảng</p>
+                <p className="text-xs text-slate-500 mt-0.5">Tài liệu tham khảo chọn lọc từ hệ thống bài giảng</p>
               </div>
 
               <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
@@ -1144,7 +652,7 @@ export default function StudentHome() {
                   onClick={() => setEssayFilter("all")}
                   className={`px-3 py-1 rounded-lg transition ${essayFilter === 'all' ? 'bg-white text-blue-900 shadow-xs' : 'hover:text-slate-900'}`}
                 >
-                  Tất cả ({filteredEssays.length})
+                  Tất cả ({filteredDocuments.length})
                 </button>
                 <button 
                   onClick={() => setEssayFilter("popular")}
@@ -1156,72 +664,147 @@ export default function StudentHome() {
             </div>
 
             {isLoading ? (
-              <div className="py-10 text-center text-slate-400 flex flex-col items-center">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-500 mb-2" />
-                <span className="text-xs font-medium">Đang tải tài liệu từ máy chủ...</span>
+              <div className="py-12 text-center text-slate-400 flex flex-col items-center">
+                <Loader2 className="w-7 h-7 animate-spin text-blue-900 mb-2" />
+                <span className="text-xs font-medium">Đang tải tài liệu PDF...</span>
               </div>
             ) : (
-              <div className="two-columns-essay-grid">
-                {filteredEssays.map((essay) => (
-                  <div 
-                    key={essay.id} 
-                    className="essay-card-box"
-                    onClick={() => essay.fileUrl ? window.open(essay.fileUrl, "_blank") : navigate(`/student/documents/${essay.id}`)}
-                  >
-                    <div className="essay-cover-mockup">
-                      <span className="cover-badge-top">PDF</span>
-                      <div className="cover-inner-body">
-                        <div className={`cover-logo-icon ${essay.color}`}>{essay.tag}</div>
-                        <div className="cover-preview-lines"></div>
-                        <div className="cover-preview-lines"></div>
-                        <div className="cover-preview-lines" style={{ width: '50%' }}></div>
-                        <div className="cover-title-text truncate">{essay.faculty}</div>
+              <>
+                <div className="two-columns-essay-grid">
+                  {paginatedDocuments.map((doc) => (
+                    <div 
+                      key={doc.id} 
+                      className="essay-card-box"
+                      onClick={() => navigate(`/${role}/documents/${doc.id}`)}
+                    >
+                      {/* COMPONENT THUMBNAIL PDF CON */}
+                      <PdfCoverPreview fileUrl={doc.fileUrl} width={82} height={114} title={doc.title} />
+
+                      <div className="essay-details">
+                        <div>
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold mb-1">
+                            <span className="text-sky-700 font-bold">{doc.faculty}</span>
+                            <span>{doc.date}</span>
+                          </div>
+                          <h4 className="essay-title-text" title={doc.title}>
+                            {doc.title}
+                          </h4>
+                          <p className="essay-desc-text">
+                            {doc.desc}
+                          </p>
+                        </div>
+
+                        <div className="essay-meta-row">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-700 truncate max-w-[120px]">{doc.author}</span>
+                            <span>•</span>
+                            <span>{doc.pages} trang</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center gap-1 font-bold text-emerald-600">
+                              <Download className="w-3 h-3" /> {doc.downloads}
+                            </span>
+                            <button
+                              type="button"
+                              className="p-1 hover:text-blue-900 rounded transition"
+                              onClick={(e) => handleDownload(e, `${doc.title}.pdf`, doc.fileUrl)}
+                              title="Tải nhanh"
+                            >
+                              <Download className="w-3.5 h-3.5 text-slate-400 hover:text-blue-900" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  ))}
 
-                    <div className="essay-details">
-                      <div>
-                        <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold mb-1">
-                          <span className="text-sky-700 font-bold">{essay.faculty}</span>
-                          <span>{essay.date}</span>
-                        </div>
-                        <h4 className="essay-title-text" title={essay.title}>
-                          {essay.title}
-                        </h4>
-                        <p className="essay-desc-text">
-                          {essay.desc}
-                        </p>
+                  {filteredDocuments.length === 0 && !isLoading && (
+                    <div className="col-span-full py-10 text-center text-slate-400 text-xs font-semibold">
+                      Không tìm thấy tài liệu phù hợp.
+                    </div>
+                  )}
+                </div>
+
+                {/* BỘ PHÂN TRANG CHO KHO TÀI LIỆU */}
+                {filteredDocuments.length > DOCS_PER_PAGE && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-4 border-t border-slate-100">
+                    <div className="text-xs font-medium text-slate-500">
+                      Hiển thị <strong className="text-slate-800 font-bold">{(currentDocPage - 1) * DOCS_PER_PAGE + 1}</strong> - <strong className="text-slate-800 font-bold">{Math.min(currentDocPage * DOCS_PER_PAGE, filteredDocuments.length)}</strong> trên tổng <strong className="text-blue-900 font-bold">{filteredDocuments.length}</strong> tài liệu
+                    </div>
+
+                    <div className="flex items-center space-x-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleDocPageChange(currentDocPage - 1)}
+                        disabled={currentDocPage === 1}
+                        className={`p-1.5 px-2.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                          currentDocPage === 1
+                            ? "text-slate-300 bg-slate-50 cursor-not-allowed border border-slate-100"
+                            : "text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 hover:text-blue-900 shadow-2xs"
+                        }`}
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>Trước</span>
+                      </button>
+
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: totalDocPages }).map((_, idx) => {
+                          const pageNum = idx + 1
+                          if (
+                            pageNum === 1 || 
+                            pageNum === totalDocPages || 
+                            (pageNum >= currentDocPage - 1 && pageNum <= currentDocPage + 1)
+                          ) {
+                            return (
+                              <button
+                                key={pageNum}
+                                type="button"
+                                onClick={() => handleDocPageChange(pageNum)}
+                                className={`w-7 h-7 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                                  currentDocPage === pageNum
+                                    ? "bg-blue-900 text-white shadow-xs font-black"
+                                    : "bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80"
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            )
+                          } else if (
+                            pageNum === currentDocPage - 2 || 
+                            pageNum === currentDocPage + 2
+                          ) {
+                            return <span key={pageNum} className="px-1 text-slate-400 font-bold text-xs">...</span>
+                          }
+                          return null
+                        })}
                       </div>
 
-                      <div className="essay-meta-row">
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-slate-700">{essay.author}</span>
-                          <span>•</span>
-                          <span>{essay.pages} trang</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="flex items-center gap-1 font-bold text-emerald-600">
-                            <Download className="w-3 h-3" /> {essay.downloads}
-                          </span>
-                          <button
-                            className="p-1 hover:text-blue-900 rounded transition"
-                            onClick={(e) => handleDownload(e, `${essay.title}.pdf`, essay.fileUrl)}
-                            title="Tải nhanh"
-                          >
-                            <Download className="w-3.5 h-3.5 text-slate-400 hover:text-blue-900" />
-                          </button>
-                        </div>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDocPageChange(currentDocPage + 1)}
+                        disabled={currentDocPage === totalDocPages}
+                        className={`p-1.5 px-2.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                          currentDocPage === totalDocPages
+                            ? "text-slate-300 bg-slate-50 cursor-not-allowed border border-slate-100"
+                            : "text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 hover:text-blue-900 shadow-2xs"
+                        }`}
+                      >
+                        <span>Sau</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </section>
         </div>
 
+        {/* CỘT PHẢI */}
         <div className="home-right-col">
+          
+          {/* 1. TÀI LIỆU ĐỀ XUẤT */}
           <section className="pdf-panel">
             <div className="pdf-panel-header">
               <div>
@@ -1229,33 +812,29 @@ export default function StudentHome() {
                   <FileText className="w-4 h-4 text-red-500" />
                   <span>Tài liệu đề xuất</span>
                 </h3>
-                <p style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>Bạn có thể quan tâm</p>
+                <p style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>Gợi ý học tập</p>
               </div>
               <span className="pdf-pill-badge">PDF HUB</span>
             </div>
 
-            <ul className="doc-list">
-              {filteredEssays.slice(0, 5).map((doc) => (
+            <ul className="doc-list" style={{ maxHeight: "none" }}>
+              {(isExpandedDocs ? filteredDocuments.slice(0, 8) : filteredDocuments.slice(0, 2)).map((doc) => (
                 <li 
                   key={doc.id} 
                   className="doc-item" 
-                  onClick={() => doc.fileUrl ? window.open(doc.fileUrl, "_blank") : navigate(`/student/documents/${doc.id}`)}
+                  onClick={() => navigate(`/${role}/documents/${doc.id}`)}
                 >
-                  <div className="doc-cover-thumb">
-                    <span className="doc-badge-pdf">PDF</span>
-                    <div className="doc-cover-inner">
-                      <div className={`doc-cover-logo ${doc.color}`}>{doc.tag}</div>
-                      <div className="doc-cover-lines"></div>
-                      <div className="doc-cover-lines"></div>
-                      <div className="doc-cover-text">{doc.title}</div>
-                    </div>
-                  </div>
+                  <PdfCoverPreview fileUrl={doc.fileUrl} width={44} height={60} title={doc.title} />
+
                   <div className="doc-info">
-                    <span className="doc-rating active"><ThumbsUp className="w-3 h-3" /> {doc.likes} lượt thích</span>
-                    <h4>{doc.title}</h4>
+                    <span className="doc-rating active">
+                      <ThumbsUp className="w-3 h-3" /> {doc.likes} lượt thích
+                    </span>
+                    <h4 title={doc.title}>{doc.title}</h4>
                     <div className="doc-footer-meta">
-                      <span>{doc.pages} pages</span>
+                      <span>{doc.pages} trang</span>
                       <button 
+                        type="button"
                         className="download-btn" 
                         onClick={(e) => handleDownload(e, `${doc.title}.pdf`, doc.fileUrl)}
                       >
@@ -1265,48 +844,85 @@ export default function StudentHome() {
                   </div>
                 </li>
               ))}
-              {filteredEssays.length === 0 && !isLoading && (
+
+              {filteredDocuments.length === 0 && !isLoading && (
                 <div className="text-center text-xs text-slate-400 py-4">Chưa có tài liệu đề xuất.</div>
               )}
             </ul>
+
+            {filteredDocuments.length > 2 && (
+              <button
+                type="button"
+                onClick={() => setIsExpandedDocs(!isExpandedDocs)}
+                className="w-full mt-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <span>{isExpandedDocs ? "Thu gọn" : `Xem thêm (${filteredDocuments.length - 2} tài liệu)`}</span>
+              </button>
+            )}
           </section>
 
+          {/* 2. VIDEO DỌC SHORTS */}
           <section className="pdf-panel">
             <div className="pdf-panel-header">
-              <h3 className="pdf-panel-title">
-                <FileCheck className="w-4 h-4 text-sky-600" />
-                <span>PDF: Tải Nhanh</span>
-              </h3>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "#0284c7" }}>Miễn phí</span>
+              <div>
+                <h3 className="pdf-panel-title">
+                  <Video className="w-4 h-4 text-orange-500" />
+                  <span>Video Học Nhanh</span>
+                </h3>
+                <p style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>Clip bài giảng 9:16</p>
+              </div>
+              <span style={{ fontSize: "9px", fontWeight: 900, background: "#ea580c", color: "white", padding: "2px 6px", borderRadius: "4px" }}>
+                SHORTS
+              </span>
             </div>
 
-            <div className="pdf-quick-list">
-              {[
-                { id: 1, name: "Mau_Bia_Tieu_Luan_Chuan.pdf", meta: "0.8 MB • 3 Trang" },
-                { id: 2, name: "De_Cuong_Tri_Tue_Nhan_Tao.pdf", meta: "2.4 MB • 15 Trang" }
-              ].map((item) => (
-                <div 
-                  key={item.id} 
-                  className="pdf-quick-item" 
-                  onClick={() => triggerToast(`Đang mở: ${item.name}`)}
+            <div className="vertical-video-grid">
+              {SAMPLE_VERTICAL_VIDEOS.slice(0, 2).map((vid) => (
+                <div
+                  key={vid.id}
+                  className="vertical-video-card group"
+                  onClick={() => setSelectedVideo(vid)}
                 >
-                  <div className="pdf-quick-meta">
-                    <div className="pdf-quick-icon"><FileText className="w-4 h-4" /></div>
-                    <div className="pdf-quick-details">
-                      <h5>{item.name}</h5>
-                      <span>{item.meta}</span>
+                  <img
+                    src={vid.thumbnail}
+                    alt={vid.title}
+                    className="vertical-video-thumb"
+                  />
+
+                  <div className="vertical-video-overlay">
+                    <div className="flex justify-between items-start">
+                      <span className="video-meta-tag">{vid.duration}</span>
+                      <div className="play-float-badge group-hover:scale-110 transition-transform">
+                        <Play className="w-3 h-3 fill-orange-600 ml-0.5" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <h5 className="text-[11px] font-bold line-clamp-2 leading-tight mb-1 text-white">
+                        {vid.title}
+                      </h5>
+                      <div className="flex items-center justify-between text-[9px] text-slate-300">
+                        <span className="truncate max-w-[65px]">{vid.author}</span>
+                        <span className="flex items-center gap-0.5">
+                          <Eye className="w-2.5 h-2.5" /> {vid.views}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <button 
-                    className="download-btn" 
-                    onClick={(e) => handleDownload(e, item.name)}
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
                 </div>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={() => triggerToast("Chức năng đang kết nối kho video khóa học...")}
+              className="w-full mt-3 py-1.5 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Play className="w-3 h-3 fill-orange-700" />
+              <span>Xem thêm video khác</span>
+            </button>
           </section>
+
         </div>
       </div>
     </div>
