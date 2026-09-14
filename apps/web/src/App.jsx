@@ -139,8 +139,9 @@ export default function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="documents/:docId" element={<DocumentDetail />} />
             
-            {/* 🎯 NÂNG CẤP GÓI EDU DÀNH CHO TEACHER */}
             <Route path="upgrade" element={<UpgradeEdu />} />
+
+            <Route path="videos" element={<Videos />} />
           </Route>
         </Route>
 

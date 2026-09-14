@@ -253,3 +253,19 @@ type DocumentCategory struct {
 
 func (DocumentCategory) TableName() string { return "document_categories" }
 
+// CourseVideo lưu trữ video bài giảng do giảng viên đăng tải
+type CourseVideo struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	TeacherID    uint      `gorm:"not null" json:"teacher_id"`
+	TeacherName  string    `gorm:"size:255" json:"teacher_name"`
+	Title        string    `gorm:"size:255;not null" json:"title"`
+	Description  string    `gorm:"type:text" json:"description"`
+	VideoURL     string    `gorm:"type:text;not null" json:"video_url"`
+	ThumbnailURL string    `gorm:"type:text" json:"thumbnail_url"`
+	Subject      string    `gorm:"size:100" json:"subject"`
+	Duration     string    `gorm:"size:50" json:"duration"`
+	Views        int       `gorm:"default:0" json:"views"`
+	Likes        int       `gorm:"default:0" json:"likes"`
+	IsApproved   bool      `gorm:"default:false" json:"is_approved"` // Admin duyệt mới = true
+	CreatedAt    time.Time `json:"created_at"`
+}

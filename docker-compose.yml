@@ -25,6 +25,9 @@ services:
       - DB_USER=postgres.ieqfabmuxoigwpiwvwmw
       - DB_PASSWORD=edutech@2026
       - DB_NAME=course_service
+      - CLOUDINARY_VIDEO_CLOUD_NAME=kwkcmgh8
+      - CLOUDINARY_VIDEO_API_KEY=288978252982284
+      - CLOUDINARY_VIDEO_API_SECRET=MmuTOYyW0Au8HYalpy0SZN5Sfck
 
   quiz-service:
     build:

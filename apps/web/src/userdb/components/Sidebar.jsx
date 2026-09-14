@@ -145,11 +145,13 @@ export default function Sidebar() {
     { name: "Tủ sách & Bộ sưu tập", path: `/${role}/bookshelf`, icon: Bookmark },
   ]
 
+  // 🎯 ĐÃ BỔ SUNG "Video Edu & Bài giảng" CHO GIẢNG VIÊN
   const teacherNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
     { name: "Trợ lý Trợ giảng AI", path: `/${role}/ai-assistant`, icon: Sparkles },
     { name: "Bảng quản lý Giảng viên", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Quản lý Lớp & Khóa học", path: `/${role}/courses`, icon: FolderPlus },
+    { name: "Video Edu & Bài giảng", path: `/${role}/videos`, icon: Video },
     { name: "Danh mục khóa học", icon: Tags, children: dynamicCourseChildren },
     { name: "Danh mục tài liệu", icon: FolderTree, children: dynamicDocChildren },
     { name: "Ngân hàng Đề & Bài kiểm tra", path: `/${role}/quizzes`, icon: HelpCircle },

@@ -78,5 +78,10 @@ func SetupRoutes(r *gin.Engine) {
 
 		// --- DANH MỤC TÀI LIỆU ---
 		api.GET("/document-categories", controllers.GetDocumentCategories)
+
+		// --- VIDEO EDU BÀI GIẢNG ---
+		api.GET("/videos", controllers.GetVideos)
+		api.POST("/videos", controllers.CreateVideo)
+		api.PUT("/videos/:id/approve", controllers.ApproveVideo)
 	}
 }

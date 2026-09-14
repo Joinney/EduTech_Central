@@ -72,6 +72,7 @@ func InitDB() {
 		&models.CourseSchedule{},
 		&models.SharedDocument{},
 		&models.DocumentCategory{},
+		&models.CourseVideo{},
 	)
 	log.Println("✅ AutoMigrate toàn bộ bảng LCMS thành công!")
 

@@ -1,15 +1,20 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"edutech/course-service/configs"
 	"edutech/course-service/models"
+
+	"github.com/cloudinary/cloudinary-go/v2"
+	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -1296,4 +1301,148 @@ func GetSharedDocumentByID(c *gin.Context) {
 	doc.Views++
 
 	c.JSON(http.StatusOK, gin.H{"data": doc})
+}
+
+// 1. GET /api/v1/videos - Lấy danh sách video
+func GetVideos(c *gin.Context) {
+	var videos []models.CourseVideo
+	query := configs.DB.Model(&models.CourseVideo{})
+
+	// Lọc môn học nếu có query param ?subject=Toán Học
+	if subject := c.Query("subject"); subject != "" {
+		query = query.Where("subject = ?", subject)
+	}
+
+	// Nếu không phải admin xem danh sách duyệt (?all=true) thì chỉ lấy video đã duyệt
+	if c.Query("all") != "true" {
+		query = query.Where("is_approved = ?", true)
+	}
+
+	if err := query.Order("created_at desc").Find(&videos).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi lấy danh sách video"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": videos})
+}
+
+// 2.POST /api/v1/videos - Giảng viên đăng video bằng File upload HOẶC Link trực tiếp
+func CreateVideo(c *gin.Context) {
+	title := strings.TrimSpace(c.PostForm("title"))
+	subject := strings.TrimSpace(c.PostForm("subject"))
+	description := strings.TrimSpace(c.PostForm("description"))
+	duration := strings.TrimSpace(c.PostForm("duration"))
+	teacherName := strings.TrimSpace(c.PostForm("teacher_name"))
+	teacherIDStr := strings.TrimSpace(c.PostForm("teacher_id"))
+	directVideoURL := strings.TrimSpace(c.PostForm("video_url"))
+
+	if title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Vui lòng nhập tiêu đề bài giảng"})
+		return
+	}
+
+	teacherID, _ := strconv.Atoi(teacherIDStr)
+	if teacherID == 0 {
+		teacherID = 1 // Fallback nếu user.id chưa được truyền
+	}
+	if teacherName == "" {
+		teacherName = "Giảng viên EduTech"
+	}
+
+	finalVideoURL := directVideoURL
+	thumbURL := ""
+
+	// 1. Kiểm tra nếu có upload file
+	fileHeader, err := c.FormFile("file")
+	if err == nil && fileHeader != nil {
+		file, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Không thể mở file video: " + err.Error()})
+			return
+		}
+		defer file.Close()
+
+		cldName := os.Getenv("CLOUDINARY_VIDEO_CLOUD_NAME")
+		apiKey := os.Getenv("CLOUDINARY_VIDEO_API_KEY")
+		apiSecret := os.Getenv("CLOUDINARY_VIDEO_API_SECRET")
+
+		if cldName == "" || apiKey == "" || apiSecret == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Chưa cấu hình thông tin Cloudinary Video trong .env"})
+			return
+		}
+
+		cld, err := cloudinary.NewFromParams(cldName, apiKey, apiSecret)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi kết nối dịch vụ Cloudinary: " + err.Error()})
+			return
+		}
+
+		ctx := context.Background()
+		// Sử dụng Upload lớn cho video
+		uploadResult, err := cld.Upload.Upload(ctx, file, uploader.UploadParams{
+			Folder:       "edutech_videos",
+			ResourceType: "video",
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Tải video lên Cloudinary thất bại: " + err.Error()})
+			return
+		}
+
+		finalVideoURL = uploadResult.SecureURL
+		if finalVideoURL != "" && len(finalVideoURL) > 4 {
+			thumbURL = finalVideoURL[:len(finalVideoURL)-4] + ".jpg"
+		}
+	}
+
+	// 2. Nếu không có file và cũng không có URL
+	if finalVideoURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Vui lòng chọn tệp video hoặc nhập liên kết video hợp lệ"})
+		return
+	}
+
+	if duration == "" {
+		duration = "Tự do"
+	}
+
+	newVideo := models.CourseVideo{
+		TeacherID:    uint(teacherID),
+		TeacherName:  teacherName,
+		Title:        title,
+		Description:  description,
+		Subject:      subject,
+		Duration:     duration,
+		VideoURL:     finalVideoURL,
+		ThumbnailURL: thumbURL,
+		IsApproved:   false, // Chờ Admin duyệt
+		CreatedAt:    time.Now(),
+	}
+
+	if err := configs.DB.Create(&newVideo).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi lưu vào CSDL: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Đăng video thành công! Video đang chờ Admin duyệt.",
+		"data":    newVideo,
+	})
+}
+
+// 3. PUT /api/v1/videos/:id/approve - Admin duyệt video
+func ApproveVideo(c *gin.Context) {
+	id := c.Param("id")
+	var video models.CourseVideo
+
+	if err := configs.DB.First(&video, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy video"})
+		return
+	}
+
+	video.IsApproved = true
+	if err := configs.DB.Save(&video).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi duyệt video"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Đã duyệt video thành công!", "data": video})
 }

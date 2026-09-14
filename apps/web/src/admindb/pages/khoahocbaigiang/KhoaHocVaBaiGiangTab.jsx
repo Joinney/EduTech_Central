@@ -11,20 +11,25 @@ import {
   Edit3,
   XCircle,
   Eye,
-  Paperclip,
-  FileText,
-  Download,
   Trash2,
   Check,
   Clock,
+  Video,
+  Play,
+  X,
+  FileText,
+  Download,
+  BookOpen,
+  FolderOpen,
+  Paperclip,
 } from "lucide-react";
 import { formatStatusBadge } from "../../components/lcms/constants";
 
 export default function KhoaHocVaBaiGiangTab({
-  courses,
-  filteredCourses,
-  externalCourses,
-  schoolCourses,
+  courses = [],
+  filteredCourses = [],
+  externalCourses = [],
+  schoolCourses = [],
   subTabContent,
   onSwitchSubTab,
   courseCategoryTab,
@@ -39,8 +44,11 @@ export default function KhoaHocVaBaiGiangTab({
   setAdminNote,
   onUpdateCourseStatus,
 }) {
+  const baseUrl =
+    import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
+
   // ==========================================
-  // STATE & LOGIC CHO PHẦN DUYỆT TÀI LIỆU
+  // STATE CHO PHẦN DUYỆT TÀI LIỆU
   // ==========================================
   const [sharedDocs, setSharedDocs] = useState([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
@@ -49,9 +57,7 @@ export default function KhoaHocVaBaiGiangTab({
   const fetchSharedDocs = async () => {
     setIsLoadingDocs(true);
     try {
-      const res = await fetch(
-        "http://localhost:8002/api/v1/shared-documents?all=true",
-      );
+      const res = await fetch(`${baseUrl}/shared-documents?all=true`);
       const data = await res.json();
       setSharedDocs(data.data || []);
     } catch (error) {
@@ -61,10 +67,45 @@ export default function KhoaHocVaBaiGiangTab({
     }
   };
 
-  // Chỉ fetch dữ liệu khi Admin chuyển sang tab Kiểm duyệt
+  // ==========================================
+  // STATE CHO PHẦN DUYỆT VIDEO BÀI GIẢNG
+  // ==========================================
+  const [videos, setVideos] = useState([]);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(false);
+  const [videoFilter, setVideoFilter] = useState("PENDING");
+  const [previewingVideo, setPreviewingVideo] = useState(null);
+
+  const fetchVideos = async () => {
+    setIsLoadingVideos(true);
+    try {
+      const res = await fetch(`${baseUrl}/videos?all=true`);
+      const data = await res.json();
+      setVideos(data.data || []);
+    } catch (error) {
+      console.error("Lỗi lấy danh sách video:", error);
+    } finally {
+      setIsLoadingVideos(false);
+    }
+  };
+
+  // ==========================================
+  // STATE CHO TAB CẤU TRÚC & HỌC LIỆU
+  // ==========================================
+  const [selectedCurriculumId, setSelectedCurriculumId] = useState(null);
+  const [selectedResourceId, setSelectedResourceId] = useState(null);
+
+  useEffect(() => {
+    if (filteredCourses.length > 0) {
+      if (!selectedCurriculumId) setSelectedCurriculumId(filteredCourses[0].id);
+      if (!selectedResourceId) setSelectedResourceId(filteredCourses[0].id);
+    }
+  }, [filteredCourses]);
+
   useEffect(() => {
     if (subTabContent === "doc_approval") {
       fetchSharedDocs();
+    } else if (subTabContent === "video_approval") {
+      fetchVideos();
     }
   }, [subTabContent]);
 
@@ -75,45 +116,85 @@ export default function KhoaHocVaBaiGiangTab({
     return true;
   });
 
-  // Gọi API Phê duyệt tài liệu
+  // Lọc video theo trạng thái
+  const filteredVideos = videos.filter((vid) => {
+    if (videoFilter === "PENDING") return vid.is_approved === false;
+    if (videoFilter === "APPROVED") return vid.is_approved === true;
+    return true;
+  });
+
+  // Xử lý duyệt tài liệu
   const handleApproveDoc = async (id) => {
-    if (
-      !window.confirm(
-        "Bạn có chắc chắn muốn phê duyệt tài liệu này? Nó sẽ hiển thị cho toàn bộ học sinh.",
-      )
-    )
-      return;
+    if (!window.confirm("Bạn có chắc chắn muốn phê duyệt tài liệu này?")) return;
     try {
-      await fetch(
-        `http://localhost:8002/api/v1/shared-documents/${id}/approve`,
-        { method: "PUT" },
-      );
-      fetchSharedDocs(); // Load lại bảng
+      await fetch(`${baseUrl}/shared-documents/${id}/approve`, {
+        method: "PUT",
+      });
+      fetchSharedDocs();
     } catch (error) {
-      alert("Đã xảy ra lỗi khi duyệt!");
+      alert("Đã xảy ra lỗi khi duyệt tài liệu!");
     }
   };
 
-  // Gọi API Từ chối/Xóa tài liệu
+  // Xử lý xóa tài liệu
   const handleDeleteDoc = async (id) => {
+    if (!window.confirm("Tài liệu này sẽ bị xóa vĩnh viễn. Bạn chắc chắn chứ?"))
+      return;
+    try {
+      await fetch(`${baseUrl}/shared-documents/${id}`, { method: "DELETE" });
+      fetchSharedDocs();
+    } catch (error) {
+      alert("Đã xảy ra lỗi khi xóa tài liệu!");
+    }
+  };
+
+  // Xử lý duyệt Video
+  const handleApproveVideo = async (id) => {
     if (
       !window.confirm(
-        "Tài liệu này sẽ bị xóa vĩnh viễn. Bạn có chắc chắn không?",
+        "Phê duyệt video này? Video sẽ xuất hiện ngay trên trang Video Edu của học sinh.",
       )
     )
       return;
     try {
-      await fetch(`http://localhost:8002/api/v1/shared-documents/${id}`, {
-        method: "DELETE",
+      const res = await fetch(`${baseUrl}/videos/${id}/approve`, {
+        method: "PUT",
       });
-      fetchSharedDocs(); // Load lại bảng
+      if (res.ok) {
+        fetchVideos();
+      } else {
+        alert("Lỗi khi duyệt video!");
+      }
     } catch (error) {
-      alert("Đã xảy ra lỗi khi xóa!");
+      alert("Đã xảy ra lỗi kết nối khi duyệt video!");
     }
   };
+
+  // Xử lý xóa Video
+  const handleDeleteVideo = async (id) => {
+    if (!window.confirm("Xóa video bài giảng này vĩnh viễn?")) return;
+    try {
+      const res = await fetch(`${baseUrl}/videos/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        fetchVideos();
+      } else {
+        alert("Lỗi khi xóa video!");
+      }
+    } catch (error) {
+      alert("Đã xảy ra lỗi kết nối khi xóa video!");
+    }
+  };
+
+  const activeCurriculumCourse =
+    filteredCourses.find((c) => c.id === selectedCurriculumId) ||
+    filteredCourses[0];
+
+  const activeResourceCourse =
+    filteredCourses.find((c) => c.id === selectedResourceId) ||
+    filteredCourses[0];
 
   return (
-    <div className="space-y-4 animate-fadeIn">
+    <div className="space-y-4 animate-fadeIn font-sans">
       {/* Sub-tabs điều hướng */}
       <div className="flex items-center space-x-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar">
         {[
@@ -136,14 +217,19 @@ export default function KhoaHocVaBaiGiangTab({
             id: "doc_approval",
             label: "Kiểm duyệt tài liệu",
             icon: CheckCircle2,
-          }, // Tab mới
+          },
+          {
+            id: "video_approval",
+            label: `Kiểm duyệt Video Edu (${videos.filter((v) => !v.is_approved).length} chờ)`,
+            icon: Video,
+          },
         ].map((st) => (
           <button
             key={st.id}
             onClick={() => onSwitchSubTab(st.id)}
             className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               subTabContent === st.id
-                ? "bg-[#38497C] text-white shadow-sm"
+                ? "bg-orange-600 text-white shadow-sm"
                 : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
             }`}
           >
@@ -153,9 +239,7 @@ export default function KhoaHocVaBaiGiangTab({
         ))}
       </div>
 
-      {/* ========================================== */}
-      {/* TAB 1: DANH SÁCH KHÓA HỌC (Giữ nguyên) */}
-      {/* ========================================== */}
+      {/* THANH LỌC CHUNG CHO CÁC TAB KHÓA HỌC */}
       {(subTabContent === "course_list" ||
         subTabContent === "curriculum" ||
         subTabContent === "resources") && (
@@ -222,7 +306,9 @@ export default function KhoaHocVaBaiGiangTab({
         </div>
       )}
 
-      {/* RENDER NỘI DUNG COURSE LIST */}
+      {/* ========================================== */}
+      {/* TAB 1: DANH SÁCH KHÓA HỌC */}
+      {/* ========================================== */}
       {subTabContent === "course_list" && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div
@@ -416,41 +502,241 @@ export default function KhoaHocVaBaiGiangTab({
         </div>
       )}
 
-      {/* RENDER NỘI DUNG CURRICULUM & RESOURCES (Giữ nguyên) */}
+      {/* ========================================== */}
+      {/* TAB 2: CẤU TRÚC BÀI GIẢNG CHI TIẾT (ĐÃ KHÔI PHỤC) */}
+      {/* ========================================== */}
       {subTabContent === "curriculum" && (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">
-                Cấu Trúc Chương Mục & Bài Giảng
-              </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* Cột trái: Chọn khóa học */}
+          <div className="lg:col-span-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2.5">
+              <BookOpen className="w-4 h-4 text-orange-600" />
+              <span>Chọn Khóa Học ({filteredCourses.length})</span>
+            </h4>
+            <div className="space-y-1.5 max-h-[520px] overflow-y-auto pr-1">
+              {filteredCourses.map((c) => {
+                const isSelected =
+                  (activeCurriculumCourse?.id || "") === c.id;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => setSelectedCurriculumId(c.id)}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-orange-50/80 border-orange-300 shadow-2xs"
+                        : "bg-slate-50/50 hover:bg-slate-100/80 border-slate-200/70"
+                    }`}
+                  >
+                    <span className="font-mono text-[10px] text-orange-600 font-bold block">
+                      {c.code}
+                    </span>
+                    <h5 className="font-bold text-xs text-slate-900 line-clamp-1">
+                      {c.title}
+                    </h5>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                      <span>
+                        {c.teacher_name || c.teacherName || "Giảng viên"}
+                      </span>
+                      <span className="font-semibold text-slate-600">
+                        {c.lessons?.length || 0} bài học
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-          {/* Rút gọn code phần này để bạn dễ đọc, phần này giữ y chang logic cũ của bạn */}
-          <div className="p-4 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 text-xs">
-            {filteredCourses.length} khóa học đang hiển thị cấu trúc.
-          </div>
-        </div>
-      )}
 
-      {subTabContent === "resources" && (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">
-                Kho Học Liệu & Tài Nguyên Đính Kèm
-              </h3>
-            </div>
-          </div>
-          {/* Rút gọn code phần này để bạn dễ đọc */}
-          <div className="p-4 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 text-xs">
-            Đang hiển thị tài nguyên của {filteredCourses.length} khóa học.
+          {/* Cột phải: Hiển thị các bài học */}
+          <div className="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            {activeCurriculumCourse ? (
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div>
+                    <span className="text-[10px] uppercase font-mono font-bold text-orange-600">
+                      {activeCurriculumCourse.code} •{" "}
+                      {activeCurriculumCourse.subject || "Chuyên đề"}
+                    </span>
+                    <h3 className="font-extrabold text-base text-slate-900 mt-0.5">
+                      {activeCurriculumCourse.title}
+                    </h3>
+                  </div>
+                  <span className="text-xs bg-slate-100 text-slate-700 px-3 py-1 rounded-full font-bold self-start">
+                    Tổng: {activeCurriculumCourse.lessons?.length || 0} bài học
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {activeCurriculumCourse.lessons &&
+                  activeCurriculumCourse.lessons.length > 0 ? (
+                    activeCurriculumCourse.lessons.map((lesson, idx) => (
+                      <div
+                        key={lesson.id || idx}
+                        className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between gap-3 hover:border-orange-200 transition"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-7 h-7 rounded-lg bg-orange-100 text-orange-700 font-black text-xs flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <h5 className="font-bold text-xs text-slate-900 truncate">
+                              {lesson.title}
+                            </h5>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                              {lesson.description ||
+                                "Nội dung bài học chuẩn định dạng LCMS"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {lesson.video_url && (
+                            <span className="p-1 px-2 rounded-md bg-blue-50 text-blue-600 text-[10px] font-bold flex items-center gap-1">
+                              <Video className="w-3 h-3" /> Video
+                            </span>
+                          )}
+                          {lesson.document_url && (
+                            <span className="p-1 px-2 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-bold flex items-center gap-1">
+                              <FileText className="w-3 h-3" /> PDF
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      Khóa học này hiện chưa có bài học nào được tạo.
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="p-8 text-center text-xs text-slate-400">
+                Vui lòng chọn khóa học để xem cấu trúc bài giảng.
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* ========================================== */}
-      {/* TAB MỚI: QUẢN LÝ TÀI LIỆU CỘNG ĐỒNG */}
+      {/* TAB 3: KHO HỌC LIỆU & TỆP ĐÍNH KÈM (ĐÃ KHÔI PHỤC) */}
+      {/* ========================================== */}
+      {subTabContent === "resources" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* Cột trái: Chọn khóa học */}
+          <div className="lg:col-span-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2.5">
+              <FolderOpen className="w-4 h-4 text-orange-600" />
+              <span>Khóa Học & Tài Nguyên ({filteredCourses.length})</span>
+            </h4>
+            <div className="space-y-1.5 max-h-[520px] overflow-y-auto pr-1">
+              {filteredCourses.map((c) => {
+                const isSelected =
+                  (activeResourceCourse?.id || "") === c.id;
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => setSelectedResourceId(c.id)}
+                    className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-orange-50/80 border-orange-300 shadow-2xs"
+                        : "bg-slate-50/50 hover:bg-slate-100/80 border-slate-200/70"
+                    }`}
+                  >
+                    <span className="font-mono text-[10px] text-orange-600 font-bold block">
+                      {c.code}
+                    </span>
+                    <h5 className="font-bold text-xs text-slate-900 line-clamp-1">
+                      {c.title}
+                    </h5>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                      <span>{c.schoolName || "EduTech"}</span>
+                      <span className="font-semibold text-slate-600">
+                        {c.resources?.length || 0} tệp
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Cột phải: Danh sách tệp đính kèm */}
+          <div className="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            {activeResourceCourse ? (
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div>
+                    <span className="text-[10px] uppercase font-mono font-bold text-orange-600">
+                      Tệp đính kèm bài giảng
+                    </span>
+                    <h3 className="font-extrabold text-base text-slate-900 mt-0.5">
+                      {activeResourceCourse.title}
+                    </h3>
+                  </div>
+                  <span className="text-xs bg-slate-100 text-slate-700 px-3 py-1 rounded-full font-bold self-start">
+                    {activeResourceCourse.resources?.length || 0} tài liệu đính
+                    kèm
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {activeResourceCourse.resources &&
+                  activeResourceCourse.resources.length > 0 ? (
+                    activeResourceCourse.resources.map((res, idx) => (
+                      <div
+                        key={res.id || idx}
+                        className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between gap-3 hover:border-orange-200 transition"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center shrink-0">
+                            <Paperclip className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <h5 className="font-bold text-xs text-slate-900 truncate">
+                              {res.name ||
+                                res.title ||
+                                `Tài liệu bài học #${idx + 1}`}
+                            </h5>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              {res.file_size || "Tài liệu học tập chính quy"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {res.file_url && (
+                          <a
+                            href={res.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-white border border-slate-200 hover:bg-orange-50 hover:text-orange-600 rounded-lg text-slate-600 transition cursor-pointer"
+                            title="Tải xuống tài liệu"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      Khóa học này chưa được giảng viên đính kèm thêm tài nguyên
+                      nào.
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="p-8 text-center text-xs text-slate-400">
+                Vui lòng chọn khóa học để xem tài nguyên.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* TAB 4: QUẢN LÝ TÀI LIỆU CỘNG ĐỒNG */}
       {/* ========================================== */}
       {subTabContent === "doc_approval" && (
         <div className="space-y-4">
@@ -460,8 +746,7 @@ export default function KhoaHocVaBaiGiangTab({
                 Kiểm duyệt Tài liệu Cộng đồng
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Học sinh tải lên tài liệu. Admin duyệt thì tài liệu mới hiện
-                công khai.
+                Tài liệu học sinh tải lên cần được phê duyệt trước khi công khai.
               </p>
             </div>
             <select
@@ -576,6 +861,208 @@ export default function KhoaHocVaBaiGiangTab({
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* TAB 5: KIỂM DUYỆT VIDEO EDU BÀI GIẢNG */}
+      {/* ========================================== */}
+      {subTabContent === "video_approval" && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                <Video className="w-4 h-4 text-orange-600" />
+                Kiểm duyệt Video Bài giảng Giảng viên
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Các video do giảng viên tải lên qua Cloudinary cần được duyệt
+                trước khi xuất hiện trên portal học viên.
+              </p>
+            </div>
+            <select
+              value={videoFilter}
+              onChange={(e) => setVideoFilter(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+            >
+              <option value="PENDING">🔴 Chờ kiểm duyệt</option>
+              <option value="APPROVED">🟢 Đã phê duyệt</option>
+              <option value="ALL">📋 Tất cả video</option>
+            </select>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden text-xs">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px]">
+                <tr>
+                  <th className="p-4">Thumbnail / Tiêu đề Video</th>
+                  <th className="p-4">Môn Học</th>
+                  <th className="p-4">Giảng Viên Đăng</th>
+                  <th className="p-4">Thời Lượng</th>
+                  <th className="p-4">Trạng Thái</th>
+                  <th className="p-4 text-right">Hành Động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {isLoadingVideos ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-400">
+                      Đang tải danh sách video bài giảng...
+                    </td>
+                  </tr>
+                ) : filteredVideos.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-400">
+                      Không có video nào trong danh sách này.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredVideos.map((vid) => (
+                    <tr
+                      key={vid.id}
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            onClick={() => setPreviewingVideo(vid)}
+                            className="relative w-20 h-12 rounded-lg overflow-hidden bg-slate-900 shrink-0 cursor-pointer group"
+                          >
+                            <img
+                              src={
+                                vid.thumbnail_url ||
+                                "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=300&q=80"
+                              }
+                              alt={vid.title}
+                              className="w-full h-full object-cover opacity-75 group-hover:scale-105 transition"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition">
+                              <Play className="w-4 h-4 text-white fill-white" />
+                            </div>
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-900 block truncate max-w-xs md:max-w-md">
+                              {vid.title}
+                            </span>
+                            <span className="text-[10px] text-slate-400 mt-0.5 block truncate max-w-xs">
+                              {vid.description || "Không có mô tả"}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span className="px-2 py-0.5 bg-orange-50 text-orange-700 font-bold rounded text-[11px] border border-orange-100">
+                          {vid.subject || "Chung"}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className="font-bold text-slate-800 block">
+                          {vid.teacher_name || "Giảng viên"}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          ID: #{vid.teacher_id}
+                        </span>
+                      </td>
+                      <td className="p-4 text-slate-600 font-mono text-[11px]">
+                        {vid.duration || "15:00"}
+                      </td>
+                      <td className="p-4">
+                        {vid.is_approved ? (
+                          <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-[10px] font-bold">
+                            Đã Duyệt
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 bg-rose-100 text-rose-700 rounded-md text-[10px] font-bold">
+                            Chờ Duyệt
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button
+                            onClick={() => setPreviewingVideo(vid)}
+                            className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors cursor-pointer"
+                            title="Xem video"
+                          >
+                            <Play className="w-4 h-4" />
+                          </button>
+
+                          {!vid.is_approved && (
+                            <button
+                              onClick={() => handleApproveVideo(vid.id)}
+                              className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg transition-colors cursor-pointer"
+                              title="Phê duyệt video"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => handleDeleteVideo(vid.id)}
+                            className="p-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg transition-colors cursor-pointer"
+                            title="Xóa/Từ chối"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP XEM TRƯỚC VIDEO (MODAL PREVIEW) */}
+      {previewingVideo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 rounded-3xl overflow-hidden shadow-2xl max-w-3xl w-full border border-slate-700 flex flex-col">
+            <div className="px-5 py-3.5 bg-slate-950 flex items-center justify-between border-b border-slate-800 text-white">
+              <div className="truncate pr-4">
+                <span className="text-[10px] uppercase font-bold text-orange-400 block">
+                  {previewingVideo.subject} • {previewingVideo.teacher_name}
+                </span>
+                <h4 className="text-sm font-black truncate">
+                  {previewingVideo.title}
+                </h4>
+              </div>
+              <button
+                onClick={() => setPreviewingVideo(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="aspect-video w-full bg-black flex items-center justify-center">
+              <video
+                src={previewingVideo.video_url}
+                controls
+                autoPlay
+                className="w-full h-full object-contain"
+              />
+            </div>
+
+            <div className="p-4 bg-slate-900 flex items-center justify-between gap-3 text-xs text-slate-300">
+              <p className="line-clamp-2 text-slate-400 flex-1">
+                {previewingVideo.description || "Không có mô tả chi tiết."}
+              </p>
+              {!previewingVideo.is_approved && (
+                <button
+                  onClick={() => {
+                    handleApproveVideo(previewingVideo.id);
+                    setPreviewingVideo(null);
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center gap-1.5 shrink-0 transition cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Duyệt Video Này</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
