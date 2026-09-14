@@ -73,6 +73,9 @@ func InitDB() {
 		&models.SharedDocument{},
 		&models.DocumentCategory{},
 		&models.CourseVideo{},
+		&models.VideoLike{},
+    	&models.VideoBookmark{},
+    	&models.VideoComment{},
 	)
 	log.Println("✅ AutoMigrate toàn bộ bảng LCMS thành công!")
 

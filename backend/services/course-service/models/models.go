@@ -269,3 +269,30 @@ type CourseVideo struct {
 	IsApproved   bool      `gorm:"default:false" json:"is_approved"` // Admin duyệt mới = true
 	CreatedAt    time.Time `json:"created_at"`
 }
+
+// VideoLike lưu thông tin người like video
+type VideoLike struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	VideoID   uint      `json:"video_id" gorm:"not null;uniqueIndex:idx_user_video_like"`
+	UserID    uint      `json:"user_id" gorm:"not null;uniqueIndex:idx_user_video_like"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// VideoBookmark lưu thông tin người lưu video
+type VideoBookmark struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	VideoID   uint      `json:"video_id" gorm:"not null;uniqueIndex:idx_user_video_bookmark"`
+	UserID    uint      `json:"user_id" gorm:"not null;uniqueIndex:idx_user_video_bookmark"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// VideoComment lưu bình luận học sinh & giáo viên
+type VideoComment struct {
+	ID         uint      `json:"id" gorm:"primaryKey"`
+	VideoID    uint      `json:"video_id" gorm:"not null;index"`
+	UserID     uint      `json:"user_id" gorm:"not null"`
+	UserName   string    `json:"user_name" gorm:"type:varchar(255);not null"`
+	UserAvatar string    `json:"user_avatar" gorm:"type:varchar(500)"`
+	Content    string    `json:"content" gorm:"type:text;not null"`
+	CreatedAt  time.Time `json:"created_at"`
+}

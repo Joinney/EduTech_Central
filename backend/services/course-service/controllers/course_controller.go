@@ -1446,3 +1446,147 @@ func ApproveVideo(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Đã duyệt video thành công!", "data": video})
 }
+
+// POST /api/v1/videos/:id/view - Tăng lượt xem video
+func IncreaseVideoView(c *gin.Context) {
+	videoID := c.Param("id")
+	if err := configs.DB.Model(&models.CourseVideo{}).Where("id = ?", videoID).
+		UpdateColumn("views", gorm.Expr("COALESCE(views, 0) + 1")).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi tăng view"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Đã tăng view"})
+}
+
+// POST /api/v1/videos/:id/like - Toggle Like video (Thích / Bỏ thích)
+func ToggleVideoLike(c *gin.Context) {
+	videoIDStr := c.Param("id")
+	videoID, _ := strconv.Atoi(videoIDStr)
+
+	var req struct {
+		UserID uint `json:"user_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.UserID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu user_id"})
+		return
+	}
+
+	var existing models.VideoLike
+	err := configs.DB.Where("video_id = ? AND user_id = ?", videoID, req.UserID).First(&existing).Error
+
+	liked := false
+	if err == nil {
+		// Đã like rồi -> Bỏ like
+		configs.DB.Delete(&existing)
+		configs.DB.Model(&models.CourseVideo{}).Where("id = ?", videoID).
+			UpdateColumn("likes", gorm.Expr("GREATEST(COALESCE(likes, 1) - 1, 0)"))
+		liked = false
+	} else {
+		// Chưa like -> Tạo like mới
+		newLike := models.VideoLike{VideoID: uint(videoID), UserID: req.UserID, CreatedAt: time.Now()}
+		configs.DB.Create(&newLike)
+		configs.DB.Model(&models.CourseVideo{}).Where("id = ?", videoID).
+			UpdateColumn("likes", gorm.Expr("COALESCE(likes, 0) + 1"))
+		liked = true
+	}
+
+	// Lấy số like mới nhất
+	var vid models.CourseVideo
+	configs.DB.Select("likes").First(&vid, videoID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"liked": liked,
+		"likes": vid.Likes,
+	})
+}
+
+// POST /api/v1/videos/:id/bookmark - Toggle Lưu bài học
+func ToggleVideoBookmark(c *gin.Context) {
+	videoIDStr := c.Param("id")
+	videoID, _ := strconv.Atoi(videoIDStr)
+
+	var req struct {
+		UserID uint `json:"user_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.UserID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu user_id"})
+		return
+	}
+
+	var existing models.VideoBookmark
+	err := configs.DB.Where("video_id = ? AND user_id = ?", videoID, req.UserID).First(&existing).Error
+
+	bookmarked := false
+	if err == nil {
+		configs.DB.Delete(&existing)
+		bookmarked = false
+	} else {
+		newBm := models.VideoBookmark{VideoID: uint(videoID), UserID: req.UserID, CreatedAt: time.Now()}
+		configs.DB.Create(&newBm)
+		bookmarked = true
+	}
+
+	c.JSON(http.StatusOK, gin.H{"bookmarked": bookmarked})
+}
+
+// GET /api/v1/videos/:id/comments - Lấy danh sách bình luận
+func GetVideoComments(c *gin.Context) {
+	videoID := c.Param("id")
+	var comments []models.VideoComment
+	configs.DB.Where("video_id = ?", videoID).Order("created_at desc").Find(&comments)
+	c.JSON(http.StatusOK, gin.H{"data": comments})
+}
+
+// POST /api/v1/videos/:id/comments - Gửi bình luận mới
+func CreateVideoComment(c *gin.Context) {
+	videoIDStr := c.Param("id")
+	videoID, _ := strconv.Atoi(videoIDStr)
+
+	var req struct {
+		UserID     uint   `json:"user_id"`
+		UserName   string `json:"user_name"`
+		UserAvatar string `json:"user_avatar"`
+		Content    string `json:"content"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Content) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nội dung bình luận không được rỗng"})
+		return
+	}
+
+	comment := models.VideoComment{
+		VideoID:    uint(videoID),
+		UserID:     req.UserID,
+		UserName:   req.UserName,
+		UserAvatar: req.UserAvatar,
+		Content:    strings.TrimSpace(req.Content),
+		CreatedAt:  time.Now(),
+	}
+
+	if err := configs.DB.Create(&comment).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu bình luận"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"data": comment})
+}
+
+// GET /api/v1/videos/user-interactions - Lấy trạng thái Like & Bookmark của user hiện tại
+func GetUserVideoInteractions(c *gin.Context) {
+	userIDStr := c.Query("user_id")
+	userID, _ := strconv.Atoi(userIDStr)
+	if userID == 0 {
+		c.JSON(http.StatusOK, gin.H{"likes": []uint{}, "bookmarks": []uint{}})
+		return
+	}
+
+	var likedIDs []uint
+	var bookmarkedIDs []uint
+
+	configs.DB.Model(&models.VideoLike{}).Where("user_id = ?", userID).Pluck("video_id", &likedIDs)
+	configs.DB.Model(&models.VideoBookmark{}).Where("user_id = ?", userID).Pluck("video_id", &bookmarkedIDs)
+
+	c.JSON(http.StatusOK, gin.H{
+		"likes":     likedIDs,
+		"bookmarks": bookmarkedIDs,
+	})
+}

@@ -83,5 +83,13 @@ func SetupRoutes(r *gin.Engine) {
 		api.GET("/videos", controllers.GetVideos)
 		api.POST("/videos", controllers.CreateVideo)
 		api.PUT("/videos/:id/approve", controllers.ApproveVideo)
+
+		// --- TƯƠNG TÁC VIDEO (LIKE, BOOKMARK, VIEW, COMMENT) ---
+        api.POST("/videos/:id/view", controllers.IncreaseVideoView)
+        api.POST("/videos/:id/like", controllers.ToggleVideoLike)
+        api.POST("/videos/:id/bookmark", controllers.ToggleVideoBookmark)
+        api.GET("/videos/:id/comments", controllers.GetVideoComments)
+        api.POST("/videos/:id/comments", controllers.CreateVideoComment)
+        api.GET("/videos/user-interactions", controllers.GetUserVideoInteractions)
 	}
 }
