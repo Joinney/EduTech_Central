@@ -27,9 +27,14 @@ import {
   Layers,
   Sparkles,
   Loader2,
+  CreditCard,
+  ArrowRight,
+  CreditCard,
+  ArrowRight,
 } from "lucide-react";
 
 import { courseService } from "../../../../api/course.api";
+import { paymentApi } from "../../../../api/payment.api";
 
 const DEFAULT_TEACHER_IMG = "/thekhoahoc/thaygiao.png";
 
@@ -151,11 +156,28 @@ export default function CourseDetailPage({ onBack }) {
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const role = localStorage.getItem("role")?.toLowerCase() || "student";
 
-  // 🎯 Bóc tách ID an toàn tuyệt đối từ cả useParams, props và URL thực tế: /courses/:id
+  const storedUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  }, []);
+  const currentUserId =
+    storedUser.id || storedUser.userId || storedUser._id || 1;
+  const currentUserName =
+    storedUser.fullName ||
+    storedUser.full_name ||
+    storedUser.name ||
+    "Học viên EduTech";
+  const currentUserEmail = storedUser.email || "";
+  const currentUserAvatar = storedUser.avatar || storedUser.avatar_url || "";
+
+  // 🎯 Bóc tách ID an toàn
   const targetId = useMemo(() => {
     if (params?.id) return String(params.id).trim();
-    // Quét trực tiếp pathname: ví dụ /student/courses/25 -> lấy 25
     const pathParts = location.pathname.split("/").filter(Boolean);
     const lastPart = pathParts[pathParts.length - 1];
     return lastPart && !isNaN(lastPart) ? String(lastPart).trim() : "";
@@ -169,6 +191,7 @@ export default function CourseDetailPage({ onBack }) {
   const [activeTab, setActiveTab] = useState("curriculum");
   const [openChapters, setOpenChapters] = useState({ c1: true, c2: true });
   const [isRegistered, setIsRegistered] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [savedBookmark, setSavedBookmark] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -178,25 +201,62 @@ export default function CourseDetailPage({ onBack }) {
     setTimeout(() => setToastMessage(""), 3000);
   };
 
+  const courseBaseUrl =
+    import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
+  const paymentBaseUrl =
+    import.meta.env.VITE_API_PAYMENT_URL ||
+    "http://localhost:8004/api/v1/payments";
+
+  // Kiểm tra học sinh đã tham gia khóa học này chưa
+  const checkEnrollmentStatus = async (courseId) => {
+    if (!currentUserId || !courseId) return;
+    try {
+      // 1. Kiểm tra trong danh sách khóa học của học sinh từ course-service
+      const studentCoursesRes = await fetch(
+        `${courseBaseUrl}/students/${currentUserId}/courses`,
+      ).catch(() => null);
+      if (studentCoursesRes && studentCoursesRes.ok) {
+        const json = await studentCoursesRes.json();
+        const enrolledList = Array.isArray(json) ? json : json?.data || [];
+        const found = enrolledList.some(
+          (c) => String(c.id || c.id_course) === String(courseId),
+        );
+        if (found) {
+          setIsRegistered(true);
+          return;
+        }
+      }
+
+      // 2. Kiểm tra giao dịch thanh toán thành công từ payment-service
+      const payCheckRes = await fetch(
+        `${paymentBaseUrl}/check-enrollment/${currentUserId}/${courseId}`,
+      ).catch(() => null);
+      if (payCheckRes && payCheckRes.ok) {
+        const payJson = await payCheckRes.json();
+        if (payJson.is_paid) {
+          setIsRegistered(true);
+        }
+      }
+    } catch (e) {
+      console.warn("Lỗi kiểm tra trạng thái khóa học:", e);
+    }
+  };
+
   useEffect(() => {
     const fetchFullCourseData = async () => {
       setIsLoading(true);
       try {
         let cData = null;
-        const baseUrl =
-          import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
 
-        // 1. Thử gọi API lấy trực tiếp theo ID
         if (targetId) {
           try {
             const directRes = await fetch(
-              `${baseUrl}/courses/${targetId}`,
+              `${courseBaseUrl}/courses/${targetId}`,
             ).then((r) => (r.ok ? r.json() : null));
             cData = directRes?.data || directRes;
           } catch (_) {}
         }
 
-        // 2. Nếu direct API không có, lấy qua getAllCourses và tìm đúng ID
         if (!cData || (!cData.id && !cData.id_course)) {
           const allRes = await courseService.getAllCourses().catch(() => []);
           const allList = Array.isArray(allRes) ? allRes : allRes?.data || [];
@@ -208,13 +268,11 @@ export default function CourseDetailPage({ onBack }) {
             });
           }
 
-          // Fallback nếu không thấy ID chỉ định
           if (!cData && allList.length > 0) {
             cData = allList[0];
           }
         }
 
-        // 3. Xử lý dữ liệu hiển thị
         if (cData) {
           const realUploadedImg =
             cData.thumbnail &&
@@ -233,12 +291,13 @@ export default function CourseDetailPage({ onBack }) {
           const currentCourseTitle =
             cData.title || cData.courseName || "Khóa Học Đào Tạo";
           const currentSubject = cData.subject || "Chuyên môn";
+          const courseId = cData.id || cData.id_course;
 
           setCourse({
-            id: cData.id || cData.id_course,
+            id: courseId,
             courseName: currentCourseTitle,
             subject: currentSubject,
-            code: cData.code || `SKILL-${cData.id || targetId || "2026"}`,
+            code: cData.code || `SKILL-${courseId || targetId || "2026"}`,
             credits: cData.credits || 3,
             grade:
               cData.schoolName ||
@@ -274,11 +333,10 @@ export default function CourseDetailPage({ onBack }) {
             },
           });
 
-          // 4. Lấy bài giảng thật hoặc mẫu
+          checkEnrollmentStatus(courseId);
+
           try {
-            const lessonRes = await courseService.getLessonsByCourse(
-              cData.id || cData.id_course,
-            );
+            const lessonRes = await courseService.getLessonsByCourse(courseId);
             const lessonList = Array.isArray(lessonRes)
               ? lessonRes
               : lessonRes?.data || [];
@@ -355,10 +413,80 @@ export default function CourseDetailPage({ onBack }) {
     setOpenChapters(nextState);
   };
 
-  const confirmRegister = () => {
-    setIsRegistered(true);
-    setShowConfirmModal(false);
-    triggerToast("Đăng ký môn học thành công! Đã thêm vào lịch học của bạn.");
+  // 🎯 XỬ LÝ ĐĂNG KÝ HỌC PHẦN (CÓ PHÍ -> VNPAY, MIỄN PHÍ -> GHI DANH NGAY)
+  const handleRegisterOrPay = async () => {
+    if (!course) return;
+    setIsProcessing(true);
+
+    try {
+      // 1. TRƯỜNG HỢP KHÓA HỌC CÓ PHÍ -> TẠO URL THANH TOÁN VNPAY
+      if (course.price > 0) {
+        triggerToast("🔄 Đang kết nối tới cổng thanh toán VNPay...");
+        const payload = {
+          user_id: Number(currentUserId),
+          user_name: currentUserName,
+          user_email: currentUserEmail,
+          user_avatar: currentUserAvatar,
+          course_id: Number(course.id),
+          course_title: course.courseName,
+          amount: Number(course.price),
+          bank_code: "",
+        };
+
+        const res = await fetch(`${paymentBaseUrl}/create-vnpay-url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.payment_url) {
+          setShowConfirmModal(false);
+          // Chuyển hướng sang cổng thanh toán VNPay sandbox
+          window.location.href = data.payment_url;
+        } else {
+          triggerToast(data.error || "Không thể khởi tạo giao dịch VNPay!");
+        }
+      }
+      // 2. TRƯỜNG HỢP KHÓA HỌC MIỄN PHÍ -> GHI DANH TRỰC TIẾP VÀO LỚP
+      else {
+        triggerToast("⏳ Đang ghi danh học phần...");
+        const joinPayload = {
+          student_id: Number(currentUserId),
+          student_name: currentUserName,
+          student_email: currentUserEmail,
+          email: currentUserEmail,
+          avatar_url: currentUserAvatar,
+        };
+
+        const res = await fetch(`${courseBaseUrl}/courses/${course.id}/join`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(joinPayload),
+        });
+
+        const resData = await res.json();
+        if (res.ok) {
+          setIsRegistered(true);
+          setShowConfirmModal(false);
+          triggerToast(
+            "🎉 Đăng ký học phần thành công! Đang chuyển vào lớp học...",
+          );
+          setTimeout(() => {
+            navigate(`/student/courses/${course.id}/learn`);
+          }, 1200);
+        } else {
+          triggerToast(
+            resData.error || "Đăng ký không thành công, vui lòng thử lại!",
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Lỗi đăng ký:", err);
+      triggerToast("Lỗi kết nối mạng máy chủ!");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleGoBack = () => {
@@ -574,9 +702,9 @@ export default function CourseDetailPage({ onBack }) {
           background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
         }
         .reg-sparkle-btn.registered {
-          background: #059669;
-          box-shadow: none;
-          cursor: default;
+          background: linear-gradient(135deg, #059669 0%, #047857 100%);
+          box-shadow: 0 8px 18px rgba(5, 150, 105, 0.3);
+          cursor: pointer;
         }
         .detail-body-grid {
           max-width: 1240px;
@@ -684,7 +812,7 @@ export default function CourseDetailPage({ onBack }) {
       `}</style>
 
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-700 text-sm font-semibold">
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-2xl border border-slate-700 text-sm font-semibold animate-in fade-in">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
@@ -712,9 +840,10 @@ export default function CourseDetailPage({ onBack }) {
           </button>
           <button
             className="header-tool-btn"
-            onClick={() =>
-              triggerToast("Đã sao chép liên kết khóa học vào bộ nhớ tạm")
-            }
+            onClick={() => {
+              navigator.clipboard?.writeText(window.location.href);
+              triggerToast("Đã sao chép liên kết khóa học vào bộ nhớ tạm");
+            }}
             title="Chia sẻ"
           >
             <Share2 className="w-4 h-4" />
@@ -767,10 +896,17 @@ export default function CourseDetailPage({ onBack }) {
             </div>
           </div>
 
+          {/* Hộp widget Đăng ký / Vào học */}
           <div className="glass-side-widget">
             <h3 className="font-extrabold text-sm uppercase tracking-wide text-slate-900 mb-3 pb-2 border-b border-slate-100 flex items-center justify-between">
-              <span>Thông tin tuyển sinh</span>
-              <span className="text-xs text-blue-900 bg-blue-50 px-2.5 py-0.5 rounded-full font-bold">
+              <span>Thông tin học phần</span>
+              <span
+                className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                  course.price > 0
+                    ? "text-amber-700 bg-amber-100"
+                    : "text-emerald-700 bg-emerald-100"
+                }`}
+              >
                 {course.price > 0
                   ? `${course.price.toLocaleString("vi-VN")} đ`
                   : "Miễn phí"}
@@ -799,10 +935,12 @@ export default function CourseDetailPage({ onBack }) {
             </div>
             <div className="side-metric-item">
               <span className="text-slate-500 font-medium">
-                Tiến độ tuyển sinh
+                Trạng thái ghi danh
               </span>
-              <span className="font-extrabold text-blue-900">
-                {course.profileProgress}%
+              <span
+                className={`font-extrabold ${isRegistered ? "text-emerald-600" : "text-blue-900"}`}
+              >
+                {isRegistered ? "Đã vào lớp" : "Đang mở tuyển sinh"}
               </span>
             </div>
 
@@ -813,19 +951,42 @@ export default function CourseDetailPage({ onBack }) {
               />
             </div>
 
+            {/* NÚT THAO TÁC CHÍNH */}
             <button
               className={`reg-sparkle-btn ${isRegistered ? "registered" : ""}`}
+              disabled={isProcessing}
               onClick={() => {
-                if (!isRegistered) setShowConfirmModal(true);
+                if (isRegistered) {
+                  // Nếu đã đăng ký/thanh toán -> Bấm vào chuyển thẳng đến không gian học
+                  navigate(`/student/courses/${course.id}/learn`);
+                } else {
+                  // Chưa đăng ký -> Mở Modal xác nhận
+                  setShowConfirmModal(true);
+                }
               }}
             >
-              {isRegistered ? (
+              {isProcessing ? (
                 <>
-                  <CheckCircle2 className="w-4 h-4" /> ĐÃ ĐĂNG KÝ HỌC PHẦN
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>ĐANG XỬ LÝ...</span>
+                </>
+              ) : isRegistered ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>VÀO KHÔNG GIAN HỌC</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              ) : course.price > 0 ? (
+                <>
+                  <CreditCard className="w-4 h-4" />
+                  <span>
+                    THANH TOÁN VNPAY ({course.price.toLocaleString("vi-VN")} đ)
+                  </span>
                 </>
               ) : (
                 <>
-                  <PlusCircle className="w-4 h-4" /> ĐĂNG KÝ MÔN HỌC NGAY
+                  <PlusCircle className="w-4 h-4" />
+                  <span>ĐĂNG KÝ HỌC PHẦN (MIỄN PHÍ)</span>
                 </>
               )}
             </button>
@@ -1133,52 +1294,101 @@ export default function CourseDetailPage({ onBack }) {
         </aside>
       </main>
 
+      {/* MODAL XÁC NHẬN ĐĂNG KÝ / THANH TOÁN */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center mx-auto mb-4">
-                <GraduationCap className="w-6 h-6" />
+              <div
+                className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                  course.price > 0
+                    ? "bg-amber-100 text-amber-600"
+                    : "bg-blue-100 text-blue-900"
+                }`}
+              >
+                {course.price > 0 ? (
+                  <CreditCard className="w-6 h-6" />
+                ) : (
+                  <GraduationCap className="w-6 h-6" />
+                )}
               </div>
+
               <h3 className="text-base font-extrabold text-slate-900 mb-2">
-                Xác nhận đăng ký học phần?
+                {course.price > 0
+                  ? "Xác nhận thanh toán học phí?"
+                  : "Xác nhận đăng ký học phần?"}
               </h3>
+
               <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                Bạn đang thực hiện đăng ký môn học{" "}
-                <strong>{course.courseName}</strong> ({course.code}). Lịch học
-                sẽ được tự động xếp vào thời khóa biểu cá nhân của bạn.
+                {course.price > 0 ? (
+                  <>
+                    Khóa học <strong>{course.courseName}</strong> yêu cầu thanh
+                    toán học phí qua cổng VNPay. Bạn sẽ được chuyển hướng tới
+                    trang thanh toán an toàn.
+                  </>
+                ) : (
+                  <>
+                    Bạn đang đăng ký khóa học miễn phí{" "}
+                    <strong>{course.courseName}</strong>. Lớp học sẽ được kích
+                    hoạt ngay vào thời khóa biểu của bạn.
+                  </>
+                )}
               </p>
 
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-left mb-5 space-y-1">
-                <div>
-                  <strong>Lịch học:</strong> {course.schedule} (
-                  {course.timeDetail})
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-left mb-5 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Môn học:</span>
+                  <strong className="text-slate-800">
+                    {course.courseName}
+                  </strong>
                 </div>
-                <div>
-                  <strong>Cơ sở:</strong> {course.grade}
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Lịch học:</span>
+                  <strong className="text-slate-800">
+                    {course.schedule} ({course.timeDetail})
+                  </strong>
                 </div>
-                <div>
-                  <strong>Học phí:</strong>{" "}
-                  {course.price > 0
-                    ? `${course.price.toLocaleString("vi-VN")} đ`
-                    : "Miễn phí"}
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Đơn vị:</span>
+                  <strong className="text-slate-800">{course.grade}</strong>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-slate-200">
+                  <span className="text-slate-500 font-bold">Học phí:</span>
+                  <strong
+                    className={`font-black text-sm ${course.price > 0 ? "text-amber-600" : "text-emerald-600"}`}
+                  >
+                    {course.price > 0
+                      ? `${course.price.toLocaleString("vi-VN")} đ`
+                      : "0 đ (Miễn phí)"}
+                  </strong>
                 </div>
               </div>
 
               <div className="flex gap-3">
                 <button
                   type="button"
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer"
+                  disabled={isProcessing}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer disabled:opacity-50"
                   onClick={() => setShowConfirmModal(false)}
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="button"
-                  className="flex-1 py-2.5 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-sm transition cursor-pointer"
-                  onClick={confirmRegister}
+                  disabled={isProcessing}
+                  className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                    course.price > 0
+                      ? "bg-amber-600 hover:bg-amber-700"
+                      : "bg-blue-900 hover:bg-blue-800"
+                  }`}
+                  onClick={handleRegisterOrPay}
                 >
-                  Xác nhận đăng ký
+                  {isProcessing && (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  )}
+                  <span>
+                    {course.price > 0 ? "Thanh toán VNPay" : "Xác nhận vào học"}
+                  </span>
                 </button>
               </div>
             </div>
