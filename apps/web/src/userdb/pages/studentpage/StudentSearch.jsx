@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Search as SearchIcon,
@@ -6,51 +6,25 @@ import {
   FileText,
   Loader2,
   AlertCircle,
-  ChevronRight,
   Download,
   Video,
   Play,
   Globe,
+  UserCircle2,
+  GraduationCap,
+  Filter,
+  ChevronDown,
+  X,
+  Layers,
 } from "lucide-react";
 
-// DATA MẪU CHO VIDEO (Dùng tạm trong lúc chờ BE Go cung cấp API Video)
-const DUMMY_VIDEOS = [
-  {
-    id: "v-1",
-    title: "Mẹo giải nhanh bài toán Quy hoạch động trong 60s",
-    author: "Thầy Thành AI",
-    duration: "0:58",
-    views: "12.4k",
-    thumbnail:
-      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&auto=format&fit=crop&q=60",
-  },
-  {
-    id: "v-2",
-    title: "Phân biệt Năng lực Pháp luật & Năng lực Hành vi",
-    author: "Khoa Luật Kinh Tế",
-    duration: "1:15",
-    views: "8.9k",
-    thumbnail:
-      "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=500&auto=format&fit=crop&q=60",
-  },
-  {
-    id: "v-3",
-    title: "Hướng dẫn cài đặt Docker Compose cho dự án Microservices",
-    author: "Kỹ Thuật Phần Mềm",
-    duration: "15:20",
-    views: "5.1k",
-    thumbnail:
-      "https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=500&auto=format&fit=crop&q=60",
-  },
-  {
-    id: "v-4",
-    title: "Lộ trình tự học Machine Learning năm 2026",
-    author: "AI Lab",
-    duration: "12:05",
-    views: "22.3k",
-    thumbnail:
-      "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=500&auto=format&fit=crop&q=60",
-  },
+const FILTER_CATEGORIES = [
+  "Kỹ thuật Phần mềm",
+  "Toán học",
+  "Pháp luật",
+  "Ngoại ngữ",
+  "Kinh tế",
+  "Khác",
 ];
 
 export default function Search() {
@@ -59,178 +33,145 @@ export default function Search() {
   const keyword = searchParams.get("query") || "";
   const role = localStorage.getItem("role")?.toLowerCase() || "student";
 
-  // State quản lý ô input tìm kiếm và Dropdown
   const [localSearchInput, setLocalSearchInput] = useState(keyword);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const searchContainerRef = useRef(null);
 
-  // State quản lý dữ liệu hiển thị (kết quả tìm kiếm thực tế)
   const [isLoading, setIsLoading] = useState(true);
-  const [courses, setCourses] = useState([]);
-  const [documents, setDocuments] = useState([]);
-  const [videos, setVideos] = useState([]);
-  const [activeTab, setActiveTab] = useState("all"); // 'all' | 'courses' | 'documents' | 'videos'
-
-  // State lưu trữ TOÀN BỘ dữ liệu (để làm gợi ý Dropdown siêu tốc)
   const [allData, setAllData] = useState({
     courses: [],
     documents: [],
-    videos: DUMMY_VIDEOS,
+    videos: [],
+  });
+  const [activeTab, setActiveTab] = useState("all");
+
+  const [openFilterDropdown, setOpenFilterDropdown] = useState(null);
+  const filterBarRef = useRef(null);
+
+  const [filters, setFilters] = useState({
+    categories: [],
+    length: "",
+    date: "",
   });
 
   const baseUrl =
     import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
 
-  // HÀM 1: CALL API LẤY DATA (Chạy 1 lần hoặc khi keyword đổi)
-  useEffect(() => {
-    const fetchSearchResults = async () => {
-      setIsLoading(true);
-      try {
-        const [courseRes, docRes] = await Promise.all([
-          fetch(`${baseUrl}/courses`).catch(() => ({ json: () => [] })),
-          fetch(`${baseUrl}/shared-documents?all=true`).catch(() => ({
-            json: () => [],
-          })),
-        ]);
-
-        const courseData = await courseRes.json();
-        const docData = await docRes.json();
-
-        const rawCourses = Array.isArray(courseData)
-          ? courseData
-          : courseData?.data || [];
-        const rawDocs = Array.isArray(docData) ? docData : docData?.data || [];
-
-        // Lưu lại toàn bộ data để Dropdown dùng
-        setAllData({
-          courses: rawCourses,
-          documents: rawDocs,
-          videos: DUMMY_VIDEOS,
-        });
-
-        if (!keyword.trim()) {
-          setCourses([]);
-          setDocuments([]);
-          setVideos([]);
-          setIsLoading(false);
-          return;
-        }
-
-        const kw = keyword.toLowerCase();
-
-        // 1. Lọc Khóa học
-        const filteredCourses = rawCourses.filter(
-          (c) =>
-            c.title?.toLowerCase().includes(kw) ||
-            c.teacher_name?.toLowerCase().includes(kw) ||
-            c.subject?.toLowerCase().includes(kw),
-        );
-
-        // 2. Lọc Tài liệu
-        const filteredDocs = rawDocs.filter(
-          (d) =>
-            d.title?.toLowerCase().includes(kw) ||
-            d.description?.toLowerCase().includes(kw) ||
-            d.student_name?.toLowerCase().includes(kw) ||
-            d.category?.toLowerCase().includes(kw),
-        );
-
-        // 3. Lọc Video
-        const filteredVideos = DUMMY_VIDEOS.filter(
-          (v) =>
-            v.title.toLowerCase().includes(kw) ||
-            v.author.toLowerCase().includes(kw),
-        );
-
-        setCourses(filteredCourses);
-        setDocuments(filteredDocs);
-        setVideos(filteredVideos);
-      } catch (error) {
-        console.error("Lỗi khi tìm kiếm dữ liệu:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSearchResults();
-    setLocalSearchInput(keyword);
-  }, [keyword, baseUrl]);
-
-  // HÀM 2: LOGIC TẠO GỢI Ý TÌM KIẾM (Quét realtime trên localSearchInput)
-  useEffect(() => {
-    if (!localSearchInput.trim()) {
-      setSuggestions([]);
-      return;
-    }
-    const kw = localSearchInput.trim().toLowerCase();
-
-    const globalSearchItem = {
-      isGlobal: true,
-      type: "global",
-      text: `Tìm kiếm toàn hệ thống cho "${localSearchInput.trim()}"`,
-      value: localSearchInput.trim(),
-    };
-
-    const matchedCourses = allData.courses
-      .filter(
-        (c) =>
-          c.title?.toLowerCase().includes(kw) ||
-          c.subject?.toLowerCase().includes(kw),
-      )
-      .slice(0, 2)
-      .map((c) => ({
-        isGlobal: false,
-        type: "course",
-        text: c.title,
-        value: c.title,
-      }));
-
-    const matchedDocs = allData.documents
-      .filter((d) => d.title?.toLowerCase().includes(kw))
-      .slice(0, 2)
-      .map((d) => ({
-        isGlobal: false,
-        type: "document",
-        text: d.title,
-        value: d.title,
-      }));
-
-    const matchedVideos = allData.videos
-      .filter((v) => v.title.toLowerCase().includes(kw))
-      .slice(0, 2)
-      .map((v) => ({
-        isGlobal: false,
-        type: "video",
-        text: v.title,
-        value: v.title,
-      }));
-
-    setSuggestions(
-      [
-        globalSearchItem,
-        ...matchedCourses,
-        ...matchedDocs,
-        ...matchedVideos,
-      ].slice(0, 7),
-    );
-  }, [localSearchInput, allData]);
-
-  // Click ra ngoài để đóng Dropdown
+  // --- 1. CLICK OUTSIDE ---
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
         searchContainerRef.current &&
         !searchContainerRef.current.contains(event.target)
-      ) {
+      )
         setShowSuggestions(false);
-      }
+      if (filterBarRef.current && !filterBarRef.current.contains(event.target))
+        setOpenFilterDropdown(null);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Xử lý khi nhấn nút Tìm kiếm hoặc chọn Dropdown
+  // --- 2. LẤY DỮ LIỆU THẬT ---
+  useEffect(() => {
+    const fetchSearchResults = async () => {
+      setIsLoading(true);
+      try {
+        const [courseRes, docRes, videoRes] = await Promise.all([
+          fetch(`${baseUrl}/courses`).catch(() => ({ json: () => [] })),
+          fetch(`${baseUrl}/shared-documents?all=true`).catch(() => ({
+            json: () => [],
+          })),
+          fetch(`${baseUrl}/videos`).catch(() => ({ json: () => [] })),
+        ]);
+
+        const courseData = await courseRes.json();
+        const docData = await docRes.json();
+        const videoData = await videoRes.json();
+
+        let rawCourses = Array.isArray(courseData)
+          ? courseData
+          : courseData?.data || [];
+        let rawDocs = Array.isArray(docData) ? docData : docData?.data || [];
+        let rawVideos = Array.isArray(videoData)
+          ? videoData
+          : videoData?.data || [];
+
+        rawCourses = rawCourses.filter(
+          (c) =>
+            String(c.type || "").toLowerCase() !== "video" &&
+            String(c.category || "").toLowerCase() !== "video",
+        );
+        rawDocs = rawDocs.filter(
+          (d) =>
+            String(d.type || "").toLowerCase() !== "video" &&
+            String(d.category || "").toLowerCase() !== "video",
+        );
+
+        const formattedVideos = rawVideos.map((v) => ({
+          id: v.id,
+          title: v.title || v.video_title || "Video bài giảng",
+          author: v.teacher_name || v.author || "Giảng viên",
+          duration: v.duration || "10:00",
+          views: v.views || 0,
+          thumbnail:
+            v.thumbnail ||
+            "https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=500&auto=format&fit=crop&q=60",
+          created_at: v.created_at,
+        }));
+
+        setAllData({
+          courses: rawCourses,
+          documents: rawDocs,
+          videos: formattedVideos,
+        });
+      } catch (error) {
+        console.error("Lỗi khi tải dữ liệu:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSearchResults();
+    setLocalSearchInput(keyword);
+  }, [baseUrl, keyword]);
+
+  // --- 3. AUTOCOMPLETE KHI GÕ ---
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setLocalSearchInput(val);
+    if (!val.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const kw = val.toLowerCase();
+    const matchedCourses = allData.courses
+      .filter((c) => c.title?.toLowerCase().includes(kw))
+      .map((c) => ({ ...c, itemType: "course" }));
+    const matchedDocs = allData.documents
+      .filter((d) => d.title?.toLowerCase().includes(kw))
+      .map((d) => ({ ...d, itemType: "document" }));
+    const matchedVideos = allData.videos
+      .filter((v) => v.title?.toLowerCase().includes(kw))
+      .map((v) => ({ ...v, itemType: "video" }));
+
+    setSuggestions(
+      [
+        {
+          itemType: "global",
+          title: `Tìm toàn hệ thống cho "${val}"`,
+          value: val,
+        },
+        ...matchedCourses,
+        ...matchedDocs,
+        ...matchedVideos,
+      ].slice(0, 7),
+    );
+    setShowSuggestions(true);
+  };
+
   const executeSearch = (searchVal) => {
     if (searchVal.trim() !== "") {
       setShowSuggestions(false);
@@ -238,307 +179,756 @@ export default function Search() {
     }
   };
 
-  const handleReSearch = (e) => {
-    e.preventDefault();
-    executeSearch(localSearchInput);
+  const handleSuggestionClick = (item) => {
+    setShowSuggestions(false);
+    setLocalSearchInput(item.value || item.title);
+
+    if (item.itemType === "global")
+      navigate(`/${role}/search?query=${encodeURIComponent(item.value)}`);
+    else if (item.itemType === "course")
+      navigate(`/${role}/courses/${item.id || item.id_course}`);
+    else if (item.itemType === "document")
+      navigate(`/${role}/documents/${item.id}`);
+    else if (item.itemType === "video") navigate(`/${role}/videos/${item.id}`);
   };
 
-  const totalResults = courses.length + documents.length + videos.length;
+  // --- 4. TÍNH TOÁN BỘ LỌC (LỌC TRÊN DATA THẬT) ---
+  const filteredResults = useMemo(() => {
+    const kw = keyword.toLowerCase();
+    let { courses, documents, videos } = allData;
+
+    // Lọc theo Keyword
+    if (kw) {
+      courses = courses.filter(
+        (c) =>
+          c.title?.toLowerCase().includes(kw) ||
+          c.teacher_name?.toLowerCase().includes(kw) ||
+          c.subject?.toLowerCase().includes(kw),
+      );
+      documents = documents.filter(
+        (d) =>
+          d.title?.toLowerCase().includes(kw) ||
+          d.student_name?.toLowerCase().includes(kw) ||
+          d.faculty?.toLowerCase().includes(kw),
+      );
+      videos = videos.filter(
+        (v) =>
+          v.title?.toLowerCase().includes(kw) ||
+          v.author?.toLowerCase().includes(kw),
+      );
+    }
+
+    // Lọc theo Danh mục
+    if (filters.categories.length > 0) {
+      courses = courses.filter((c) =>
+        filters.categories.some((cat) =>
+          String(c.subject || "")
+            .toLowerCase()
+            .includes(cat.toLowerCase()),
+        ),
+      );
+      documents = documents.filter((d) =>
+        filters.categories.some((cat) =>
+          String(d.faculty || d.category || "")
+            .toLowerCase()
+            .includes(cat.toLowerCase()),
+        ),
+      );
+    }
+
+    // Lọc theo Chiều dài / Thời lượng
+    if (filters.length) {
+      documents = documents.filter((d) => {
+        const pages = parseInt(d.pages) || 0;
+        if (filters.length === "short") return pages <= 15;
+        if (filters.length === "medium") return pages > 15 && pages <= 60;
+        if (filters.length === "long") return pages > 60;
+        return true;
+      });
+
+      videos = videos.filter((v) => {
+        const timeParts = String(v.duration || "0:0")
+          .split(":")
+          .map(Number);
+        let mins = 0;
+        if (timeParts.length === 3) mins = timeParts[0] * 60 + timeParts[1];
+        else if (timeParts.length === 2) mins = timeParts[0];
+
+        if (filters.length === "short") return mins <= 10;
+        if (filters.length === "medium") return mins > 10 && mins <= 45;
+        if (filters.length === "long") return mins > 45;
+        return true;
+      });
+    }
+
+    // Lọc theo Ngày đăng tải (Thuật toán chính xác)
+    if (filters.date) {
+      const now = new Date();
+      const isWithinDateRange = (item) => {
+        if (!item.created_at) return true;
+        const itemDate = new Date(item.created_at);
+        if (isNaN(itemDate)) return true;
+
+        const diffTime = Math.abs(now - itemDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (filters.date === "week") return diffDays <= 7;
+        if (filters.date === "month") return diffDays <= 30;
+        if (filters.date === "year") return diffDays <= 365;
+        return true;
+      };
+
+      courses = courses.filter(isWithinDateRange);
+      documents = documents.filter(isWithinDateRange);
+      videos = videos.filter(isWithinDateRange);
+    }
+
+    return { courses, documents, videos };
+  }, [allData, keyword, filters]);
+
+  const handleCategoryToggle = (cat) => {
+    setFilters((prev) => ({
+      ...prev,
+      categories: prev.categories.includes(cat)
+        ? prev.categories.filter((c) => c !== cat)
+        : [...prev.categories, cat],
+    }));
+  };
+
+  const clearAllFilters = () => {
+    setFilters({ categories: [], length: "", date: "" });
+    setActiveTab("all");
+    setOpenFilterDropdown(null);
+  };
+
+  const hasActiveFilters =
+    filters.categories.length > 0 ||
+    filters.length !== "" ||
+    filters.date !== "" ||
+    activeTab !== "all";
+  const totalResults =
+    filteredResults.courses.length +
+    filteredResults.documents.length +
+    filteredResults.videos.length;
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 font-sans pb-20">
-      {/* KHAI BÁO CSS CHO DROPDOWN */}
-      <style>{`
-        .search-suggestions-dropdown {
-          position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
-          background: #ffffff; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-          overflow: hidden; border: 1px solid #e2e8f0; display: flex; flex-direction: column;
-          animation: slideDown 0.2s ease-out forwards; text-align: left;
-        }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .suggestion-item {
-          padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-          font-size: 14px; color: #334155; font-weight: 500; cursor: pointer;
-          border-bottom: 1px solid #f1f5f9; transition: background 0.2s;
-        }
-        .suggestion-item:last-child { border-bottom: none; }
-        .suggestion-item:hover { background: #f8fafc; color: #1e3a8a; }
-        .suggestion-item.global-item { color: #0284c7; font-weight: 700; background: #f0f9ff; }
-        .suggestion-item.global-item:hover { background: #e0f2fe; }
-      `}</style>
+    <div className="min-h-screen bg-slate-50/50 pb-20 font-sans">
+      {/* ================= HEADER TÌM KIẾM ================= */}
+      <div className="bg-white border-b border-slate-200/80 pt-10 pb-8 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2 tracking-tight">
+            Khám phá Tri thức
+          </h1>
+          <p className="text-sm text-slate-500 mb-8">
+            Tìm kiếm hàng ngàn khóa học, tài liệu PDF và video bài giảng
+          </p>
 
-      {/* 1. Thanh tìm kiếm trung tâm */}
-      <div className="bg-white rounded-3xl p-6 md:p-10 border border-slate-200 shadow-sm text-center">
-        <h1 className="text-2xl md:text-3xl font-black text-slate-900 mb-6">
-          Kết quả tìm kiếm cho:{" "}
-          <span className="text-blue-600">"{keyword}"</span>
-        </h1>
-
-        <div className="max-w-2xl mx-auto relative" ref={searchContainerRef}>
-          <form
-            onSubmit={handleReSearch}
-            className="relative flex items-center"
+          <div
+            ref={searchContainerRef}
+            className="max-w-2xl mx-auto relative z-40"
           >
-            <SearchIcon className="w-5 h-5 absolute left-4 text-slate-400" />
-            <input
-              type="text"
-              value={localSearchInput}
-              onChange={(e) => {
-                setLocalSearchInput(e.target.value);
-                setShowSuggestions(true);
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                executeSearch(localSearchInput);
               }}
-              onFocus={() => setShowSuggestions(true)}
-              className={`w-full pl-12 pr-28 py-3.5 bg-slate-50 border-2 border-slate-200 text-sm font-semibold focus:outline-none focus:border-blue-500 focus:bg-white transition ${showSuggestions && suggestions.length > 0 ? "rounded-t-2xl" : "rounded-2xl"}`}
-              placeholder="Tìm kiếm khóa học, tài liệu PDF, video bài giảng..."
-            />
-            <button
-              type="submit"
-              className="absolute right-2 top-2 bottom-2 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+              className="relative flex items-center group"
             >
-              TÌM KIẾM
+              <SearchIcon className="w-6 h-6 absolute left-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+              <input
+                type="text"
+                value={localSearchInput}
+                onChange={handleInputChange}
+                onFocus={() => {
+                  if (suggestions.length > 0) setShowSuggestions(true);
+                }}
+                className="w-full pl-14 pr-32 py-4 bg-white border border-slate-300 rounded-full text-base font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+                placeholder="Nhập từ khóa tìm kiếm..."
+              />
+              <button
+                type="submit"
+                className="absolute right-2 top-2 bottom-2 px-6 bg-slate-900 hover:bg-blue-600 text-white font-bold text-sm rounded-full transition-colors cursor-pointer shadow-md shadow-blue-600/20"
+              >
+                Tìm kiếm
+              </button>
+            </form>
+
+            {/* DROPDOWN GỢI Ý TÌM KIẾM */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden text-left animate-in fade-in slide-in-from-top-2 duration-200">
+                {suggestions.map((item, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleSuggestionClick(item)}
+                    className="flex items-center gap-4 p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 transition-colors group"
+                  >
+                    <div
+                      className={`p-2.5 rounded-xl transition-colors ${
+                        item.itemType === "course"
+                          ? "bg-blue-50 text-blue-600 group-hover:bg-blue-100"
+                          : item.itemType === "document"
+                            ? "bg-orange-50 text-orange-500 group-hover:bg-orange-100"
+                            : item.itemType === "video"
+                              ? "bg-red-50 text-red-500 group-hover:bg-red-100"
+                              : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
+                      }`}
+                    >
+                      {item.itemType === "course" ? (
+                        <GraduationCap className="w-5 h-5" />
+                      ) : item.itemType === "document" ? (
+                        <FileText className="w-5 h-5" />
+                      ) : item.itemType === "video" ? (
+                        <Video className="w-5 h-5" />
+                      ) : (
+                        <Globe className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <p
+                        className={`text-sm truncate ${item.itemType === "global" ? "font-black text-slate-900" : "font-bold text-slate-700 group-hover:text-blue-600 transition-colors"}`}
+                      >
+                        {item.title}
+                      </p>
+                      {!item.itemType.includes("global") && (
+                        <p className="text-xs font-medium text-slate-500 truncate mt-0.5">
+                          {item.itemType === "course"
+                            ? `Khóa học • ${item.teacher_name || "GV EduTech"}`
+                            : item.itemType === "document"
+                              ? `Tài liệu PDF • ${item.student_name || "Thành viên"}`
+                              : `Video bài giảng • ${item.author}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 mt-6">
+        {/* ================= THANH LỌC NÂNG CAO ================= */}
+        <div
+          ref={filterBarRef}
+          className="flex flex-wrap items-center gap-2.5 mb-8 border-b border-slate-200/80 pb-4 relative z-30"
+        >
+          <div className="flex items-center gap-1.5 text-slate-400 font-bold text-sm mr-1 hidden md:flex">
+            <Filter className="w-4 h-4" /> BỘ LỌC:
+          </div>
+
+          {/* 1. LOẠI NỘI DUNG */}
+          <div className="relative">
+            <button
+              onClick={() =>
+                setOpenFilterDropdown(
+                  openFilterDropdown === "type" ? null : "type",
+                )
+              }
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all shadow-sm ${activeTab !== "all" || openFilterDropdown === "type" ? "bg-slate-900 border-slate-900 text-white" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+            >
+              <Layers className="w-4 h-4" />
+              {activeTab === "all"
+                ? "Tất cả loại hình"
+                : activeTab === "courses"
+                  ? "Khóa học"
+                  : activeTab === "documents"
+                    ? "Tài liệu PDF"
+                    : "Video bài giảng"}
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${openFilterDropdown === "type" ? "rotate-180" : ""}`}
+              />
             </button>
-          </form>
 
-          {/* DROPDOWN MENU */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="search-suggestions-dropdown">
-              {suggestions.map((sug, idx) => (
-                <div
-                  key={idx}
-                  className={`suggestion-item ${sug.isGlobal ? "global-item" : ""}`}
-                  onClick={() => {
-                    setLocalSearchInput(sug.value);
-                    executeSearch(sug.value);
-                  }}
-                >
-                  {sug.isGlobal && (
-                    <Globe className="w-4 h-4 shrink-0 text-sky-600" />
-                  )}
-                  {sug.type === "course" && (
-                    <BookMarked className="w-4 h-4 shrink-0 text-blue-500" />
-                  )}
-                  {sug.type === "document" && (
-                    <FileText className="w-4 h-4 shrink-0 text-orange-500" />
-                  )}
-                  {sug.type === "video" && (
-                    <Video className="w-4 h-4 shrink-0 text-red-500" />
-                  )}
+            {openFilterDropdown === "type" && (
+              <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-1.5 animate-in fade-in zoom-in-95 duration-100 z-50">
+                {[
+                  {
+                    id: "all",
+                    label: "Tất cả loại hình",
+                    icon: Globe,
+                    count: totalResults,
+                  },
+                  {
+                    id: "courses",
+                    label: "Khóa học",
+                    icon: GraduationCap,
+                    count: filteredResults.courses.length,
+                  },
+                  {
+                    id: "documents",
+                    label: "Tài liệu PDF",
+                    icon: FileText,
+                    count: filteredResults.documents.length,
+                  },
+                  {
+                    id: "videos",
+                    label: "Video bài giảng",
+                    icon: Video,
+                    count: filteredResults.videos.length,
+                  },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      setActiveTab(opt.id);
+                      setOpenFilterDropdown(null);
+                    }}
+                    className={`w-full text-left flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === opt.id ? "bg-slate-50 text-slate-900 font-bold" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <opt.icon
+                        className={`w-4 h-4 ${activeTab === opt.id ? "text-slate-900" : "text-slate-400"}`}
+                      />
+                      {opt.label}
+                    </div>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 rounded text-slate-500">
+                      {opt.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-                  <div className="flex flex-col">
-                    <span className="truncate">{sug.text}</span>
-                    {!sug.isGlobal && (
-                      <span className="text-[10px] text-slate-400 font-bold uppercase leading-none mt-1">
-                        {sug.type === "course"
-                          ? "Khóa học"
-                          : sug.type === "document"
-                            ? "Tài liệu PDF"
-                            : "Video bài giảng"}
+          <div className="h-5 w-px bg-slate-200 mx-1 hidden sm:block"></div>
+
+          {/* 2. LỌC CHUYÊN NGÀNH */}
+          <div className="relative">
+            <button
+              onClick={() =>
+                setOpenFilterDropdown(
+                  openFilterDropdown === "category" ? null : "category",
+                )
+              }
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${openFilterDropdown === "category" || filters.categories.length > 0 ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+            >
+              Chuyên ngành{" "}
+              {filters.categories.length > 0 &&
+                `(${filters.categories.length})`}
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${openFilterDropdown === "category" ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {openFilterDropdown === "category" && (
+              <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-2 animate-in fade-in zoom-in-95 duration-100 z-50">
+                <div className="max-h-60 overflow-y-auto px-2">
+                  {FILTER_CATEGORIES.map((cat) => (
+                    <label
+                      key={cat}
+                      className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer group transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filters.categories.includes(cat)}
+                        onChange={() => handleCategoryToggle(cat)}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                      />
+                      <span className="text-sm font-medium text-slate-700 group-hover:text-blue-800">
+                        {cat}
                       </span>
-                    )}
+                    </label>
+                  ))}
+                </div>
+                <div className="border-t border-slate-100 p-2 mt-2 flex justify-between gap-2 bg-slate-50/50">
+                  <button
+                    onClick={() =>
+                      setFilters((p) => ({ ...p, categories: [] }))
+                    }
+                    className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition-colors"
+                  >
+                    Xóa
+                  </button>
+                  <button
+                    onClick={() => setOpenFilterDropdown(null)}
+                    className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors"
+                  >
+                    Áp dụng
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3. LỌC ĐỘ DÀI */}
+          {(activeTab === "all" ||
+            activeTab === "documents" ||
+            activeTab === "videos") && (
+            <div className="relative">
+              <button
+                onClick={() =>
+                  setOpenFilterDropdown(
+                    openFilterDropdown === "length" ? null : "length",
+                  )
+                }
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${openFilterDropdown === "length" || filters.length !== "" ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+              >
+                Độ dài {filters.length && "(1)"}
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${openFilterDropdown === "length" ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {openFilterDropdown === "length" && (
+                <div className="absolute top-full left-0 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-2 animate-in fade-in zoom-in-95 duration-100 z-50">
+                  <div className="px-2">
+                    {[
+                      {
+                        val: "short",
+                        label: "Ngắn",
+                        desc:
+                          activeTab === "videos"
+                            ? "< 10 phút"
+                            : activeTab === "documents"
+                              ? "< 15 trang"
+                              : "< 15 trang / 10 phút",
+                      },
+                      {
+                        val: "medium",
+                        label: "Trung bình",
+                        desc:
+                          activeTab === "videos"
+                            ? "10 - 45 phút"
+                            : activeTab === "documents"
+                              ? "15 - 60 trang"
+                              : "Cỡ vừa",
+                      },
+                      {
+                        val: "long",
+                        label: "Dài (Chuyên sâu)",
+                        desc:
+                          activeTab === "videos"
+                            ? "> 45 phút"
+                            : activeTab === "documents"
+                              ? "> 60 trang"
+                              : "> 60 trang / 45 phút",
+                      },
+                    ].map((opt) => (
+                      <label
+                        key={opt.val}
+                        className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer group transition-colors"
+                      >
+                        <input
+                          type="radio"
+                          name="length_filter"
+                          checked={filters.length === opt.val}
+                          onChange={() =>
+                            setFilters((p) => ({ ...p, length: opt.val }))
+                          }
+                          className="w-4 h-4 border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 shrink-0"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-700 group-hover:text-blue-800 leading-tight">
+                            {opt.label}
+                          </span>
+                          <span className="text-[11px] font-medium text-slate-400 mt-0.5">
+                            {opt.desc}
+                          </span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="border-t border-slate-100 p-2 mt-2 flex justify-between gap-2 bg-slate-50/50">
+                    <button
+                      onClick={() => setFilters((p) => ({ ...p, length: "" }))}
+                      className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition-colors"
+                    >
+                      Xóa
+                    </button>
+                    <button
+                      onClick={() => setOpenFilterDropdown(null)}
+                      className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors"
+                    >
+                      Áp dụng
+                    </button>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           )}
-        </div>
-      </div>
 
-      {/* 2. Tabs phân loại kết quả */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-px overflow-x-auto hide-scrollbar">
-        <button
-          onClick={() => setActiveTab("all")}
-          className={`px-6 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition ${activeTab === "all" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-800"}`}
-        >
-          Tất cả kết quả ({totalResults})
-        </button>
-        <button
-          onClick={() => setActiveTab("courses")}
-          className={`px-6 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition flex items-center gap-2 ${activeTab === "courses" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-800"}`}
-        >
-          <BookMarked className="w-4 h-4" /> Khóa học ({courses.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("documents")}
-          className={`px-6 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition flex items-center gap-2 ${activeTab === "documents" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-800"}`}
-        >
-          <FileText className="w-4 h-4" /> Tài liệu PDF ({documents.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("videos")}
-          className={`px-6 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition flex items-center gap-2 ${activeTab === "videos" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-800"}`}
-        >
-          <Video className="w-4 h-4" /> Video ({videos.length})
-        </button>
-      </div>
+          {/* 4. LỌC NGÀY ĐĂNG TẢI */}
+          <div className="relative">
+            <button
+              onClick={() =>
+                setOpenFilterDropdown(
+                  openFilterDropdown === "date" ? null : "date",
+                )
+              }
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${openFilterDropdown === "date" || filters.date !== "" ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+            >
+              Ngày đăng tải {filters.date && "(1)"}
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${openFilterDropdown === "date" ? "rotate-180" : ""}`}
+              />
+            </button>
 
-      {/* 3. Hiển thị Trạng thái */}
-      {isLoading ? (
-        <div className="py-20 flex flex-col items-center justify-center space-y-4">
-          <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-          <p className="text-slate-500 font-medium">
-            Đang quét toàn hệ thống...
-          </p>
-        </div>
-      ) : totalResults === 0 ? (
-        <div className="py-20 text-center space-y-4">
-          <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2">
-            <AlertCircle className="w-10 h-10 text-slate-300" />
-          </div>
-          <h3 className="text-xl font-bold text-slate-700">
-            Không tìm thấy dữ liệu
-          </h3>
-          <p className="text-slate-500 max-w-md mx-auto">
-            Hệ thống không tìm thấy khóa học, tài liệu hay video nào khớp với từ
-            khóa <strong className="text-slate-800">"{keyword}"</strong>. Vui
-            lòng thử lại với từ khóa khác.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-10">
-          {/* LƯỚI KHÓA HỌC */}
-          {(activeTab === "all" || activeTab === "courses") &&
-            courses.length > 0 && (
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-black text-slate-900 uppercase flex items-center gap-2">
-                    <BookMarked className="w-5 h-5 text-blue-600" /> Khóa học
-                    liên quan
-                  </h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {courses.map((course) => (
-                    <div
-                      key={course.id || course.id_course}
-                      className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-300 transition group cursor-pointer"
-                      onClick={() =>
-                        navigate(
-                          `/${role}/courses/${course.id || course.id_course}`,
-                        )
-                      }
+            {openFilterDropdown === "date" && (
+              <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-2 animate-in fade-in zoom-in-95 duration-100 z-50">
+                <div className="px-2">
+                  {[
+                    { val: "week", label: "Tuần này" },
+                    { val: "month", label: "Tháng này" },
+                    { val: "year", label: "Năm nay" },
+                  ].map((opt) => (
+                    <label
+                      key={opt.val}
+                      className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer group transition-colors"
                     >
-                      <div className="flex gap-4 items-start mb-4">
-                        <div className="w-16 h-16 rounded-xl bg-blue-50 border border-blue-100 overflow-hidden shrink-0 flex items-center justify-center">
+                      <input
+                        type="radio"
+                        name="date_filter"
+                        checked={filters.date === opt.val}
+                        onChange={() =>
+                          setFilters((p) => ({ ...p, date: opt.val }))
+                        }
+                        className="w-4 h-4 border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                      />
+                      <span className="text-sm font-medium text-slate-700 group-hover:text-blue-800">
+                        {opt.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="border-t border-slate-100 p-2 mt-2 flex justify-between gap-2 bg-slate-50/50">
+                  <button
+                    onClick={() => setFilters((p) => ({ ...p, date: "" }))}
+                    className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 rounded-md transition-colors"
+                  >
+                    Xóa
+                  </button>
+                  <button
+                    onClick={() => setOpenFilterDropdown(null)}
+                    className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors"
+                  >
+                    Áp dụng
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* NÚT XÓA TẤT CẢ BỘ LỌC */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="ml-auto flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+            >
+              <X className="w-4 h-4" /> Xóa bộ lọc
+            </button>
+          )}
+        </div>
+
+        {/* ================= HIỂN THỊ KẾT QUẢ ================= */}
+        {isLoading ? (
+          <div className="py-24 flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+            <p className="text-sm font-bold text-slate-500">
+              Đang đồng bộ cơ sở dữ liệu...
+            </p>
+          </div>
+        ) : totalResults === 0 ? (
+          <div className="py-24 text-center animate-in fade-in duration-500">
+            <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <SearchIcon className="w-10 h-10 text-slate-300" />
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 mb-2">
+              Không tìm thấy kết quả
+            </h3>
+            <p className="text-slate-500">
+              Rất tiếc, không có tài liệu nào khớp với bộ lọc hiện tại.
+              <br />
+              Vui lòng thử xóa bớt bộ lọc hoặc dùng từ khóa khác.
+            </p>
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                className="mt-6 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors"
+              >
+                Xóa bộ lọc
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-12">
+            {/* 1. LƯỚI KHÓA HỌC */}
+            {(activeTab === "all" || activeTab === "courses") &&
+              filteredResults.courses.length > 0 && (
+                <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex items-center gap-3 mb-6">
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                      Khóa học chuyên sâu
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-black">
+                      {filteredResults.courses.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {filteredResults.courses.map((course) => (
+                      <div
+                        key={course.id || course.id_course}
+                        onClick={() =>
+                          navigate(
+                            `/${role}/courses/${course.id || course.id_course}`,
+                          )
+                        }
+                        className="bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer group hover:-translate-y-1.5 hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 flex flex-col"
+                      >
+                        <div className="relative aspect-video bg-slate-100 overflow-hidden border-b border-slate-100">
                           {course.thumbnail ? (
                             <img
                               src={course.thumbnail}
-                              alt=""
-                              className="w-full h-full object-cover"
+                              alt={course.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             />
                           ) : (
-                            <BookMarked className="w-8 h-8 text-blue-300" />
+                            <div className="absolute inset-0 flex items-center justify-center text-slate-300 bg-slate-50">
+                              <GraduationCap className="w-10 h-10" />
+                            </div>
                           )}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-900 line-clamp-2 group-hover:text-blue-600 transition">
-                            {course.title}
-                          </h4>
-                          <p className="text-xs text-slate-500 mt-1">
-                            {course.teacher_name || "Giảng viên EduTech"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
-                          {course.subject || "Chuyên môn"}
-                        </span>
-                        <button className="text-xs font-bold text-blue-600 flex items-center gap-1 group-hover:underline">
-                          Xem chi tiết <ChevronRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-          {/* LƯỚI VIDEO BÀI GIẢNG */}
-          {(activeTab === "all" || activeTab === "videos") &&
-            videos.length > 0 && (
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-black text-slate-900 uppercase flex items-center gap-2">
-                    <Video className="w-5 h-5 text-red-500" /> Video bài giảng
-                  </h3>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {videos.map((vid) => (
-                    <div
-                      key={vid.id}
-                      className="bg-slate-900 rounded-xl overflow-hidden group cursor-pointer border border-slate-800 hover:border-orange-500 hover:shadow-lg hover:shadow-orange-500/20 transition-all"
-                    >
-                      <div className="relative aspect-video">
-                        <img
-                          src={vid.thumbnail}
-                          alt={vid.title}
-                          className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
-                        />
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition flex items-center justify-center">
-                          <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
-                            <Play className="w-4 h-4 fill-orange-600 ml-1" />
+                          <div className="absolute top-2 right-2 px-2 py-1 bg-white/95 backdrop-blur-sm rounded text-[10px] font-black text-slate-700 shadow-sm border border-slate-200/50">
+                            {course.grade || "Cơ bản"}
                           </div>
                         </div>
-                        <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                          {vid.duration}
-                        </span>
-                      </div>
-                      <div className="p-3">
-                        <h4 className="text-sm font-bold text-white line-clamp-2 mb-1 group-hover:text-orange-400 transition">
-                          {vid.title}
-                        </h4>
-                        <p className="text-xs text-slate-400">
-                          {vid.author} • {vid.views} lượt xem
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-          {/* LƯỚI TÀI LIỆU */}
-          {(activeTab === "all" || activeTab === "documents") &&
-            documents.length > 0 && (
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-black text-slate-900 uppercase flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-orange-500" /> Tài liệu
-                    học thuật
-                  </h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {documents.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between hover:border-orange-300 hover:shadow-md transition cursor-pointer"
-                      onClick={() => navigate(`/${role}/documents/${doc.id}`)}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-14 bg-red-50 text-red-500 rounded-lg flex items-center justify-center shrink-0 border border-red-100">
-                          <span className="text-xs font-black">PDF</span>
+                        <div className="p-4 flex flex-col flex-1">
+                          <h4 className="font-bold text-slate-900 leading-snug line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors">
+                            {course.title}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-auto text-xs text-slate-500 font-medium">
+                            <UserCircle2 className="w-4 h-4" />
+                            <span className="truncate">
+                              {course.teacher_name || "Giảng viên EduTech"}
+                            </span>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                            <span className="px-2 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider truncate max-w-[120px]">
+                              {course.subject || "Chuyên ngành"}
+                            </span>
+                            <span className="text-xs font-black text-blue-600 group-hover:underline">
+                              Chi tiết
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-orange-600 transition">
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+            {/* 2. LƯỚI TÀI LIỆU PDF */}
+            {(activeTab === "all" || activeTab === "documents") &&
+              filteredResults.documents.length > 0 && (
+                <section className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
+                  <div className="flex items-center gap-3 mb-6">
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                      Tài liệu học thuật
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-md bg-orange-100 text-orange-700 text-xs font-black">
+                      {filteredResults.documents.length}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {filteredResults.documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        onClick={() => navigate(`/${role}/documents/${doc.id}`)}
+                        className="bg-white border border-slate-200 px-5 py-4 rounded-2xl flex items-center gap-5 cursor-pointer group hover:border-orange-300 hover:shadow-lg hover:shadow-orange-100/50 hover:-translate-y-0.5 transition-all duration-300"
+                      >
+                        <div className="w-14 h-16 bg-gradient-to-br from-red-50 to-orange-50 text-red-500 rounded-xl flex flex-col items-center justify-center shrink-0 border border-red-100 group-hover:scale-105 transition-transform shadow-sm">
+                          <FileText className="w-6 h-6 mb-1 opacity-80" />
+                          <span className="text-[9px] font-black uppercase tracking-widest leading-none">
+                            PDF
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-base font-bold text-slate-800 line-clamp-1 group-hover:text-orange-600 transition-colors mb-1.5">
                             {doc.title}
                           </h4>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {doc.student_name || "Thành viên"} •{" "}
-                            {doc.pages || 15} trang
-                          </p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-medium">
+                            <span className="truncate max-w-[150px] font-bold text-slate-600">
+                              {doc.student_name || "Thành viên"}
+                            </span>
+                            <span className="w-1 h-1 bg-slate-300 rounded-full shrink-0"></span>
+                            <span>{doc.pages || 15} trang</span>
+                            <span className="w-1 h-1 bg-slate-300 rounded-full shrink-0"></span>
+                            <span>
+                              {doc.faculty || doc.category || "Học liệu"}
+                            </span>
+                            <span className="w-1 h-1 bg-slate-300 rounded-full shrink-0 hidden sm:block"></span>
+                            <span className="hidden sm:block text-slate-400">
+                              {doc.date || "Đã đăng gần đây"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <button className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-500 flex items-center justify-center group-hover:bg-orange-600 group-hover:border-orange-600 group-hover:text-white transition-all shadow-sm">
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <span className="text-[10px] font-bold text-slate-400">
+                            {doc.downloads || 0} lượt tải
+                          </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                          <Download className="w-3 h-3" /> {doc.downloads || 0}
-                        </span>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+            {/* 3. LƯỚI VIDEO */}
+            {(activeTab === "all" || activeTab === "videos") &&
+              filteredResults.videos.length > 0 && (
+                <section className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
+                  <div className="flex items-center gap-3 mb-6">
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                      Video bài giảng
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-md bg-red-100 text-red-700 text-xs font-black">
+                      {filteredResults.videos.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {filteredResults.videos.map((vid) => (
+                      <div
+                        key={vid.id}
+                        onClick={() => navigate(`/${role}/videos/${vid.id}`)}
+                        className="cursor-pointer group flex flex-col"
+                      >
+                        <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-900 mb-3 shadow-md group-hover:shadow-xl group-hover:shadow-red-900/10 transition-shadow border border-slate-200">
+                          <img
+                            src={vid.thumbnail}
+                            alt={vid.title}
+                            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                          />
+                          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                            <div className="w-12 h-12 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300">
+                              <Play className="w-5 h-5 fill-red-600 text-red-600 ml-1" />
+                            </div>
+                          </div>
+                          <span className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md text-white text-[10px] font-black px-2 py-0.5 rounded border border-white/10 tracking-wider">
+                            {vid.duration}
+                          </span>
+                        </div>
+                        <div className="pr-4 flex-1 flex flex-col">
+                          <h4 className="text-sm font-bold text-slate-900 line-clamp-2 mb-2 group-hover:text-red-600 transition-colors leading-tight">
+                            {vid.title}
+                          </h4>
+                          <div className="mt-auto flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                            <span className="font-bold text-slate-700">
+                              {vid.author}
+                            </span>
+                            <span className="w-1 h-1 bg-slate-300 rounded-full shrink-0"></span>
+                            <span>{vid.views} xem</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-        </div>
-      )}
+                    ))}
+                  </div>
+                </section>
+              )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

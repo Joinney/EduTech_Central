@@ -23,40 +23,16 @@ import {
 
 import { courseService } from "../../../api/course.api";
 
-// Import 3 components con đã tách ra
+// Import components con đã tách ra
 import CardCanvas from "../../components/context/home/CardCanvas";
 import PdfCoverPreview from "../../components/context/home/PdfCoverPreview";
+// Bạn có thể xóa file VerticalVideoModal nếu không dùng nữa
 import VerticalVideoModal from "../../components/context/home/VerticalVideoModal";
 
 const DEFAULT_TEACHER_IMG = "/thekhoahoc/thaygiao.png";
 const DEFAULT_LOGO_IMG = "/thekhoahoc/logo.png";
 const COURSES_PER_PAGE = 6;
 const DOCS_PER_PAGE = 4;
-
-const SAMPLE_VERTICAL_VIDEOS = [
-  {
-    id: "v-1",
-    title: "Mẹo giải nhanh bài toán Quy hoạch động trong 60s",
-    author: "Thầy Thành AI",
-    duration: "0:58",
-    views: "12.4k",
-    thumbnail:
-      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&auto=format&fit=crop&q=60",
-    videoUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-  },
-  {
-    id: "v-2",
-    title: "Phân biệt Năng lực Pháp luật & Năng lực Hành vi",
-    author: "Khoa Luật Kinh Tế",
-    duration: "1:15",
-    views: "8.9k",
-    thumbnail:
-      "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=500&auto=format&fit=crop&q=60",
-    videoUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-  },
-];
 
 const PRESET_SCHOOL_LOGOS = {
   bka: "https://bka.hcmut.edu.vn/assets/images/logo/logo-bka.png",
@@ -101,6 +77,7 @@ export default function StudentHome() {
 
   const [courses, setCourses] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [videos, setVideos] = useState([]); // ĐÃ THÊM: State chứa Video thật
   const [isLoading, setIsLoading] = useState(true);
 
   const [currentCoursePage, setCurrentCoursePage] = useState(1);
@@ -110,21 +87,22 @@ export default function StudentHome() {
   const docsSectionRef = useRef(null);
 
   const [isExpandedDocs, setIsExpandedDocs] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState(null);
 
   const baseUrl =
     import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
 
+  // --- FETCH API: TẢI DATA THẬT CHO KHÓA HỌC, TÀI LIỆU VÀ VIDEO ---
   useEffect(() => {
     const fetchHomeData = async () => {
       setIsLoading(true);
       try {
+        // 1. TẢI KHÓA HỌC (Giữ nguyên logic dùng courseService cũ của bạn để không bị mất data)
         const rawCourses = await courseService.getAllCourses().catch(() => []);
         let coursesList = Array.isArray(rawCourses)
           ? rawCourses
           : rawCourses?.data || [];
 
-        // LỌC BỎ VIDEO KHỎI TRANG CHỦ & TÌM KIẾM (Đã fix lỗi crash null/undefined)
+        // LỌC BỎ VIDEO KHỎI TRANG CHỦ & TÌM KIẾM
         coursesList = coursesList.filter((c) => {
           const cType = String(c.type || "").toLowerCase();
           const cCat = String(c.category || "").toLowerCase();
@@ -145,7 +123,6 @@ export default function StudentHome() {
               !c.thumbnail.includes("thekhoahoc")
                 ? c.thumbnail
                 : c.teacher_img || c.teacherImg || c.teacher_avatar;
-
             const isUIAvatar =
               realUploadedImg && realUploadedImg.includes("ui-avatars.com");
             const cleanTeacherImg =
@@ -175,48 +152,66 @@ export default function StudentHome() {
           setCourses(formattedCourses);
         }
 
-        try {
-          const docRes = await fetch(`${baseUrl}/shared-documents?all=true`);
-          if (docRes.ok) {
-            const docJson = await docRes.json();
-            let rawDocs = Array.isArray(docJson)
-              ? docJson
-              : docJson?.data || [];
+        // 2. TẢI TÀI LIỆU VÀ VIDEO (Gọi chung Promise.all cho lẹ)
+        const [docRes, videoRes] = await Promise.all([
+          fetch(`${baseUrl}/shared-documents?all=true`).catch(() => ({
+            ok: false,
+          })),
+          fetch(`${baseUrl}/videos`).catch(() => ({ ok: false })), // Đã sửa tên route thành /videos chuẩn xác!
+        ]);
 
-            // LỌC BỎ VIDEO KHỎI TRANG CHỦ & TÌM KIẾM (Đã fix lỗi crash null/undefined)
-            rawDocs = rawDocs.filter((d) => {
-              const dType = String(d.type || "").toLowerCase();
-              const dCat = String(d.category || "").toLowerCase();
-              return dType !== "video" && dCat !== "video";
-            });
+        // Xử lý Tài liệu
+        if (docRes.ok) {
+          const docJson = await docRes.json();
+          let rawDocs = Array.isArray(docJson) ? docJson : docJson?.data || [];
+          rawDocs = rawDocs.filter((d) => {
+            const dType = String(d.type || "").toLowerCase();
+            const dCat = String(d.category || "").toLowerCase();
+            return dType !== "video" && dCat !== "video";
+          });
 
-            const formattedDocs = rawDocs.map((item) => ({
-              id: item.id,
-              title: item.title,
-              desc:
-                item.description || "Tài liệu học tập được chia sẻ công khai.",
-              author: item.student_name || "Thành viên EduTech",
-              faculty:
-                item.subject ||
-                item.category_rel?.name ||
-                item.category ||
-                "Học thuật",
-              pages: item.pages || 15,
-              fileUrl: item.file_url,
-              downloads: item.downloads || 0,
-              likes: item.views ? Math.floor(item.views / 2) + 5 : 12,
-              date: item.created_at
-                ? new Date(item.created_at).toLocaleDateString("vi-VN")
-                : "Gần đây",
-            }));
+          const formattedDocs = rawDocs.map((item) => ({
+            id: item.id,
+            title: item.title,
+            desc:
+              item.description || "Tài liệu học tập được chia sẻ công khai.",
+            author: item.student_name || "Thành viên EduTech",
+            faculty:
+              item.subject ||
+              item.category_rel?.name ||
+              item.category ||
+              "Học thuật",
+            pages: item.pages || 15,
+            fileUrl: item.file_url,
+            downloads: item.downloads || 0,
+            likes: item.views ? Math.floor(item.views / 2) + 5 : 12,
+            date: item.created_at
+              ? new Date(item.created_at).toLocaleDateString("vi-VN")
+              : "Gần đây",
+          }));
+          setDocuments(formattedDocs);
+        }
 
-            setDocuments(formattedDocs);
-          }
-        } catch (docErr) {
-          console.error("Lỗi tải tài liệu:", docErr);
+        // Xử lý Video Thật
+        if (videoRes.ok) {
+          const videoJson = await videoRes.json();
+          const rawVideos = Array.isArray(videoJson)
+            ? videoJson
+            : videoJson?.data || [];
+          const formattedVideos = rawVideos.map((v) => ({
+            id: v.id,
+            title: v.title || v.video_title || "Video bài giảng",
+            author: v.teacher_name || v.author || "Giảng viên",
+            duration: v.duration || "10:00",
+            views: v.views || 0,
+            thumbnail:
+              v.thumbnail ||
+              "https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=500&auto=format&fit=crop&q=60",
+          }));
+          setVideos(formattedVideos);
         }
       } catch (error) {
-        console.error("Lỗi nạp dữ liệu:", error);
+        console.error("Lỗi nạp dữ liệu trang chủ:", error);
       } finally {
         setIsLoading(false);
       }
@@ -225,7 +220,7 @@ export default function StudentHome() {
     fetchHomeData();
   }, [baseUrl]);
 
-  // LOGIC TẠO GỢI Ý TÌM KIẾM (QUÉT DATA THỰC TẾ)
+  // --- LOGIC TẠO GỢI Ý TÌM KIẾM CẬP NHẬT ---
   useEffect(() => {
     if (!searchKeyword.trim()) {
       setSuggestions([]);
@@ -233,7 +228,6 @@ export default function StudentHome() {
     }
     const kw = searchKeyword.trim().toLowerCase();
 
-    // 1. Luôn luôn có nút Tìm kiếm toàn hệ thống ở đầu tiên
     const globalSearchItem = {
       isGlobal: true,
       type: "global",
@@ -241,7 +235,6 @@ export default function StudentHome() {
       value: searchKeyword.trim(),
     };
 
-    // 2. Quét tìm trong danh sách Khóa học hiện có (Lấy tối đa 3)
     const matchedCourses = courses
       .filter(
         (c) =>
@@ -254,9 +247,9 @@ export default function StudentHome() {
         type: "course",
         text: c.courseName,
         value: c.courseName,
+        id: c.id,
       }));
 
-    // 3. Quét tìm trong danh sách File PDF/Tài liệu hiện có (Lấy tối đa 3)
     const matchedDocs = documents
       .filter(
         (d) =>
@@ -269,30 +262,45 @@ export default function StudentHome() {
         type: "document",
         text: d.title,
         value: d.title,
+        id: d.id,
       }));
 
-    // 4. Từ khóa tĩnh dự phòng
+    // Cập nhật: Thêm Video thật vào gợi ý tìm kiếm
+    const matchedVideos = videos
+      .filter(
+        (v) =>
+          v.title.toLowerCase().includes(kw) ||
+          v.author.toLowerCase().includes(kw),
+      )
+      .slice(0, 3)
+      .map((v) => ({
+        isGlobal: false,
+        type: "video",
+        text: v.title,
+        value: v.title,
+        id: v.id,
+      }));
+
     const staticKeywords = [
       "Tiểu luận chuyên ngành",
       "Báo cáo thực tập",
       "Trí tuệ nhân tạo (AI)",
       "Đề cương ôn thi",
-      "Pháp luật đại cương",
     ];
     const matchedStatic = staticKeywords
       .filter((k) => k.toLowerCase().includes(kw))
       .map((k) => ({ isGlobal: false, type: "static", text: k, value: k }));
 
-    // Gộp lại: Global + Kết quả Khóa học + Kết quả PDF + Từ khóa tĩnh
     setSuggestions(
       [
         globalSearchItem,
         ...matchedCourses,
         ...matchedDocs,
+        ...matchedVideos,
         ...matchedStatic,
       ].slice(0, 7),
     );
-  }, [searchKeyword, courses, documents]);
+  }, [searchKeyword, courses, documents, videos]);
 
   // Click ra ngoài để đóng Dropdown
   useEffect(() => {
@@ -314,7 +322,22 @@ export default function StudentHome() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  // HÀM CHUYỂN HƯỚNG SANG TRANG SEARCH
+  // --- HÀM CHUYỂN HƯỚNG SANG TRANG SEARCH / TRANG CHI TIẾT ---
+  const handleSuggestionClick = (item) => {
+    setShowSuggestions(false);
+    setSearchKeyword(item.value || item.text);
+
+    if (item.isGlobal || item.type === "static") {
+      navigate(`/${role}/search?query=${encodeURIComponent(item.value)}`);
+    } else if (item.type === "course") {
+      navigate(`/${role}/courses/${item.id}`);
+    } else if (item.type === "document") {
+      navigate(`/${role}/documents/${item.id}`);
+    } else if (item.type === "video") {
+      navigate(`/${role}/videos/${item.id}`); // Điều hướng trực tiếp tới trang Video bài giảng
+    }
+  };
+
   const handleSearchSubmit = (keyword = searchKeyword) => {
     if (!keyword.trim()) return;
     setShowSuggestions(false);
@@ -411,8 +434,8 @@ export default function StudentHome() {
           text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; text-align: center;
         }
         
-        .search-wrapper-relative {
-          position: relative; width: 100%; max-width: 680px; z-index: 50;
+       .search-wrapper-relative {
+        position: relative; width: 100%; max-width: 680px; z-index: 20;
         }
         .pill-search-bar {
           position: relative; width: 100%; background: #ffffff;
@@ -593,12 +616,6 @@ export default function StudentHome() {
         </div>
       )}
 
-      {/* MODAL VIDEO DỌC TÁCH RIÊNG */}
-      <VerticalVideoModal
-        video={selectedVideo}
-        onClose={() => setSelectedVideo(null)}
-      />
-
       <div className="home-wireframe-grid">
         <div className="home-left-col">
           {/* SEARCH HERO */}
@@ -624,7 +641,7 @@ export default function StudentHome() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSearchSubmit();
                   }}
-                  placeholder="Tìm tiểu luận, đề cương ôn thi, khóa học, giáo trình PDF..."
+                  placeholder="Tìm tiểu luận, đề cương ôn thi, khóa học, video..."
                 />
                 <button
                   className="search-btn"
@@ -635,19 +652,15 @@ export default function StudentHome() {
                 </button>
               </div>
 
-              {/* DROPDOWN MENU GỢI Ý (HIỆN RA KHI GÕ CHỮ) */}
+              {/* DROPDOWN MENU GỢI Ý */}
               {showSuggestions && suggestions.length > 0 && (
                 <div className="search-suggestions-dropdown">
                   {suggestions.map((sug, idx) => (
                     <div
                       key={idx}
                       className={`suggestion-item ${sug.isGlobal ? "global-item" : ""}`}
-                      onClick={() => {
-                        setSearchKeyword(sug.value);
-                        handleSearchSubmit(sug.value);
-                      }}
+                      onClick={() => handleSuggestionClick(sug)}
                     >
-                      {/* Xử lý Icon theo từng loại dữ liệu */}
                       {sug.isGlobal && (
                         <Globe className="w-4 h-4 shrink-0 text-sky-600" />
                       )}
@@ -657,18 +670,22 @@ export default function StudentHome() {
                       {sug.type === "document" && (
                         <FileText className="w-4 h-4 shrink-0 text-orange-500" />
                       )}
+                      {sug.type === "video" && (
+                        <Video className="w-4 h-4 shrink-0 text-red-500" />
+                      )}
                       {sug.type === "static" && (
                         <Search className="w-4 h-4 shrink-0 text-slate-400" />
                       )}
 
                       <div className="flex flex-col">
                         <span className="truncate">{sug.text}</span>
-                        {/* Hiện tag nhỏ bên dưới báo cho user biết đây là loại file gì */}
                         {!sug.isGlobal && sug.type !== "static" && (
                           <span className="text-[10px] text-slate-400 font-bold uppercase leading-none mt-1">
                             {sug.type === "course"
                               ? "Khóa học"
-                              : "Tài liệu PDF"}
+                              : sug.type === "document"
+                                ? "Tài liệu PDF"
+                                : "Video bài giảng"}
                           </span>
                         )}
                       </div>
@@ -707,7 +724,7 @@ export default function StudentHome() {
             </div>
           </section>
 
-          {/* SECTION KHÓA HỌC MỞ RỘNG (ĐÃ BỎ LỌC CỤC BỘ) */}
+          {/* SECTION KHÓA HỌC MỞ RỘNG */}
           <section className="courses-section" ref={coursesSectionRef}>
             <div className="section-header-bar">
               <h3>CÁC KHÓA HỌC MỞ RỘNG</h3>
@@ -945,7 +962,7 @@ export default function StudentHome() {
             )}
           </section>
 
-          {/* SECTION TIỂU LUẬN & BÁO CÁO HỌC THUẬT (ĐÃ BỎ LỌC CỤC BỘ) */}
+          {/* SECTION TIỂU LUẬN & BÁO CÁO HỌC THUẬT */}
           <section className="essays-section" ref={docsSectionRef}>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 mb-4">
               <div>
@@ -1265,11 +1282,11 @@ export default function StudentHome() {
             </div>
 
             <div className="vertical-video-grid">
-              {SAMPLE_VERTICAL_VIDEOS.slice(0, 2).map((vid) => (
+              {videos.slice(0, 2).map((vid) => (
                 <div
                   key={vid.id}
                   className="vertical-video-card group"
-                  onClick={() => setSelectedVideo(vid)}
+                  onClick={() => navigate(`/${role}/videos/${vid.id}`)}
                 >
                   <img
                     src={vid.thumbnail}
@@ -1305,9 +1322,7 @@ export default function StudentHome() {
 
             <button
               type="button"
-              onClick={() =>
-                triggerToast("Chức năng đang kết nối kho video khóa học...")
-              }
+              onClick={() => navigate(`/${role}/videos`)}
               className="w-full mt-3 py-1.5 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Play className="w-3 h-3 fill-orange-700" />
