@@ -6,11 +6,26 @@ from configs.setting import settings
 from middlewares.logging_middleware import LoggingMiddleware
 from routes.ai_route import router as ai_router
 
+# Import các hàm quản lý kết nối MongoDB
+from configs.mongodb import connect_to_mongo, close_mongo_connection
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Microservice phụ trách AI và phân tích khóa học EduTech",
     version="1.0.0"
 )
+
+# ---------------------------------------------------------
+# BỔ SUNG: QUẢN LÝ KẾT NỐI MONGODB THEO VÒNG ĐỜI SERVER
+# ---------------------------------------------------------
+@app.on_event("startup")
+async def startup_db_client():
+    await connect_to_mongo()
+
+@app.on_event("shutdown")
+async def shutdown_db_client():
+    await close_mongo_connection()
+# ---------------------------------------------------------
 
 # Cấu hình CORS - Cho phép Web App (React/Vite) gọi API
 app.add_middleware(
