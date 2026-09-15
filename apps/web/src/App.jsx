@@ -1,82 +1,84 @@
 ﻿/* eslint-disable no-unused-vars */
-import React from "react"
-import { Routes, Route, Navigate, useLocation } from "react-router-dom"
-import AdminCreateSchoolCourse from "./admindb/pages/AdminCreateSchoolCourse"
+import React from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import AdminCreateSchoolCourse from "./admindb/pages/AdminCreateSchoolCourse";
 
 // ================= PUBLIC PAGES =================
-import Home from "./pages/Home.jsx"
-import Login from "./pages/auth/Login.jsx"
-import Register from "./pages/auth/Register.jsx"
-import AdminLogin from "./admindb/pages/AdminLogin.jsx"
+import Home from "./pages/Home.jsx";
+import Login from "./pages/auth/Login.jsx";
+import Register from "./pages/auth/Register.jsx";
+import AdminLogin from "./admindb/pages/AdminLogin.jsx";
 
 // ================= LAYOUTS & AUTH GUARD =================
-import UserLayout from "./userdb/layouts/UserLayout.jsx"
-import AdminLayout from "./admindb/layouts/AdminLayout.jsx"
-import ProtectedRoute from "./userdb/components/ProtectedRoute.jsx"
+import UserLayout from "./userdb/layouts/UserLayout.jsx";
+import AdminLayout from "./admindb/layouts/AdminLayout.jsx";
+import ProtectedRoute from "./userdb/components/ProtectedRoute.jsx";
 
 // ================= TRỢ LÝ HỌC TẬP AI & LỊCH SỬ =================
-import TroLyAIPage from "./userdb/pages/studentpage/trolyai/TroLyAIPage.jsx"
-import ChatHistorySidebar from "./userdb/pages/studentpage/trolyai/components/ChatHistorySidebar.jsx"
+import TroLyAIPage from "./userdb/pages/studentpage/trolyai/TroLyAIPage.jsx";
+import ChatHistorySidebar from "./userdb/pages/studentpage/trolyai/components/ChatHistorySidebar.jsx";
 
 // ================= STUDENT PAGES =================
-import StudentHome from "./userdb/pages/studentpage/StudentHome.jsx"
-import StudentDashboard from "./userdb/pages/studentpage/dashboard/StudentDashboard.jsx"
-import Programs from "./userdb/pages/studentpage/Chuongtrinhkhoilop/Programs.jsx"
-import Library from "./userdb/pages/studentpage/Khohoclieu/Library.jsx"
-import StudentCourses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx"
-import CourseCategories from "./userdb/pages/studentpage/danhmuckhoahoc/CourseCategories.jsx"
-import DocumentCategories from "./userdb/pages/studentpage/danhmuctailieu/DocumentCategories.jsx"
-import CourseDetail from "./userdb/pages/studentpage/chitietkhoahoc/CourseDetail.jsx"
-import DocumentDetail from "./userdb/pages/studentpage/chitietpdf/DocumentDetail.jsx"
-import Videos from "./userdb/pages/studentpage/VideoEdu/Videos.jsx"
-import Bookshelf from "./userdb/pages/studentpage/Tusach/Bookshelf.jsx"
-import ExamRoom from "./userdb/pages/studentpage/Monhoccuatoi/ExamRoom.jsx"
-import PaymentResult from "./userdb/pages/studentpage/Monhoccuatoi/PaymentResult.jsx"
-import StudentTransactions from "./userdb/pages/studentpage/StudentTransactions.jsx"
-import UpgradeEdu from "./userdb/pages/studentpage/nangcap/UpgradeEdu.jsx"
+import StudentHome from "./userdb/pages/studentpage/StudentHome.jsx";
+import StudentDashboard from "./userdb/pages/studentpage/dashboard/StudentDashboard.jsx";
+import Programs from "./userdb/pages/studentpage/Chuongtrinhkhoilop/Programs.jsx";
+import Library from "./userdb/pages/studentpage/Khohoclieu/Library.jsx";
+import StudentCourses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx";
+import CourseCategories from "./userdb/pages/studentpage/danhmuckhoahoc/CourseCategories.jsx";
+import DocumentCategories from "./userdb/pages/studentpage/danhmuctailieu/DocumentCategories.jsx";
+import CourseDetail from "./userdb/pages/studentpage/chitietkhoahoc/CourseDetail.jsx";
+import DocumentDetail from "./userdb/pages/studentpage/chitietpdf/DocumentDetail.jsx";
+import Videos from "./userdb/pages/studentpage/VideoEdu/Videos.jsx";
+import Bookshelf from "./userdb/pages/studentpage/Tusach/Bookshelf.jsx";
+import ExamRoom from "./userdb/pages/studentpage/Monhoccuatoi/ExamRoom.jsx";
+import PaymentResult from "./userdb/pages/studentpage/Monhoccuatoi/PaymentResult.jsx";
+import StudentTransactions from "./userdb/pages/studentpage/StudentTransactions.jsx";
+import UpgradeEdu from "./userdb/pages/studentpage/nangcap/UpgradeEdu.jsx";
+import Search from "./userdb/pages/studentpage/StudentSearch.jsx";
 
 // ================= TEACHER PAGES =================
-import TeacherHome from "./userdb/pages/teacherpage/TeacherHome.jsx"
-import CourseManagement from "./userdb/pages/teacherpage/quanlylophoc/CourseManagement.jsx"
-import TeacherRequestCourse from "./userdb/pages/teacherpage/quanlylophoc/TeacherRequestCourse.jsx"
-import QuizBank from "./userdb/pages/teacherpage/nganhangdethi/QuizBank.jsx"
-import Grading from "./userdb/pages/teacherpage/chamdiemdiemso/Grading.jsx"
-import StudentList from "./userdb/pages/teacherpage/danhsachhocvien/StudentList.jsx"
-import Schedule from "./userdb/pages/teacherpage/lichdaymeet/Schedule.jsx"
-import TeacherExamSubmissions from "./userdb/pages/teacherpage/quanlylophoc/TeacherExamSubmissions.jsx"
+import TeacherHome from "./userdb/pages/teacherpage/TeacherHome.jsx";
+import CourseManagement from "./userdb/pages/teacherpage/quanlylophoc/CourseManagement.jsx";
+import TeacherRequestCourse from "./userdb/pages/teacherpage/quanlylophoc/TeacherRequestCourse.jsx";
+import QuizBank from "./userdb/pages/teacherpage/nganhangdethi/QuizBank.jsx";
+import Grading from "./userdb/pages/teacherpage/chamdiemdiemso/Grading.jsx";
+import StudentList from "./userdb/pages/teacherpage/danhsachhocvien/StudentList.jsx";
+import Schedule from "./userdb/pages/teacherpage/lichdaymeet/Schedule.jsx";
+import TeacherExamSubmissions from "./userdb/pages/teacherpage/quanlylophoc/TeacherExamSubmissions.jsx";
 
 // ================= ADMIN PAGES =================
-import AdminHome from "./admindb/pages/AdminHome.jsx"
-import AdminUsers from "./admindb/pages/quanlynguoidung/AdminUsers.jsx" 
-import AdminCourses from "./admindb/pages/AdminCourses.jsx" 
-import AdminReports from "./admindb/pages/AdminReports.jsx"
-import AdminSettings from "./admindb/pages/AdminSettings.jsx"
-import AdminTransactions from "./admindb/pages/giaodichdanhthu/AdminTransactions.jsx"
+import AdminHome from "./admindb/pages/AdminHome.jsx";
+import AdminUsers from "./admindb/pages/quanlynguoidung/AdminUsers.jsx";
+import AdminCourses from "./admindb/pages/AdminCourses.jsx";
+import AdminReports from "./admindb/pages/AdminReports.jsx";
+import AdminSettings from "./admindb/pages/AdminSettings.jsx";
+import AdminTransactions from "./admindb/pages/giaodichdanhthu/AdminTransactions.jsx";
 
 // ================= SHARED PAGES & COMPONENTS =================
-import Profile from "./userdb/pages/Profile.jsx"
-import AIChatWidget from "./components/AIChatWidget.jsx"
+import Profile from "./userdb/pages/Profile.jsx";
+import AIChatWidget from "./components/AIChatWidget.jsx";
 
 const DashboardRedirect = () => {
-  const location = useLocation()
-  const token = localStorage.getItem("adminToken") || localStorage.getItem("token")
-  const role = localStorage.getItem("role")?.toLowerCase()
+  const location = useLocation();
+  const token =
+    localStorage.getItem("adminToken") || localStorage.getItem("token");
+  const role = localStorage.getItem("role")?.toLowerCase();
 
   if (!token) {
     if (location.pathname.startsWith("/admin")) {
-      return <Navigate to="/admin/login" replace />
+      return <Navigate to="/admin/login" replace />;
     }
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" replace />;
   }
 
   if (role === "admin") {
-    return <Navigate to="/admin/dashboard" replace />
+    return <Navigate to="/admin/dashboard" replace />;
   }
   if (role === "teacher" || role === "instructor") {
-    return <Navigate to="/teacher/home" replace />
+    return <Navigate to="/teacher/home" replace />;
   }
-  return <Navigate to="/student/home" replace />
-}
+  return <Navigate to="/student/home" replace />;
+};
 
 export default function App() {
   return (
@@ -94,8 +96,14 @@ export default function App() {
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
-          <Route path="/teacher/exam/:examId" element={<TeacherExamSubmissions />} />
-          <Route path="/teacher/exam/:examId/submissions" element={<TeacherExamSubmissions />} />
+          <Route
+            path="/teacher/exam/:examId"
+            element={<TeacherExamSubmissions />}
+          />
+          <Route
+            path="/teacher/exam/:examId/submissions"
+            element={<TeacherExamSubmissions />}
+          />
         </Route>
 
         {/* 🟢 3. ROUTE DÀNH CHO ADMIN */}
@@ -103,9 +111,12 @@ export default function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminHome />} />
-            <Route path="users" element={<AdminUsers />} /> 
-            <Route path="courses" element={<AdminCourses />} /> 
-            <Route path="courses/create-school" element={<AdminCreateSchoolCourse />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="courses" element={<AdminCourses />} />
+            <Route
+              path="courses/create-school"
+              element={<AdminCreateSchoolCourse />}
+            />
             <Route path="transactions" element={<AdminTransactions />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="settings" element={<AdminSettings />} />
@@ -118,7 +129,7 @@ export default function App() {
           <Route path="/teacher" element={<UserLayout />}>
             <Route index element={<Navigate to="/teacher/home" replace />} />
             <Route path="home" element={<TeacherHome />} />
-            
+
             {/* 🎯 TRỢ LÝ TRỢ GIẢNG AI & LỊCH SỬ CHO TEACHER */}
             <Route path="ai-assistant" element={<TroLyAIPage />} />
             <Route path="ai-history" element={<ChatHistorySidebar />} />
@@ -129,8 +140,14 @@ export default function App() {
 
             {/* Danh mục khóa học & Danh mục tài liệu */}
             <Route path="course-categories" element={<CourseCategories />} />
-            <Route path="courses/category/:categorySlug" element={<CourseCategories />} />
-            <Route path="document-categories" element={<DocumentCategories />} />
+            <Route
+              path="courses/category/:categorySlug"
+              element={<CourseCategories />}
+            />
+            <Route
+              path="document-categories"
+              element={<DocumentCategories />}
+            />
             <Route path="docs/:docSlug" element={<DocumentCategories />} />
 
             <Route path="quizzes" element={<QuizBank />} />
@@ -140,7 +157,7 @@ export default function App() {
             <Route path="library" element={<Library />} />
             <Route path="profile" element={<Profile />} />
             <Route path="documents/:docId" element={<DocumentDetail />} />
-            
+
             <Route path="upgrade" element={<UpgradeEdu />} />
 
             <Route path="videos" element={<Videos />} />
@@ -152,11 +169,11 @@ export default function App() {
           <Route path="/student" element={<UserLayout />}>
             <Route index element={<Navigate to="/student/home" replace />} />
             <Route path="home" element={<StudentHome />} />
-            
+
             {/* 🎯 TRỢ LÝ HỌC TẬP AI & LỊCH SỬ CHO STUDENT */}
             <Route path="ai-assistant" element={<TroLyAIPage />} />
             <Route path="ai-history" element={<ChatHistorySidebar />} />
-
+            <Route path="search" element={<Search />} />
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="programs" element={<Programs />} />
             <Route path="library" element={<Library />} />
@@ -164,8 +181,14 @@ export default function App() {
 
             {/* Danh mục khóa học & Danh mục tài liệu */}
             <Route path="course-categories" element={<CourseCategories />} />
-            <Route path="courses/category/:categorySlug" element={<CourseCategories />} />
-            <Route path="document-categories" element={<DocumentCategories />} />
+            <Route
+              path="courses/category/:categorySlug"
+              element={<CourseCategories />}
+            />
+            <Route
+              path="document-categories"
+              element={<DocumentCategories />}
+            />
             <Route path="docs/:docSlug" element={<DocumentCategories />} />
 
             {/* CÁC ROUTE CHI TIẾT */}
@@ -177,7 +200,7 @@ export default function App() {
             <Route path="videos" element={<Videos />} />
             <Route path="profile" element={<Profile />} />
             <Route path="bookshelf" element={<Bookshelf />} />
-            
+
             {/* 🎯 NÂNG CẤP GÓI EDU DÀNH CHO STUDENT */}
             <Route path="upgrade" element={<UpgradeEdu />} />
           </Route>
@@ -190,5 +213,5 @@ export default function App() {
       {/* WIDGET AI NỔI CỐ ĐỊNH Ở GÓC DƯỚI BÊN PHẢI */}
       <AIChatWidget />
     </>
-  )
+  );
 }

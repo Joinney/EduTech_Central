@@ -1,36 +1,37 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useRef, useMemo } from "react"
-import { useNavigate } from "react-router-dom"
-import { 
-  Search, 
-  ArrowRight, 
-  Bell, 
-  BookMarked, 
-  PlusCircle, 
-  FileText, 
-  Download, 
-  ThumbsUp, 
-  CheckCircle2, 
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Search,
+  ArrowRight,
+  Bell,
+  BookMarked,
+  PlusCircle,
+  FileText,
+  Download,
+  ThumbsUp,
+  CheckCircle2,
   Loader2,
   ChevronLeft,
   ChevronRight,
   Eye,
   Play,
-  Video
-} from "lucide-react"
+  Video,
+  Globe,
+} from "lucide-react";
 
-import { courseService } from "../../../api/course.api"
+import { courseService } from "../../../api/course.api";
 
 // Import 3 components con đã tách ra
-import CardCanvas from "../../components/context/home/CardCanvas"
-import PdfCoverPreview from "../../components/context/home/PdfCoverPreview"
-import VerticalVideoModal from "../../components/context/home/VerticalVideoModal"
+import CardCanvas from "../../components/context/home/CardCanvas";
+import PdfCoverPreview from "../../components/context/home/PdfCoverPreview";
+import VerticalVideoModal from "../../components/context/home/VerticalVideoModal";
 
-const DEFAULT_TEACHER_IMG = "/thekhoahoc/thaygiao.png"
-const DEFAULT_LOGO_IMG = "/thekhoahoc/logo.png"
-const COURSES_PER_PAGE = 6
-const DOCS_PER_PAGE = 4
+const DEFAULT_TEACHER_IMG = "/thekhoahoc/thaygiao.png";
+const DEFAULT_LOGO_IMG = "/thekhoahoc/logo.png";
+const COURSES_PER_PAGE = 6;
+const DOCS_PER_PAGE = 4;
 
 const SAMPLE_VERTICAL_VIDEOS = [
   {
@@ -39,8 +40,10 @@ const SAMPLE_VERTICAL_VIDEOS = [
     author: "Thầy Thành AI",
     duration: "0:58",
     views: "12.4k",
-    thumbnail: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&auto=format&fit=crop&q=60",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+    thumbnail:
+      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&auto=format&fit=crop&q=60",
+    videoUrl:
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
   },
   {
     id: "v-2",
@@ -48,77 +51,113 @@ const SAMPLE_VERTICAL_VIDEOS = [
     author: "Khoa Luật Kinh Tế",
     duration: "1:15",
     views: "8.9k",
-    thumbnail: "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=500&auto=format&fit=crop&q=60",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
-  }
-]
+    thumbnail:
+      "https://images.unsplash.com/photo-1450133064473-71024230f91b?w=500&auto=format&fit=crop&q=60",
+    videoUrl:
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+  },
+];
 
 const PRESET_SCHOOL_LOGOS = {
   bka: "https://bka.hcmut.edu.vn/assets/images/logo/logo-bka.png",
-  hcmut: "https://upload.wikimedia.org/wikipedia/vi/thumb/9/91/FC_B%C3%A1ch_Khoa_logo.png/200px-FC_B%C3%A1ch_Khoa_logo.png",
+  hcmut:
+    "https://upload.wikimedia.org/wikipedia/vi/thumb/9/91/FC_B%C3%A1ch_Khoa_logo.png/200px-FC_B%C3%A1ch_Khoa_logo.png",
   hust: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Logo_Hust.png/200px-Logo_Hust.png",
   uit: "https://upload.wikimedia.org/wikipedia/vi/thumb/e/e0/Logo_UIT.svg/200px-Logo_UIT.svg.png",
   fpt: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/FPT_logo_2010.svg/200px-FPT_logo_2010.svg.png",
-  vanlang: "https://upload.wikimedia.org/wikipedia/vi/thumb/0/07/Logo_V%C4%83n_Lang.svg/200px-Logo_V%C4%83n_Lang.svg.png"
-}
+  vanlang:
+    "https://upload.wikimedia.org/wikipedia/vi/thumb/0/07/Logo_V%C4%83n_Lang.svg/200px-Logo_V%C4%83n_Lang.svg.png",
+};
 
 const resolveSchoolLogo = (schoolName = "", customLogo = "") => {
-  if (customLogo && !customLogo.includes("/thekhoahoc/logo.png")) return customLogo
-  const nameLower = schoolName.toLowerCase()
-  if (nameLower.includes("bka") || nameLower.includes("alumni")) return PRESET_SCHOOL_LOGOS.bka
-  if (nameLower.includes("hà nội") || nameLower.includes("hust")) return PRESET_SCHOOL_LOGOS.hust
-  if (nameLower.includes("bách khoa") || nameLower.includes("hcmut")) return PRESET_SCHOOL_LOGOS.hcmut
-  if (nameLower.includes("thông tin") || nameLower.includes("uit")) return PRESET_SCHOOL_LOGOS.uit
-  if (nameLower.includes("fpt")) return PRESET_SCHOOL_LOGOS.fpt
-  if (nameLower.includes("văn lang")) return PRESET_SCHOOL_LOGOS.vanlang
-  return DEFAULT_LOGO_IMG
-}
+  if (customLogo && !customLogo.includes("/thekhoahoc/logo.png"))
+    return customLogo;
+  const nameLower = schoolName.toLowerCase();
+  if (nameLower.includes("bka") || nameLower.includes("alumni"))
+    return PRESET_SCHOOL_LOGOS.bka;
+  if (nameLower.includes("hà nội") || nameLower.includes("hust"))
+    return PRESET_SCHOOL_LOGOS.hust;
+  if (nameLower.includes("bách khoa") || nameLower.includes("hcmut"))
+    return PRESET_SCHOOL_LOGOS.hcmut;
+  if (nameLower.includes("thông tin") || nameLower.includes("uit"))
+    return PRESET_SCHOOL_LOGOS.uit;
+  if (nameLower.includes("fpt")) return PRESET_SCHOOL_LOGOS.fpt;
+  if (nameLower.includes("văn lang")) return PRESET_SCHOOL_LOGOS.vanlang;
+  return DEFAULT_LOGO_IMG;
+};
 
 export default function StudentHome() {
-  const navigate = useNavigate()
-  const role = localStorage.getItem("role")?.toLowerCase() || "student"
+  const navigate = useNavigate();
+  const role = localStorage.getItem("role")?.toLowerCase() || "student";
 
-  const [searchKeyword, setSearchKeyword] = useState("")
-  const [toastMessage, setToastMessage] = useState("")
-  const [showToast, setShowToast] = useState(false)
-  const [essayFilter, setEssayFilter] = useState("all")
-  
-  const [courses, setCourses] = useState([])
-  const [documents, setDocuments] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const searchContainerRef = useRef(null);
 
-  const [currentCoursePage, setCurrentCoursePage] = useState(1)
-  const coursesSectionRef = useRef(null)
+  const [toastMessage, setToastMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  const [essayFilter, setEssayFilter] = useState("all");
 
-  const [currentDocPage, setCurrentDocPage] = useState(1)
-  const docsSectionRef = useRef(null)
+  const [courses, setCourses] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [isExpandedDocs, setIsExpandedDocs] = useState(false)
-  const [selectedVideo, setSelectedVideo] = useState(null)
+  const [currentCoursePage, setCurrentCoursePage] = useState(1);
+  const coursesSectionRef = useRef(null);
 
-  const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
+  const [currentDocPage, setCurrentDocPage] = useState(1);
+  const docsSectionRef = useRef(null);
+
+  const [isExpandedDocs, setIsExpandedDocs] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState(null);
+
+  const baseUrl =
+    import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
 
   useEffect(() => {
     const fetchHomeData = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
-        const rawCourses = await courseService.getAllCourses().catch(() => [])
-        const coursesList = Array.isArray(rawCourses) ? rawCourses : (rawCourses?.data || [])
+        const rawCourses = await courseService.getAllCourses().catch(() => []);
+        let coursesList = Array.isArray(rawCourses)
+          ? rawCourses
+          : rawCourses?.data || [];
+
+        // LỌC BỎ VIDEO KHỎI TRANG CHỦ & TÌM KIẾM (Đã fix lỗi crash null/undefined)
+        coursesList = coursesList.filter((c) => {
+          const cType = String(c.type || "").toLowerCase();
+          const cCat = String(c.category || "").toLowerCase();
+          return cType !== "video" && cCat !== "video";
+        });
 
         if (coursesList.length > 0) {
-          const externalCourses = coursesList.filter(c => c.type === "external" || !c.type || c.type === "skill")
-          const targetList = externalCourses.length > 0 ? externalCourses : coursesList
+          const externalCourses = coursesList.filter(
+            (c) => c.type === "external" || !c.type || c.type === "skill",
+          );
+          const targetList =
+            externalCourses.length > 0 ? externalCourses : coursesList;
 
-          const formattedCourses = targetList.map(c => {
-            const realUploadedImg = 
-              (c.thumbnail && !c.thumbnail.includes("unsplash.com") && !c.thumbnail.includes("thekhoahoc")) 
-                ? c.thumbnail 
-                : (c.teacher_img || c.teacherImg || c.teacher_avatar)
+          const formattedCourses = targetList.map((c) => {
+            const realUploadedImg =
+              c.thumbnail &&
+              !c.thumbnail.includes("unsplash.com") &&
+              !c.thumbnail.includes("thekhoahoc")
+                ? c.thumbnail
+                : c.teacher_img || c.teacherImg || c.teacher_avatar;
 
-            const isUIAvatar = realUploadedImg && realUploadedImg.includes("ui-avatars.com")
-            const cleanTeacherImg = (realUploadedImg && !isUIAvatar) ? realUploadedImg : DEFAULT_TEACHER_IMG
-            const schoolName = c.schoolName || c.school_name || c.grade || "Trường đào tạo"
-            const cleanSchoolLogo = resolveSchoolLogo(schoolName, c.school_logo || c.schoolLogo)
+            const isUIAvatar =
+              realUploadedImg && realUploadedImg.includes("ui-avatars.com");
+            const cleanTeacherImg =
+              realUploadedImg && !isUIAvatar
+                ? realUploadedImg
+                : DEFAULT_TEACHER_IMG;
+            const schoolName =
+              c.schoolName || c.school_name || c.grade || "Trường đào tạo";
+            const cleanSchoolLogo = resolveSchoolLogo(
+              schoolName,
+              c.school_logo || c.schoolLogo,
+            );
 
             return {
               id: c.id || c.id_course,
@@ -130,116 +169,220 @@ export default function StudentHome() {
               profileProgress: Math.floor(Math.random() * 20) + 80,
               notificationCount: Math.floor(Math.random() * 3) + 1,
               teacherImg: cleanTeacherImg,
-              logoImg: cleanSchoolLogo
-            }
-          })
-          setCourses(formattedCourses)
+              logoImg: cleanSchoolLogo,
+            };
+          });
+          setCourses(formattedCourses);
         }
 
         try {
-          const docRes = await fetch(`${baseUrl}/shared-documents?all=true`)
+          const docRes = await fetch(`${baseUrl}/shared-documents?all=true`);
           if (docRes.ok) {
-            const docJson = await docRes.json()
-            const rawDocs = Array.isArray(docJson) ? docJson : (docJson?.data || [])
+            const docJson = await docRes.json();
+            let rawDocs = Array.isArray(docJson)
+              ? docJson
+              : docJson?.data || [];
+
+            // LỌC BỎ VIDEO KHỎI TRANG CHỦ & TÌM KIẾM (Đã fix lỗi crash null/undefined)
+            rawDocs = rawDocs.filter((d) => {
+              const dType = String(d.type || "").toLowerCase();
+              const dCat = String(d.category || "").toLowerCase();
+              return dType !== "video" && dCat !== "video";
+            });
 
             const formattedDocs = rawDocs.map((item) => ({
               id: item.id,
               title: item.title,
-              desc: item.description || "Tài liệu học tập được chia sẻ công khai.",
+              desc:
+                item.description || "Tài liệu học tập được chia sẻ công khai.",
               author: item.student_name || "Thành viên EduTech",
-              faculty: item.subject || item.category_rel?.name || item.category || "Học thuật",
+              faculty:
+                item.subject ||
+                item.category_rel?.name ||
+                item.category ||
+                "Học thuật",
               pages: item.pages || 15,
               fileUrl: item.file_url,
               downloads: item.downloads || 0,
               likes: item.views ? Math.floor(item.views / 2) + 5 : 12,
-              date: item.created_at ? new Date(item.created_at).toLocaleDateString("vi-VN") : "Gần đây"
-            }))
+              date: item.created_at
+                ? new Date(item.created_at).toLocaleDateString("vi-VN")
+                : "Gần đây",
+            }));
 
-            setDocuments(formattedDocs)
+            setDocuments(formattedDocs);
           }
         } catch (docErr) {
-          console.error("Lỗi tải tài liệu:", docErr)
+          console.error("Lỗi tải tài liệu:", docErr);
         }
-
       } catch (error) {
-        console.error("Lỗi nạp dữ liệu:", error)
+        console.error("Lỗi nạp dữ liệu:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    fetchHomeData()
-  }, [baseUrl])
+    fetchHomeData();
+  }, [baseUrl]);
 
+  // LOGIC TẠO GỢI Ý TÌM KIẾM (QUÉT DATA THỰC TẾ)
   useEffect(() => {
-    setCurrentCoursePage(1)
-    setCurrentDocPage(1)
-  }, [searchKeyword, essayFilter])
+    if (!searchKeyword.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    const kw = searchKeyword.trim().toLowerCase();
+
+    // 1. Luôn luôn có nút Tìm kiếm toàn hệ thống ở đầu tiên
+    const globalSearchItem = {
+      isGlobal: true,
+      type: "global",
+      text: `Tìm kiếm toàn hệ thống cho "${searchKeyword.trim()}"`,
+      value: searchKeyword.trim(),
+    };
+
+    // 2. Quét tìm trong danh sách Khóa học hiện có (Lấy tối đa 3)
+    const matchedCourses = courses
+      .filter(
+        (c) =>
+          c.courseName.toLowerCase().includes(kw) ||
+          c.subject.toLowerCase().includes(kw),
+      )
+      .slice(0, 3)
+      .map((c) => ({
+        isGlobal: false,
+        type: "course",
+        text: c.courseName,
+        value: c.courseName,
+      }));
+
+    // 3. Quét tìm trong danh sách File PDF/Tài liệu hiện có (Lấy tối đa 3)
+    const matchedDocs = documents
+      .filter(
+        (d) =>
+          d.title.toLowerCase().includes(kw) ||
+          d.faculty.toLowerCase().includes(kw),
+      )
+      .slice(0, 3)
+      .map((d) => ({
+        isGlobal: false,
+        type: "document",
+        text: d.title,
+        value: d.title,
+      }));
+
+    // 4. Từ khóa tĩnh dự phòng
+    const staticKeywords = [
+      "Tiểu luận chuyên ngành",
+      "Báo cáo thực tập",
+      "Trí tuệ nhân tạo (AI)",
+      "Đề cương ôn thi",
+      "Pháp luật đại cương",
+    ];
+    const matchedStatic = staticKeywords
+      .filter((k) => k.toLowerCase().includes(kw))
+      .map((k) => ({ isGlobal: false, type: "static", text: k, value: k }));
+
+    // Gộp lại: Global + Kết quả Khóa học + Kết quả PDF + Từ khóa tĩnh
+    setSuggestions(
+      [
+        globalSearchItem,
+        ...matchedCourses,
+        ...matchedDocs,
+        ...matchedStatic,
+      ].slice(0, 7),
+    );
+  }, [searchKeyword, courses, documents]);
+
+  // Click ra ngoài để đóng Dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const triggerToast = (msg) => {
-    setToastMessage(msg)
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
-  }
+    setToastMessage(msg);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  // HÀM CHUYỂN HƯỚNG SANG TRANG SEARCH
+  const handleSearchSubmit = (keyword = searchKeyword) => {
+    if (!keyword.trim()) return;
+    setShowSuggestions(false);
+    navigate(`/${role}/search?query=${encodeURIComponent(keyword)}`);
+  };
 
   const handleRegisterCourse = (courseId, teacherName) => {
-    triggerToast(`Đã gửi yêu cầu đăng ký lớp của GV: ${teacherName}`)
-  }
+    triggerToast(`Đã gửi yêu cầu đăng ký lớp của GV: ${teacherName}`);
+  };
 
   const handleDownload = (e, filename, url) => {
-    e.stopPropagation()
-    triggerToast(`Đang mở tệp: ${filename}`)
-    if (url) window.open(url, '_blank')
-  }
+    e.stopPropagation();
+    triggerToast(`Đang mở tệp: ${filename}`);
+    if (url) window.open(url, "_blank");
+  };
 
-  const filteredCourses = useMemo(() => courses.filter(
-    (c) =>
-      c.courseName.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      c.teacherName.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      c.subject.toLowerCase().includes(searchKeyword.toLowerCase())
-  ), [courses, searchKeyword])
-
-  const totalCoursePages = Math.ceil(filteredCourses.length / COURSES_PER_PAGE) || 1
+  const filteredCourses = courses;
+  const totalCoursePages =
+    Math.ceil(filteredCourses.length / COURSES_PER_PAGE) || 1;
 
   const paginatedCourses = useMemo(() => {
-    const startIdx = (currentCoursePage - 1) * COURSES_PER_PAGE
-    return filteredCourses.slice(startIdx, startIdx + COURSES_PER_PAGE)
-  }, [filteredCourses, currentCoursePage])
+    const startIdx = (currentCoursePage - 1) * COURSES_PER_PAGE;
+    return filteredCourses.slice(startIdx, startIdx + COURSES_PER_PAGE);
+  }, [filteredCourses, currentCoursePage]);
 
   const handleCoursePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalCoursePages && newPage !== currentCoursePage) {
-      setCurrentCoursePage(newPage)
-      coursesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    if (
+      newPage >= 1 &&
+      newPage <= totalCoursePages &&
+      newPage !== currentCoursePage
+    ) {
+      setCurrentCoursePage(newPage);
+      coursesSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     }
-  }
+  };
 
   const filteredDocuments = useMemo(() => {
-    let list = documents.filter(
-      (d) =>
-        d.title.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        d.desc.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        d.author.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-        d.faculty.toLowerCase().includes(searchKeyword.toLowerCase())
-    )
+    let list = [...documents];
     if (essayFilter === "popular") {
-      list = [...list].sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+      list = list.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
     }
-    return list
-  }, [documents, searchKeyword, essayFilter])
+    return list;
+  }, [documents, essayFilter]);
 
-  const totalDocPages = Math.ceil(filteredDocuments.length / DOCS_PER_PAGE) || 1
+  const totalDocPages =
+    Math.ceil(filteredDocuments.length / DOCS_PER_PAGE) || 1;
 
   const paginatedDocuments = useMemo(() => {
-    const startIdx = (currentDocPage - 1) * DOCS_PER_PAGE
-    return filteredDocuments.slice(startIdx, startIdx + DOCS_PER_PAGE)
-  }, [filteredDocuments, currentDocPage])
+    const startIdx = (currentDocPage - 1) * DOCS_PER_PAGE;
+    return filteredDocuments.slice(startIdx, startIdx + DOCS_PER_PAGE);
+  }, [filteredDocuments, currentDocPage]);
 
   const handleDocPageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalDocPages && newPage !== currentDocPage) {
-      setCurrentDocPage(newPage)
-      docsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    if (
+      newPage >= 1 &&
+      newPage <= totalDocPages &&
+      newPage !== currentDocPage
+    ) {
+      setCurrentDocPage(newPage);
+      docsSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     }
-  }
+  };
 
   return (
     <div className="home-root-wrapper">
@@ -256,7 +399,7 @@ export default function StudentHome() {
           position: relative; background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0284c7 100%);
           border: 2px solid #cbd5e1; border-radius: 16px; min-height: 200px;
           display: flex; flex-direction: column; align-items: center; justify-content: center;
-          padding: 24px; box-shadow: 0 8px 24px rgba(30, 58, 138, 0.12); overflow: hidden;
+          padding: 24px; box-shadow: 0 8px 24px rgba(30, 58, 138, 0.12); overflow: visible;
         }
         .search-hero-box::before {
           content: ''; position: absolute; inset: 0;
@@ -267,13 +410,40 @@ export default function StudentHome() {
           position: relative; color: #ffffff; font-size: 20px; font-weight: 800;
           text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; text-align: center;
         }
+        
+        .search-wrapper-relative {
+          position: relative; width: 100%; max-width: 680px; z-index: 50;
+        }
         .pill-search-bar {
-          position: relative; width: 100%; max-width: 680px; background: #ffffff;
+          position: relative; width: 100%; background: #ffffff;
           border: 3px solid #38bdf8; border-radius: 50px; display: flex; align-items: center;
           padding: 6px 10px 6px 22px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); transition: all 0.25s ease;
         }
+        .pill-search-bar.has-dropdown {
+          border-bottom-left-radius: 16px;
+          border-bottom-right-radius: 16px;
+        }
         .pill-search-bar:focus-within { border-color: #f59e0b; box-shadow: 0 12px 35px rgba(245, 158, 11, 0.35); transform: scale(1.01); }
         .pill-search-bar input { flex: 1; border: none; outline: none; font-size: 14px; font-weight: 600; color: #0f172a; background: transparent; }
+        
+        .search-suggestions-dropdown {
+          position: absolute; top: calc(100% + 4px); left: 0; width: 100%;
+          background: #ffffff; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+          overflow: hidden; border: 1px solid #e2e8f0; display: flex; flex-direction: column;
+          animation: slideDown 0.2s ease-out forwards;
+        }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .suggestion-item {
+          padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+          font-size: 14px; color: #334155; font-weight: 500; cursor: pointer;
+          border-bottom: 1px solid #f1f5f9; transition: background 0.2s;
+        }
+        .suggestion-item:last-child { border-bottom: none; }
+        .suggestion-item:hover { background: #f8fafc; color: #1e3a8a; }
+        .suggestion-item.global-item { color: #0284c7; font-weight: 700; background: #f0f9ff; }
+        .suggestion-item.global-item:hover { background: #e0f2fe; }
+
         .search-btn {
           background: #1e3a8a; color: #ffffff; border: none; padding: 9px 20px; border-radius: 40px;
           font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
@@ -424,81 +594,165 @@ export default function StudentHome() {
       )}
 
       {/* MODAL VIDEO DỌC TÁCH RIÊNG */}
-      <VerticalVideoModal 
-        video={selectedVideo} 
-        onClose={() => setSelectedVideo(null)} 
+      <VerticalVideoModal
+        video={selectedVideo}
+        onClose={() => setSelectedVideo(null)}
       />
 
       <div className="home-wireframe-grid">
         <div className="home-left-col">
           {/* SEARCH HERO */}
           <section className="search-hero-box">
-            <h2 className="search-hero-title">Diễn Đàn Chia Sẻ Khóa Học & Tiểu Luận Học Thuật</h2>
-            
-            <div className="pill-search-bar">
-              <Search className="w-5 h-5 text-slate-400 mr-3 shrink-0" />
-              <input 
-                type="text" 
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="Tìm tiểu luận, đề cương ôn thi, khóa học, giáo trình PDF..." 
-              />
-              <button className="search-btn" onClick={() => triggerToast(`Tìm kiếm: ${searchKeyword || "Tất cả"}`)}>
-                <span>TÌM KIẾM</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+            <h2 className="search-hero-title">
+              Diễn Đàn Chia Sẻ Khóa Học & Tiểu Luận Học Thuật
+            </h2>
+
+            {/* WRAPPER SEARCH (GỘP THANH TÌM KIẾM VÀ DROPDOWN) */}
+            <div className="search-wrapper-relative" ref={searchContainerRef}>
+              <div
+                className={`pill-search-bar ${showSuggestions && suggestions.length > 0 ? "has-dropdown" : ""}`}
+              >
+                <Search className="w-5 h-5 text-slate-400 mr-3 shrink-0" />
+                <input
+                  type="text"
+                  value={searchKeyword}
+                  onChange={(e) => {
+                    setSearchKeyword(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSearchSubmit();
+                  }}
+                  placeholder="Tìm tiểu luận, đề cương ôn thi, khóa học, giáo trình PDF..."
+                />
+                <button
+                  className="search-btn"
+                  onClick={() => handleSearchSubmit()}
+                >
+                  <span>TÌM KIẾM</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* DROPDOWN MENU GỢI Ý (HIỆN RA KHI GÕ CHỮ) */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="search-suggestions-dropdown">
+                  {suggestions.map((sug, idx) => (
+                    <div
+                      key={idx}
+                      className={`suggestion-item ${sug.isGlobal ? "global-item" : ""}`}
+                      onClick={() => {
+                        setSearchKeyword(sug.value);
+                        handleSearchSubmit(sug.value);
+                      }}
+                    >
+                      {/* Xử lý Icon theo từng loại dữ liệu */}
+                      {sug.isGlobal && (
+                        <Globe className="w-4 h-4 shrink-0 text-sky-600" />
+                      )}
+                      {sug.type === "course" && (
+                        <BookMarked className="w-4 h-4 shrink-0 text-blue-500" />
+                      )}
+                      {sug.type === "document" && (
+                        <FileText className="w-4 h-4 shrink-0 text-orange-500" />
+                      )}
+                      {sug.type === "static" && (
+                        <Search className="w-4 h-4 shrink-0 text-slate-400" />
+                      )}
+
+                      <div className="flex flex-col">
+                        <span className="truncate">{sug.text}</span>
+                        {/* Hiện tag nhỏ bên dưới báo cho user biết đây là loại file gì */}
+                        {!sug.isGlobal && sug.type !== "static" && (
+                          <span className="text-[10px] text-slate-400 font-bold uppercase leading-none mt-1">
+                            {sug.type === "course"
+                              ? "Khóa học"
+                              : "Tài liệu PDF"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="quick-tags">
               <span>Từ khóa hot:</span>
-              <span className="tag-pill" onClick={() => setSearchKeyword("Tiểu Luận")}>Tiểu Luận Pháp Luật</span>
-              <span className="tag-pill" onClick={() => setSearchKeyword("Trí Tuệ Nhân Tạo")}>Trí Tuệ Nhân Tạo</span>
-              <span className="tag-pill" onClick={() => setSearchKeyword("Học Máy")}>Học Máy Nâng Cao</span>
-              <span className="tag-pill" onClick={() => setSearchKeyword("Đề thi")}>Đề thi & Kiểm tra</span>
-              <span className="tag-pill" onClick={() => setSearchKeyword("")}>Tất cả</span>
+              <span
+                className="tag-pill"
+                onClick={() => handleSearchSubmit("Tiểu Luận Pháp Luật")}
+              >
+                Tiểu Luận Pháp Luật
+              </span>
+              <span
+                className="tag-pill"
+                onClick={() => handleSearchSubmit("Trí Tuệ Nhân Tạo")}
+              >
+                Trí Tuệ Nhân Tạo
+              </span>
+              <span
+                className="tag-pill"
+                onClick={() => handleSearchSubmit("Học Máy")}
+              >
+                Học Máy Nâng Cao
+              </span>
+              <span
+                className="tag-pill"
+                onClick={() => handleSearchSubmit("Đề thi")}
+              >
+                Đề thi & Kiểm tra
+              </span>
             </div>
           </section>
 
-          {/* SECTION KHÓA HỌC MỞ RỘNG */}
+          {/* SECTION KHÓA HỌC MỞ RỘNG (ĐÃ BỎ LỌC CỤC BỘ) */}
           <section className="courses-section" ref={coursesSectionRef}>
             <div className="section-header-bar">
               <h3>CÁC KHÓA HỌC MỞ RỘNG</h3>
               <span className="text-xs font-bold text-blue-900 bg-blue-50 px-3 py-1 rounded-full flex items-center gap-1.5">
-                {isLoading && <Loader2 className="w-3 h-3 animate-spin text-blue-500" />}
+                {isLoading && (
+                  <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                )}
                 {filteredCourses.length} Khóa học mở rộng
               </span>
             </div>
 
             <div className="three-cards-grid">
               {paginatedCourses.map((c) => (
-                <div key={c.id} className="card-wrapper" data-course={c.courseName} data-teacher={c.teacherName}>
+                <div
+                  key={c.id}
+                  className="card-wrapper"
+                  data-course={c.courseName}
+                  data-teacher={c.teacherName}
+                >
                   <div className="school-logo-corner">
-                    <img 
-                      src={c.logoImg} 
-                      alt="Logo trường" 
-                      className="school-logo-img" 
-                      onError={(e) => { 
+                    <img
+                      src={c.logoImg}
+                      alt="Logo trường"
+                      className="school-logo-img"
+                      onError={(e) => {
                         e.currentTarget.onerror = null;
-                        e.currentTarget.src = DEFAULT_LOGO_IMG; 
+                        e.currentTarget.src = DEFAULT_LOGO_IMG;
                       }}
                     />
                   </div>
 
-                  <div 
-                    className="card-container" 
+                  <div
+                    className="card-container"
                     style={{ backgroundImage: 'url("/thekhoahoc/khung.png")' }}
                   >
-                    {/* COMPONENT CANVAS CON */}
                     <CardCanvas />
 
                     <div className="teacher-image-zone">
-                      <img 
-                        src={c.teacherImg} 
-                        alt={c.teacherName} 
-                        className="teacher-img" 
-                        onError={(e) => { 
+                      <img
+                        src={c.teacherImg}
+                        alt={c.teacherName}
+                        className="teacher-img"
+                        onError={(e) => {
                           e.currentTarget.onerror = null;
-                          e.currentTarget.src = DEFAULT_TEACHER_IMG; 
+                          e.currentTarget.src = DEFAULT_TEACHER_IMG;
                         }}
                       />
                     </div>
@@ -508,48 +762,76 @@ export default function StudentHome() {
                         <h2>THÔNG TIN CHI TIẾT</h2>
                         <div className="notification-badge">
                           <Bell className="w-[2.6cqw] h-[2.6cqw]" />
-                          <span className="count">{c.notificationCount || 1}</span>
+                          <span className="count">
+                            {c.notificationCount || 1}
+                          </span>
                         </div>
                       </div>
 
                       <div className="info-list">
                         <div className="info-item">
                           <span className="info-label">HỌ TÊN:</span>
-                          <span className="info-value truncate w-24 text-right" title={c.teacherName}>{c.teacherName}</span>
+                          <span
+                            className="info-value truncate w-24 text-right"
+                            title={c.teacherName}
+                          >
+                            {c.teacherName}
+                          </span>
                         </div>
                         <div className="info-item">
                           <span className="info-label">MÔN HỌC:</span>
-                          <span className="info-value truncate w-24 text-right" title={c.subject}>{c.subject}</span>
+                          <span
+                            className="info-value truncate w-24 text-right"
+                            title={c.subject}
+                          >
+                            {c.subject}
+                          </span>
                         </div>
                         <div className="info-item">
                           <span className="info-label">KHỐI LỚP:</span>
-                          <span className="info-value truncate w-24 text-right" title={c.grade}>{c.grade}</span>
+                          <span
+                            className="info-value truncate w-24 text-right"
+                            title={c.grade}
+                          >
+                            {c.grade}
+                          </span>
                         </div>
                         <div className="info-item">
                           <span className="info-label">LỊCH HẸN:</span>
-                          <span className="info-value truncate w-24 text-right">{c.schedule}</span>
+                          <span className="info-value truncate w-24 text-right">
+                            {c.schedule}
+                          </span>
                         </div>
                       </div>
 
                       <div className="progress-container">
-                        <div className="progress-label">Hồ sơ: {c.profileProgress || 90}%</div>
+                        <div className="progress-label">
+                          Hồ sơ: {c.profileProgress || 90}%
+                        </div>
                         <div className="progress-bar">
-                          <div className="progress-fill" style={{ width: `${c.profileProgress || 90}%` }}></div>
+                          <div
+                            className="progress-fill"
+                            style={{ width: `${c.profileProgress || 90}%` }}
+                          ></div>
                         </div>
                       </div>
 
                       <div className="action-buttons">
-                        <button 
-                          className="card-btn btn-detail" 
-                          onClick={() => navigate(`/student/courses/${c.id}`)}
+                        <button
+                          className="card-btn btn-detail"
+                          onClick={() => navigate(`/${role}/courses/${c.id}`)}
                         >
-                          <BookMarked className="w-[2cqw] h-[2cqw]" /> Xem chi tiết
+                          <BookMarked className="w-[2cqw] h-[2cqw]" /> Xem chi
+                          tiết
                         </button>
-                        <button 
-                          className="card-btn btn-register" 
-                          onClick={() => handleRegisterCourse(c.id, c.teacherName)}
+                        <button
+                          className="card-btn btn-register"
+                          onClick={() =>
+                            handleRegisterCourse(c.id, c.teacherName)
+                          }
                         >
-                          <PlusCircle className="w-[2cqw] h-[2cqw]" /> Đăng ký môn
+                          <PlusCircle className="w-[2cqw] h-[2cqw]" /> Đăng ký
+                          môn
                         </button>
                       </div>
                     </div>
@@ -559,7 +841,7 @@ export default function StudentHome() {
 
               {filteredCourses.length === 0 && !isLoading && (
                 <div className="col-span-full py-12 text-center text-slate-400 bg-white border border-slate-200 border-dashed rounded-3xl text-sm font-semibold">
-                  Không tìm thấy khóa học mở rộng nào phù hợp.
+                  Không tìm thấy khóa học mở rộng nào.
                 </div>
               )}
             </div>
@@ -568,13 +850,30 @@ export default function StudentHome() {
             {filteredCourses.length > COURSES_PER_PAGE && (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 mt-1 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
                 <div className="text-xs font-medium text-slate-500">
-                  Hiển thị <strong className="text-slate-800 font-bold">{(currentCoursePage - 1) * COURSES_PER_PAGE + 1}</strong> - <strong className="text-slate-800 font-bold">{Math.min(currentCoursePage * COURSES_PER_PAGE, filteredCourses.length)}</strong> trên tổng <strong className="text-blue-900 font-bold">{filteredCourses.length}</strong> khóa học
+                  Hiển thị{" "}
+                  <strong className="text-slate-800 font-bold">
+                    {(currentCoursePage - 1) * COURSES_PER_PAGE + 1}
+                  </strong>{" "}
+                  -{" "}
+                  <strong className="text-slate-800 font-bold">
+                    {Math.min(
+                      currentCoursePage * COURSES_PER_PAGE,
+                      filteredCourses.length,
+                    )}
+                  </strong>{" "}
+                  trên tổng{" "}
+                  <strong className="text-blue-900 font-bold">
+                    {filteredCourses.length}
+                  </strong>{" "}
+                  khóa học
                 </div>
 
                 <div className="flex items-center space-x-1.5">
                   <button
                     type="button"
-                    onClick={() => handleCoursePageChange(currentCoursePage - 1)}
+                    onClick={() =>
+                      handleCoursePageChange(currentCoursePage - 1)
+                    }
                     disabled={currentCoursePage === 1}
                     className={`p-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                       currentCoursePage === 1
@@ -588,11 +887,12 @@ export default function StudentHome() {
 
                   <div className="flex items-center space-x-1">
                     {Array.from({ length: totalCoursePages }).map((_, idx) => {
-                      const pageNum = idx + 1
+                      const pageNum = idx + 1;
                       if (
-                        pageNum === 1 || 
-                        pageNum === totalCoursePages || 
-                        (pageNum >= currentCoursePage - 1 && pageNum <= currentCoursePage + 1)
+                        pageNum === 1 ||
+                        pageNum === totalCoursePages ||
+                        (pageNum >= currentCoursePage - 1 &&
+                          pageNum <= currentCoursePage + 1)
                       ) {
                         return (
                           <button
@@ -607,20 +907,29 @@ export default function StudentHome() {
                           >
                             {pageNum}
                           </button>
-                        )
+                        );
                       } else if (
-                        pageNum === currentCoursePage - 2 || 
+                        pageNum === currentCoursePage - 2 ||
                         pageNum === currentCoursePage + 2
                       ) {
-                        return <span key={pageNum} className="px-1 text-slate-400 font-bold text-xs">...</span>
+                        return (
+                          <span
+                            key={pageNum}
+                            className="px-1 text-slate-400 font-bold text-xs"
+                          >
+                            ...
+                          </span>
+                        );
                       }
-                      return null
+                      return null;
                     })}
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => handleCoursePageChange(currentCoursePage + 1)}
+                    onClick={() =>
+                      handleCoursePageChange(currentCoursePage + 1)
+                    }
                     disabled={currentCoursePage === totalCoursePages}
                     className={`p-2 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                       currentCoursePage === totalCoursePages
@@ -636,7 +945,7 @@ export default function StudentHome() {
             )}
           </section>
 
-          {/* SECTION TIỂU LUẬN & BÁO CÁO HỌC THUẬT (4 TÀI LIỆU / TRANG) */}
+          {/* SECTION TIỂU LUẬN & BÁO CÁO HỌC THUẬT (ĐÃ BỎ LỌC CỤC BỘ) */}
           <section className="essays-section" ref={docsSectionRef}>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 mb-4">
               <div>
@@ -644,19 +953,21 @@ export default function StudentHome() {
                   <FileText className="w-4 h-4 text-blue-900" />
                   <span>Kho Tài Liệu PDF / Báo Cáo Học Thuật</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Tài liệu tham khảo chọn lọc từ hệ thống bài giảng</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Tài liệu tham khảo chọn lọc từ hệ thống bài giảng
+                </p>
               </div>
 
               <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
-                <button 
+                <button
                   onClick={() => setEssayFilter("all")}
-                  className={`px-3 py-1 rounded-lg transition ${essayFilter === 'all' ? 'bg-white text-blue-900 shadow-xs' : 'hover:text-slate-900'}`}
+                  className={`px-3 py-1 rounded-lg transition ${essayFilter === "all" ? "bg-white text-blue-900 shadow-xs" : "hover:text-slate-900"}`}
                 >
                   Tất cả ({filteredDocuments.length})
                 </button>
-                <button 
+                <button
                   onClick={() => setEssayFilter("popular")}
-                  className={`px-3 py-1 rounded-lg transition ${essayFilter === 'popular' ? 'bg-white text-blue-900 shadow-xs' : 'hover:text-slate-900'}`}
+                  className={`px-3 py-1 rounded-lg transition ${essayFilter === "popular" ? "bg-white text-blue-900 shadow-xs" : "hover:text-slate-900"}`}
                 >
                   Tải nhiều nhất
                 </button>
@@ -666,37 +977,45 @@ export default function StudentHome() {
             {isLoading ? (
               <div className="py-12 text-center text-slate-400 flex flex-col items-center">
                 <Loader2 className="w-7 h-7 animate-spin text-blue-900 mb-2" />
-                <span className="text-xs font-medium">Đang tải tài liệu PDF...</span>
+                <span className="text-xs font-medium">
+                  Đang tải tài liệu PDF...
+                </span>
               </div>
             ) : (
               <>
                 <div className="two-columns-essay-grid">
                   {paginatedDocuments.map((doc) => (
-                    <div 
-                      key={doc.id} 
+                    <div
+                      key={doc.id}
                       className="essay-card-box"
                       onClick={() => navigate(`/${role}/documents/${doc.id}`)}
                     >
-                      {/* COMPONENT THUMBNAIL PDF CON */}
-                      <PdfCoverPreview fileUrl={doc.fileUrl} width={82} height={114} title={doc.title} />
+                      <PdfCoverPreview
+                        fileUrl={doc.fileUrl}
+                        width={82}
+                        height={114}
+                        title={doc.title}
+                      />
 
                       <div className="essay-details">
                         <div>
                           <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold mb-1">
-                            <span className="text-sky-700 font-bold">{doc.faculty}</span>
+                            <span className="text-sky-700 font-bold">
+                              {doc.faculty}
+                            </span>
                             <span>{doc.date}</span>
                           </div>
                           <h4 className="essay-title-text" title={doc.title}>
                             {doc.title}
                           </h4>
-                          <p className="essay-desc-text">
-                            {doc.desc}
-                          </p>
+                          <p className="essay-desc-text">{doc.desc}</p>
                         </div>
 
                         <div className="essay-meta-row">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-700 truncate max-w-[120px]">{doc.author}</span>
+                            <span className="font-bold text-slate-700 truncate max-w-[120px]">
+                              {doc.author}
+                            </span>
                             <span>•</span>
                             <span>{doc.pages} trang</span>
                           </div>
@@ -708,7 +1027,13 @@ export default function StudentHome() {
                             <button
                               type="button"
                               className="p-1 hover:text-blue-900 rounded transition"
-                              onClick={(e) => handleDownload(e, `${doc.title}.pdf`, doc.fileUrl)}
+                              onClick={(e) =>
+                                handleDownload(
+                                  e,
+                                  `${doc.title}.pdf`,
+                                  doc.fileUrl,
+                                )
+                              }
                               title="Tải nhanh"
                             >
                               <Download className="w-3.5 h-3.5 text-slate-400 hover:text-blue-900" />
@@ -721,7 +1046,7 @@ export default function StudentHome() {
 
                   {filteredDocuments.length === 0 && !isLoading && (
                     <div className="col-span-full py-10 text-center text-slate-400 text-xs font-semibold">
-                      Không tìm thấy tài liệu phù hợp.
+                      Chưa có tài liệu nào trên hệ thống.
                     </div>
                   )}
                 </div>
@@ -730,7 +1055,22 @@ export default function StudentHome() {
                 {filteredDocuments.length > DOCS_PER_PAGE && (
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-4 border-t border-slate-100">
                     <div className="text-xs font-medium text-slate-500">
-                      Hiển thị <strong className="text-slate-800 font-bold">{(currentDocPage - 1) * DOCS_PER_PAGE + 1}</strong> - <strong className="text-slate-800 font-bold">{Math.min(currentDocPage * DOCS_PER_PAGE, filteredDocuments.length)}</strong> trên tổng <strong className="text-blue-900 font-bold">{filteredDocuments.length}</strong> tài liệu
+                      Hiển thị{" "}
+                      <strong className="text-slate-800 font-bold">
+                        {(currentDocPage - 1) * DOCS_PER_PAGE + 1}
+                      </strong>{" "}
+                      -{" "}
+                      <strong className="text-slate-800 font-bold">
+                        {Math.min(
+                          currentDocPage * DOCS_PER_PAGE,
+                          filteredDocuments.length,
+                        )}
+                      </strong>{" "}
+                      trên tổng{" "}
+                      <strong className="text-blue-900 font-bold">
+                        {filteredDocuments.length}
+                      </strong>{" "}
+                      tài liệu
                     </div>
 
                     <div className="flex items-center space-x-1.5">
@@ -750,11 +1090,12 @@ export default function StudentHome() {
 
                       <div className="flex items-center space-x-1">
                         {Array.from({ length: totalDocPages }).map((_, idx) => {
-                          const pageNum = idx + 1
+                          const pageNum = idx + 1;
                           if (
-                            pageNum === 1 || 
-                            pageNum === totalDocPages || 
-                            (pageNum >= currentDocPage - 1 && pageNum <= currentDocPage + 1)
+                            pageNum === 1 ||
+                            pageNum === totalDocPages ||
+                            (pageNum >= currentDocPage - 1 &&
+                              pageNum <= currentDocPage + 1)
                           ) {
                             return (
                               <button
@@ -769,14 +1110,21 @@ export default function StudentHome() {
                               >
                                 {pageNum}
                               </button>
-                            )
+                            );
                           } else if (
-                            pageNum === currentDocPage - 2 || 
+                            pageNum === currentDocPage - 2 ||
                             pageNum === currentDocPage + 2
                           ) {
-                            return <span key={pageNum} className="px-1 text-slate-400 font-bold text-xs">...</span>
+                            return (
+                              <span
+                                key={pageNum}
+                                className="px-1 text-slate-400 font-bold text-xs"
+                              >
+                                ...
+                              </span>
+                            );
                           }
-                          return null
+                          return null;
                         })}
                       </div>
 
@@ -803,7 +1151,6 @@ export default function StudentHome() {
 
         {/* CỘT PHẢI */}
         <div className="home-right-col">
-          
           {/* 1. TÀI LIỆU ĐỀ XUẤT */}
           <section className="pdf-panel">
             <div className="pdf-panel-header">
@@ -812,19 +1159,35 @@ export default function StudentHome() {
                   <FileText className="w-4 h-4 text-red-500" />
                   <span>Tài liệu đề xuất</span>
                 </h3>
-                <p style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>Gợi ý học tập</p>
+                <p
+                  style={{
+                    fontSize: "11px",
+                    color: "#64748b",
+                    marginTop: "2px",
+                  }}
+                >
+                  Gợi ý học tập
+                </p>
               </div>
               <span className="pdf-pill-badge">PDF HUB</span>
             </div>
 
             <ul className="doc-list" style={{ maxHeight: "none" }}>
-              {(isExpandedDocs ? filteredDocuments.slice(0, 8) : filteredDocuments.slice(0, 2)).map((doc) => (
-                <li 
-                  key={doc.id} 
-                  className="doc-item" 
+              {(isExpandedDocs
+                ? filteredDocuments.slice(0, 8)
+                : filteredDocuments.slice(0, 2)
+              ).map((doc) => (
+                <li
+                  key={doc.id}
+                  className="doc-item"
                   onClick={() => navigate(`/${role}/documents/${doc.id}`)}
                 >
-                  <PdfCoverPreview fileUrl={doc.fileUrl} width={44} height={60} title={doc.title} />
+                  <PdfCoverPreview
+                    fileUrl={doc.fileUrl}
+                    width={44}
+                    height={60}
+                    title={doc.title}
+                  />
 
                   <div className="doc-info">
                     <span className="doc-rating active">
@@ -833,10 +1196,12 @@ export default function StudentHome() {
                     <h4 title={doc.title}>{doc.title}</h4>
                     <div className="doc-footer-meta">
                       <span>{doc.pages} trang</span>
-                      <button 
+                      <button
                         type="button"
-                        className="download-btn" 
-                        onClick={(e) => handleDownload(e, `${doc.title}.pdf`, doc.fileUrl)}
+                        className="download-btn"
+                        onClick={(e) =>
+                          handleDownload(e, `${doc.title}.pdf`, doc.fileUrl)
+                        }
                       >
                         <Download className="w-3.5 h-3.5" />
                       </button>
@@ -846,7 +1211,9 @@ export default function StudentHome() {
               ))}
 
               {filteredDocuments.length === 0 && !isLoading && (
-                <div className="text-center text-xs text-slate-400 py-4">Chưa có tài liệu đề xuất.</div>
+                <div className="text-center text-xs text-slate-400 py-4">
+                  Chưa có tài liệu đề xuất.
+                </div>
               )}
             </ul>
 
@@ -856,7 +1223,11 @@ export default function StudentHome() {
                 onClick={() => setIsExpandedDocs(!isExpandedDocs)}
                 className="w-full mt-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
               >
-                <span>{isExpandedDocs ? "Thu gọn" : `Xem thêm (${filteredDocuments.length - 2} tài liệu)`}</span>
+                <span>
+                  {isExpandedDocs
+                    ? "Thu gọn"
+                    : `Xem thêm (${filteredDocuments.length - 2} tài liệu)`}
+                </span>
               </button>
             )}
           </section>
@@ -869,9 +1240,26 @@ export default function StudentHome() {
                   <Video className="w-4 h-4 text-orange-500" />
                   <span>Video Học Nhanh</span>
                 </h3>
-                <p style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>Clip bài giảng 9:16</p>
+                <p
+                  style={{
+                    fontSize: "11px",
+                    color: "#64748b",
+                    marginTop: "2px",
+                  }}
+                >
+                  Clip bài giảng 9:16
+                </p>
               </div>
-              <span style={{ fontSize: "9px", fontWeight: 900, background: "#ea580c", color: "white", padding: "2px 6px", borderRadius: "4px" }}>
+              <span
+                style={{
+                  fontSize: "9px",
+                  fontWeight: 900,
+                  background: "#ea580c",
+                  color: "white",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                }}
+              >
                 SHORTS
               </span>
             </div>
@@ -902,7 +1290,9 @@ export default function StudentHome() {
                         {vid.title}
                       </h5>
                       <div className="flex items-center justify-between text-[9px] text-slate-300">
-                        <span className="truncate max-w-[65px]">{vid.author}</span>
+                        <span className="truncate max-w-[65px]">
+                          {vid.author}
+                        </span>
                         <span className="flex items-center gap-0.5">
                           <Eye className="w-2.5 h-2.5" /> {vid.views}
                         </span>
@@ -915,16 +1305,17 @@ export default function StudentHome() {
 
             <button
               type="button"
-              onClick={() => triggerToast("Chức năng đang kết nối kho video khóa học...")}
+              onClick={() =>
+                triggerToast("Chức năng đang kết nối kho video khóa học...")
+              }
               className="w-full mt-3 py-1.5 bg-orange-50 hover:bg-orange-100 border border-orange-200 text-orange-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Play className="w-3 h-3 fill-orange-700" />
               <span>Xem thêm video khác</span>
             </button>
           </section>
-
         </div>
       </div>
     </div>
-  )
+  );
 }
