@@ -56,13 +56,12 @@ export default function PaymentResult() {
   }, [searchParams])
 
   const handleGoToCourse = () => {
-    if (transactionData?.course_id) {
-      // Chuyển thẳng vào không gian học tập của khóa học đó
-      navigate(`/student/courses/${transactionData.course_id}`)
-    } else {
-      navigate("/student/courses")
-    }
+  if (transactionData?.course_id) {
+    navigate(`/student/courses/${transactionData.course_id}/learn`)
+  } else {
+    navigate("/student/courses")
   }
+}
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-6 animate-fadeIn">

@@ -236,7 +236,7 @@ export default function StudentTransactions() {
                       <td className="py-4 px-4 text-center">
                         {isSuccess && (
                           <button
-                            onClick={() => navigate(`/student/courses/${tx.course_id}`)}
+                            onClick={() => navigate(`/student/courses/${tx.course_id}/learn`)}
                             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-[11px] transition-all flex items-center space-x-1 mx-auto cursor-pointer shadow-xs active:scale-95"
                           >
                             <span>Vào học</span>

@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useMemo } from "react"
-import { useNavigate } from "react-router-dom"
+import { useParams, useNavigate } from "react-router-dom"
 import { 
   ArrowLeft, BookOpen, FileText, HelpCircle, Building2,
   Video, PlayCircle, UploadCloud, CheckCircle2, Download, Paperclip, X, Loader2, Eye,
@@ -55,32 +55,42 @@ const uploadDocumentFile = async (file) => {
   }
 };
 
-export default function StudentCourseDetail({ course, onBack }) {
+export default function StudentCourseDetail({ course: propCourse, onBack }) {
   const navigate = useNavigate();
+  const params = useParams();
 
-  // 1. Thứ tự tab mặc định là "lessons"
-  const [activeTab, setActiveTab] = useState("lessons") 
-  const [lessons, setLessons] = useState([])
-  const [assignments, setAssignments] = useState([])
-  const [quizzes, setQuizzes] = useState([])
-  const [completedLessonIds, setCompletedLessonIds] = useState(new Set())
-  const [progressData, setProgressData] = useState({ percent: 0, completed_count: 0 })
+  // Nhận diện Course ID từ props hoặc URL params
+  const courseId = useMemo(() => {
+    return propCourse?.id || propCourse?.id_course || params?.courseId || null;
+  }, [propCourse, params?.courseId]);
 
-  const [isInMeeting, setIsInMeeting] = useState(false)
-  const [previewFile, setPreviewFile] = useState(null)
+  const [course, setCourse] = useState(propCourse || null);
+  const [isFetchingCourse, setIsFetchingCourse] = useState(!propCourse);
+
+  const [activeTab, setActiveTab] = useState("lessons");
+  const [lessons, setLessons] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [quizzes, setQuizzes] = useState([]);
+  const [completedLessonIds, setCompletedLessonIds] = useState(new Set());
+  const [progressData, setProgressData] = useState({ percent: 0, completed_count: 0 });
+
+  const [isInMeeting, setIsInMeeting] = useState(false);
+  const [previewFile, setPreviewFile] = useState(null);
 
   // Nộp bài tập về nhà (Postgres)
-  const [submittingAssignment, setSubmittingAssignment] = useState(null)
-  const [studentFile, setStudentFile] = useState(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submittingAssignment, setSubmittingAssignment] = useState(null);
+  const [studentFile, setStudentFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Trạng thái đã nộp các bài thi MongoDB
-  const [submissionStatuses, setSubmissionStatuses] = useState({})
+  // Trạng thái đã nộp bài thi MongoDB
+  const [submissionStatuses, setSubmissionStatuses] = useState({});
 
   // Nộp bài thi tự luận (MongoDB)
-  const [takingEssayExam, setTakingEssayExam] = useState(null)
-  const [essayFile, setEssayFile] = useState(null)
-  const [isSubmittingEssay, setIsSubmittingEssay] = useState(false)
+  const [takingEssayExam, setTakingEssayExam] = useState(null);
+  const [essayFile, setEssayFile] = useState(null);
+  const [isSubmittingEssay, setIsSubmittingEssay] = useState(false);
+
+  const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
 
   const currentUserId = useMemo(() => {
     try {
@@ -110,14 +120,53 @@ export default function StudentCourseDetail({ course, onBack }) {
     }
   }, []);
 
+  // 1. Tải thông tin khóa học nếu được mở trực tiếp qua URL
+  useEffect(() => {
+    const fetchCourseInfo = async () => {
+      if (propCourse) {
+        setCourse(propCourse);
+        setIsFetchingCourse(false);
+        return;
+      }
+
+      if (!courseId) {
+        setIsFetchingCourse(false);
+        return;
+      }
+
+      try {
+        setIsFetchingCourse(true);
+        const res = await fetch(`${baseUrl}/courses/${courseId}`);
+        if (res.ok) {
+          const json = await res.json();
+          setCourse(json.data || json);
+        } else {
+          // Fallback lấy qua all courses
+          const allRes = await courseService.getAllCourses().catch(() => []);
+          const allList = Array.isArray(allRes) ? allRes : allRes?.data || [];
+          const found = allList.find(c => String(c.id || c.id_course) === String(courseId));
+          setCourse(found || null);
+        }
+      } catch (err) {
+        console.error("Lỗi tải thông tin khóa học:", err);
+      } finally {
+        setIsFetchingCourse(false);
+      }
+    };
+
+    fetchCourseInfo();
+  }, [courseId, propCourse, baseUrl]);
+
+  // 2. Tải bài học, bài tập, đề thi và tiến độ học
   const loadData = async () => {
-    if (!course?.id) return;
+    const cId = course?.id || courseId;
+    if (!cId) return;
     try {
       const [resL, resA, mongoExams, resProg] = await Promise.all([
-        courseService.getLessonsByCourse(course.id).catch(() => []),
-        courseService.getAssignmentsByCourse(course.id).catch(() => []),
-        quizApi.getExamsByCourse(course.id).catch(() => []),
-        courseService.getStudentCourseProgress(course.id, currentUserId).catch(() => null)
+        courseService.getLessonsByCourse(cId).catch(() => []),
+        courseService.getAssignmentsByCourse(cId).catch(() => []),
+        quizApi.getExamsByCourse(cId).catch(() => []),
+        courseService.getStudentCourseProgress(cId, currentUserId).catch(() => null)
       ]);
 
       setLessons(Array.isArray(resL) ? resL : resL?.data || []);
@@ -152,14 +201,17 @@ export default function StudentCourseDetail({ course, onBack }) {
   };
 
   useEffect(() => {
-    loadData();
-  }, [course?.id, currentUserId]);
+    if (course?.id || courseId) {
+      loadData();
+    }
+  }, [course?.id, courseId, currentUserId]);
 
   const handleCompleteLesson = async (lesson) => {
-    if (!lesson?.id || !course?.id) return;
+    const cId = course?.id || courseId;
+    if (!lesson?.id || !cId) return;
     try {
       const payload = {
-        course_id: Number(course.id),
+        course_id: Number(cId),
         student_id: currentUserId,
         is_completed: true
       };
@@ -220,18 +272,15 @@ export default function StudentCourseDetail({ course, onBack }) {
     }
   };
 
-  // 🎯 BẮT ĐẦU LÀM BÀI: CHUYỂN TRANG SANG URL RIÊNG BIỆT
   const handleStartQuiz = (quiz) => {
     const examId = quiz.id || quiz._id;
     if (submissionStatuses[examId]) {
       alert("Bạn đã hoàn thành bài thi này!");
       return;
     }
-    // Chuyển URL sang phòng thi độc lập
     navigate(`/student/exam/${examId}`);
   };
 
-  // Nộp bài tự luận
   const handleStudentSubmitEssay = async (e) => {
     e.preventDefault();
     if (!essayFile) {
@@ -273,6 +322,14 @@ export default function StudentCourseDetail({ course, onBack }) {
     }
   };
 
+  const handleGoBack = () => {
+    if (typeof onBack === "function") {
+      onBack();
+    } else {
+      navigate("/student/courses");
+    }
+  };
+
   if (isInMeeting) {
     return (
       <LiveMeetingRoom
@@ -286,13 +343,34 @@ export default function StudentCourseDetail({ course, onBack }) {
     );
   }
 
-  if (!course) return null;
+  if (isFetchingCourse) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <p className="text-xs font-bold text-slate-500">Đang chuẩn bị không gian học tập...</p>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="p-12 text-center bg-white rounded-3xl border border-dashed border-slate-200 space-y-3">
+        <p className="text-sm font-bold text-slate-600">Không tìm thấy thông tin khóa học.</p>
+        <button
+          onClick={handleGoBack}
+          className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+        >
+          Quay lại danh sách khóa học
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-8">
-      {/* Quay lại */}
+    <div className="space-y-6 animate-fadeIn pb-8 font-sans">
+      {/* Nút quay lại */}
       <button
-        onClick={onBack}
+        onClick={handleGoBack}
         className="inline-flex items-center space-x-2 text-xs font-bold text-slate-600 hover:text-blue-600 bg-white px-3.5 py-2 rounded-xl border border-slate-200 transition-colors shadow-xs cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -305,7 +383,7 @@ export default function StudentCourseDetail({ course, onBack }) {
           <div className="space-y-1.5">
             <div className="flex items-center space-x-2">
               <span className="px-2.5 py-0.5 bg-blue-600 text-white text-[10px] font-black uppercase rounded-md">
-                {course.subject}
+                {course.subject || "Chuyên ngành"}
               </span>
               <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
                 <Building2 className="w-3.5 h-3.5 text-slate-400" />
@@ -326,7 +404,7 @@ export default function StudentCourseDetail({ course, onBack }) {
           </button>
         </div>
 
-        {/* Thanh tiến độ */}
+        {/* Thanh tiến độ học tập */}
         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shadow-orange-500/20">
@@ -352,7 +430,7 @@ export default function StudentCourseDetail({ course, onBack }) {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs Chức Năng */}
       <div className="flex border-b border-slate-200 space-x-6 overflow-x-auto">
         {[
           { id: "lessons", label: `Nội dung Bài giảng (${lessons.length})`, icon: BookOpen },
@@ -578,7 +656,7 @@ export default function StudentCourseDetail({ course, onBack }) {
         </div>
       )}
 
-      {/* ================= MODAL NỘP BÀI THI TỰ LUẬN ================= */}
+      {/* MODAL NỘP TỰ LUẬN */}
       {takingEssayExam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border overflow-hidden">
@@ -627,7 +705,7 @@ export default function StudentCourseDetail({ course, onBack }) {
         </div>
       )}
 
-      {/* ================= MODAL NỘP BÀI TẬP VỀ NHÀ ================= */}
+      {/* MODAL NỘP BÀI TẬP VỀ NHÀ */}
       {submittingAssignment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border overflow-hidden">
@@ -680,7 +758,7 @@ export default function StudentCourseDetail({ course, onBack }) {
         </div>
       )}
 
-      {/* ================= MODAL XEM TRỰC TIẾP TÀI LIỆU ================= */}
+      {/* MODAL XEM TRỰC TIẾP TÀI LIỆU */}
       {previewFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-slate-900/70 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-5xl h-[90vh] bg-white rounded-3xl shadow-2xl border flex flex-col overflow-hidden">

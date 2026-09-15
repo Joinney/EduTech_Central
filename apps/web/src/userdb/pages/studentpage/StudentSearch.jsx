@@ -1,3 +1,5 @@
+/* eslint-disable react/prop-types */
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
@@ -5,7 +7,6 @@ import {
   BookMarked,
   FileText,
   Loader2,
-  AlertCircle,
   Download,
   Video,
   Play,
@@ -16,6 +17,9 @@ import {
   ChevronDown,
   X,
   Layers,
+  Clock,
+  Eye,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function Search() {
@@ -49,6 +53,15 @@ export default function Search() {
   const baseUrl =
     import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1";
 
+  const formatTeacherName = (name) => {
+    if (!name || !name.trim()) return "GV. EduTech";
+    const trimmed = name.trim();
+    if (/^(gv\.|gv\s|giảng viên\s)/i.test(trimmed)) {
+      return trimmed.replace(/^(gv\.|gv\s|giảng viên\s+)/i, "GV. ");
+    }
+    return `GV. ${trimmed}`;
+  };
+
   // --- 1. CLICK OUTSIDE ---
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -74,7 +87,7 @@ export default function Search() {
           fetch(`${baseUrl}/shared-documents?all=true`).catch(() => ({
             json: () => [],
           })),
-          fetch(`${baseUrl}/videos`).catch(() => ({ json: () => [] })),
+          fetch(`${baseUrl}/videos?all=true`).catch(() => ({ json: () => [] })),
         ]);
 
         const courseData = await courseRes.json();
@@ -100,17 +113,28 @@ export default function Search() {
             String(d.category || "").toLowerCase() !== "video",
         );
 
-        const formattedVideos = rawVideos.map((v) => ({
-          id: v.id,
-          title: v.title || v.video_title || "Video bài giảng",
-          author: v.teacher_name || v.author || "Giảng viên",
-          duration: v.duration || "10:00",
-          views: v.views || 0,
-          thumbnail:
-            v.thumbnail ||
-            "https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?w=500&auto=format&fit=crop&q=60",
-          created_at: v.created_at,
-        }));
+        // Chỉ hiển thị video đã duyệt với học viên
+        const approvedVideos =
+          role === "teacher" || role === "instructor" || role === "admin"
+            ? rawVideos
+            : rawVideos.filter((v) => v.is_approved !== false);
+
+        const formattedVideos = approvedVideos.map((v) => {
+          const teacherName = formatTeacherName(v.teacher_name || v.author);
+          return {
+            id: v.id,
+            title: v.title || v.video_title || "Video bài giảng",
+            author: teacherName,
+            duration: v.duration || "Tự do",
+            views: v.views || 0,
+            subject: v.subject || "Chuyên đề",
+            thumbnail:
+              v.thumbnail_url ||
+              v.thumbnail ||
+              "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=500&q=80",
+            created_at: v.created_at,
+          };
+        });
 
         setAllData({
           courses: rawCourses,
@@ -125,7 +149,7 @@ export default function Search() {
     };
     fetchSearchResults();
     setLocalSearchInput(keyword);
-  }, [baseUrl, keyword]);
+  }, [baseUrl, keyword, role]);
 
   // --- 3. AUTOCOMPLETE KHI GÕ ---
   const handleInputChange = (e) => {
@@ -180,15 +204,14 @@ export default function Search() {
       navigate(`/${role}/courses/${item.id || item.id_course}`);
     else if (item.itemType === "document")
       navigate(`/${role}/documents/${item.id}`);
-    else if (item.itemType === "video") navigate(`/${role}/videos/${item.id}`);
+    else if (item.itemType === "video") navigate(`/${role}/videos`);
   };
 
-  // --- 4. TÍNH TOÁN BỘ LỌC (LỌC TRÊN DATA THẬT) ---
+  // --- 4. TÍNH TOÁN BỘ LỌC ---
   const filteredResults = useMemo(() => {
     const kw = keyword.toLowerCase();
     let { courses, documents, videos } = allData;
 
-    // Lọc theo Keyword
     if (kw) {
       courses = courses.filter(
         (c) =>
@@ -205,17 +228,15 @@ export default function Search() {
       videos = videos.filter(
         (v) =>
           v.title?.toLowerCase().includes(kw) ||
-          v.author?.toLowerCase().includes(kw),
+          v.author?.toLowerCase().includes(kw) ||
+          v.subject?.toLowerCase().includes(kw),
       );
     }
 
-    // Lọc theo Danh mục
     if (filters.categories.length > 0) {
       courses = courses.filter((c) =>
         filters.categories.some((cat) =>
-          String(c.subject || "")
-            .toLowerCase()
-            .includes(cat.toLowerCase()),
+          String(c.subject || "").toLowerCase().includes(cat.toLowerCase()),
         ),
       );
       documents = documents.filter((d) =>
@@ -225,9 +246,13 @@ export default function Search() {
             .includes(cat.toLowerCase()),
         ),
       );
+      videos = videos.filter((v) =>
+        filters.categories.some((cat) =>
+          String(v.subject || "").toLowerCase().includes(cat.toLowerCase()),
+        ),
+      );
     }
 
-    // Lọc theo Chiều dài / Thời lượng
     if (filters.length) {
       documents = documents.filter((d) => {
         const pages = parseInt(d.pages) || 0;
@@ -252,7 +277,6 @@ export default function Search() {
       });
     }
 
-    // Lọc theo Ngày đăng tải (Thuật toán chính xác)
     if (filters.date) {
       const now = new Date();
       const isWithinDateRange = (item) => {
@@ -277,22 +301,19 @@ export default function Search() {
     return { courses, documents, videos };
   }, [allData, keyword, filters]);
 
-  // --- TỰ ĐỘNG LẤY DANH SÁCH CHUYÊN NGÀNH TỪ DỮ LIỆU THẬT ---
   const availableCategories = useMemo(() => {
     const cats = new Set();
-
-    // Quét chuyên ngành từ khóa học
     allData.courses.forEach((c) => {
       if (c.subject && c.subject.trim() !== "") cats.add(c.subject.trim());
     });
-
-    // Quét khoa/danh mục từ tài liệu
     allData.documents.forEach((d) => {
       if (d.faculty && d.faculty.trim() !== "") cats.add(d.faculty.trim());
       else if (d.category && d.category.trim() !== "")
         cats.add(d.category.trim());
     });
-
+    allData.videos.forEach((v) => {
+      if (v.subject && v.subject.trim() !== "") cats.add(v.subject.trim());
+    });
     return Array.from(cats).filter(Boolean).sort();
   }, [allData]);
 
@@ -316,6 +337,7 @@ export default function Search() {
     filters.length !== "" ||
     filters.date !== "" ||
     activeTab !== "all";
+
   const totalResults =
     filteredResults.courses.length +
     filteredResults.documents.length +
@@ -323,12 +345,10 @@ export default function Search() {
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20 font-sans">
-      {/* ================= HEADER TÌM KIẾM ================= */}
+      {/* HEADER TÌM KIẾM */}
       <div className="bg-white border-b border-slate-200/80 pt-10 pb-8 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2 tracking-tight">
-            Khám phá Tri thức
-          </h1>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2 tracking-tight"></h1>
           <p className="text-sm text-slate-500 mb-8">
             Tìm kiếm hàng ngàn khóa học, tài liệu PDF và video bài giảng
           </p>
@@ -363,7 +383,7 @@ export default function Search() {
               </button>
             </form>
 
-            {/* DROPDOWN GỢI Ý TÌM KIẾM */}
+            {/* DROPDOWN GỢI Ý */}
             {showSuggestions && suggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden text-left animate-in fade-in slide-in-from-top-2 duration-200">
                 {suggestions.map((item, idx) => (
@@ -418,7 +438,7 @@ export default function Search() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 mt-6">
-        {/* ================= THANH LỌC NÂNG CAO ================= */}
+        {/* THANH LỌC NÂNG CAO */}
         <div
           ref={filterBarRef}
           className="flex flex-wrap items-center gap-2.5 mb-8 border-b border-slate-200/80 pb-4 relative z-30"
@@ -503,7 +523,7 @@ export default function Search() {
 
           <div className="h-5 w-px bg-slate-200 mx-1 hidden sm:block"></div>
 
-          {/* 2. LỌC CHUYÊN NGÀNH (AUTO-GENERATED TỪ DATA THẬT) */}
+          {/* 2. LỌC CHUYÊN NGÀNH */}
           <div className="relative">
             <button
               onClick={() =>
@@ -514,8 +534,7 @@ export default function Search() {
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${openFilterDropdown === "category" || filters.categories.length > 0 ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
             >
               Chuyên ngành{" "}
-              {filters.categories.length > 0 &&
-                `(${filters.categories.length})`}
+              {filters.categories.length > 0 && `(${filters.categories.length})`}
               <ChevronDown
                 className={`w-4 h-4 transition-transform ${openFilterDropdown === "category" ? "rotate-180" : ""}`}
               />
@@ -729,14 +748,14 @@ export default function Search() {
           {hasActiveFilters && (
             <button
               onClick={clearAllFilters}
-              className="ml-auto flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+              className="ml-auto flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" /> Xóa bộ lọc
             </button>
           )}
         </div>
 
-        {/* ================= HIỂN THỊ KẾT QUẢ ================= */}
+        {/* HIỂN THỊ KẾT QUẢ */}
         {isLoading ? (
           <div className="py-24 flex flex-col items-center justify-center space-y-4">
             <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
@@ -760,7 +779,7 @@ export default function Search() {
             {hasActiveFilters && (
               <button
                 onClick={clearAllFilters}
-                className="mt-6 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors"
+                className="mt-6 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors cursor-pointer"
               >
                 Xóa bộ lọc
               </button>
@@ -891,54 +910,89 @@ export default function Search() {
                 </section>
               )}
 
-            {/* 3. LƯỚI VIDEO */}
+            {/* 3. LƯỚI VIDEO BÀI GIẢNG DỌC (SHORTS/REELS 9:16) */}
             {(activeTab === "all" || activeTab === "videos") &&
               filteredResults.videos.length > 0 && (
                 <section className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
                   <div className="flex items-center gap-3 mb-6">
                     <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                      Video bài giảng
+                      Video bài giảng ngắn
                     </h3>
-                    <span className="px-2.5 py-0.5 rounded-md bg-red-100 text-red-700 text-xs font-black">
+                    <span className="px-2.5 py-0.5 rounded-md bg-orange-100 text-orange-700 text-xs font-black">
                       {filteredResults.videos.length}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {filteredResults.videos.map((vid) => (
-                      <div
-                        key={vid.id}
-                        onClick={() => navigate(`/${role}/videos/${vid.id}`)}
-                        className="cursor-pointer group flex flex-col"
-                      >
-                        <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-900 mb-3 shadow-md group-hover:shadow-xl group-hover:shadow-red-900/10 transition-shadow border border-slate-200">
-                          <img
-                            src={vid.thumbnail}
-                            alt={vid.title}
-                            className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
-                          />
-                          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                            <div className="w-12 h-12 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-2xl scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300">
-                              <Play className="w-5 h-5 fill-red-600 text-red-600 ml-1" />
+
+                  {/* Grid 5 cột chuẩn kích thước video dọc 9:16 */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {filteredResults.videos.map((vid) => {
+                      const initialLetter = vid.author
+                        ?.replace(/^GV\.\s*/, "")
+                        .charAt(0) || "G";
+
+                      return (
+                        <div
+                          key={vid.id}
+                          onClick={() => navigate(`/${role}/videos`)}
+                          className="group flex flex-col bg-white rounded-2xl border border-slate-200/90 overflow-hidden hover:border-orange-400 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                        >
+                          {/* Khung video tỉ lệ dọc 9:16 */}
+                          <div className="relative aspect-[9/16] w-full bg-slate-950 overflow-hidden">
+                            <img
+                              src={vid.thumbnail}
+                              alt={vid.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src =
+                                  "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=500&q=80";
+                              }}
+                            />
+
+                            {/* Lớp phủ gradient & Nút phát video */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 flex items-center justify-center p-2.5">
+                              <div className="w-11 h-11 bg-white/95 rounded-full flex items-center justify-center shadow-xl scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300">
+                                <Play className="w-4 h-4 fill-orange-600 text-orange-600 ml-0.5" />
+                              </div>
+
+                              {/* Môn học góc trên bên trái */}
+                              <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-md text-orange-400 text-[9px] font-black uppercase tracking-wider rounded">
+                                {vid.subject}
+                              </span>
+
+                              {/* Thời lượng góc dưới bên phải */}
+                              <span className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-sm text-white text-[9px] font-mono px-1.5 py-0.5 rounded flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5 text-slate-400" />
+                                {vid.duration}
+                              </span>
                             </div>
                           </div>
-                          <span className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md text-white text-[10px] font-black px-2 py-0.5 rounded border border-white/10 tracking-wider">
-                            {vid.duration}
-                          </span>
-                        </div>
-                        <div className="pr-4 flex-1 flex flex-col">
-                          <h4 className="text-sm font-bold text-slate-900 line-clamp-2 mb-2 group-hover:text-red-600 transition-colors leading-tight">
-                            {vid.title}
-                          </h4>
-                          <div className="mt-auto flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-                            <span className="font-bold text-slate-700">
-                              {vid.author}
-                            </span>
-                            <span className="w-1 h-1 bg-slate-300 rounded-full shrink-0"></span>
-                            <span>{vid.views} xem</span>
+
+                          {/* Thông tin video & Avatar giảng viên */}
+                          <div className="p-3 flex flex-col flex-1 justify-between gap-2.5">
+                            <h4 className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-orange-600 transition-colors">
+                              {vid.title}
+                            </h4>
+
+                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-black text-[9px] flex items-center justify-center shrink-0 shadow-2xs">
+                                  {initialLetter}
+                                </div>
+                                <span className="text-[11px] font-bold text-slate-700 truncate">
+                                  {vid.author}
+                                </span>
+                              </div>
+
+                              <span className="text-[10px] text-slate-400 font-medium flex items-center gap-0.5 shrink-0">
+                                <Eye className="w-3 h-3 text-slate-400" />
+                                {vid.views}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </section>
               )}

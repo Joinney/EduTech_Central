@@ -24,6 +24,7 @@ import StudentDashboard from "./userdb/pages/studentpage/dashboard/StudentDashbo
 import Programs from "./userdb/pages/studentpage/Chuongtrinhkhoilop/Programs.jsx";
 import Library from "./userdb/pages/studentpage/Khohoclieu/Library.jsx";
 import StudentCourses from "./userdb/pages/studentpage/Monhoccuatoi/Courses.jsx";
+import StudentCourseDetail from "./userdb/pages/studentpage/Monhoccuatoi/StudentCourseDetail.jsx";
 import CourseCategories from "./userdb/pages/studentpage/danhmuckhoahoc/CourseCategories.jsx";
 import DocumentCategories from "./userdb/pages/studentpage/danhmuctailieu/DocumentCategories.jsx";
 import CourseDetail from "./userdb/pages/studentpage/chitietkhoahoc/CourseDetail.jsx";
@@ -160,7 +161,6 @@ export default function App() {
             <Route path="documents/:docId" element={<DocumentDetail />} />
 
             <Route path="upgrade" element={<UpgradeEdu />} />
-
             <Route path="videos" element={<Videos />} />
           </Route>
         </Route>
@@ -178,7 +178,16 @@ export default function App() {
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="programs" element={<Programs />} />
             <Route path="library" element={<Library />} />
+            
+            {/* DANH SÁCH MÔN HỌC */}
             <Route path="courses" element={<StudentCourses />} />
+
+            {/* 1. Trang giới thiệu & tuyển sinh (Màu vàng trong chitietkhoahoc) */}
+            <Route path="courses/:courseId" element={<CourseDetail />} />
+
+            {/* 2. 🎯 Không gian học tập chi tiết của học viên (Màu xanh trong Monhoccuatoi) */}
+            <Route path="courses/:courseId/learn" element={<StudentCourseDetail />} />
+            <Route path="my-courses/:courseId" element={<StudentCourseDetail />} />
 
             {/* Danh mục khóa học & Danh mục tài liệu */}
             <Route path="course-categories" element={<CourseCategories />} />
@@ -192,8 +201,7 @@ export default function App() {
             />
             <Route path="docs/:docSlug" element={<DocumentCategories />} />
 
-            {/* CÁC ROUTE CHI TIẾT */}
-            <Route path="courses/:courseId" element={<CourseDetail />} />
+            {/* Chi tiết tài liệu PDF */}
             <Route path="documents/:docId" element={<DocumentDetail />} />
 
             <Route path="transactions" element={<StudentTransactions />} />
