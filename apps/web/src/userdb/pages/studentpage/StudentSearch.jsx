@@ -27,6 +27,7 @@ export default function Search() {
   const [searchParams] = useSearchParams();
   const keyword = searchParams.get("query") || "";
   const role = localStorage.getItem("role")?.toLowerCase() || "student";
+  const isTeacher = role === "teacher" || role === "instructor";
 
   const [localSearchInput, setLocalSearchInput] = useState(keyword);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -113,9 +114,8 @@ export default function Search() {
             String(d.category || "").toLowerCase() !== "video",
         );
 
-        // Chỉ hiển thị video đã duyệt với học viên
         const approvedVideos =
-          role === "teacher" || role === "instructor" || role === "admin"
+          isTeacher || role === "admin"
             ? rawVideos
             : rawVideos.filter((v) => v.is_approved !== false);
 
@@ -149,7 +149,7 @@ export default function Search() {
     };
     fetchSearchResults();
     setLocalSearchInput(keyword);
-  }, [baseUrl, keyword, role]);
+  }, [baseUrl, keyword, role, isTeacher]);
 
   // --- 3. AUTOCOMPLETE KHI GÕ ---
   const handleInputChange = (e) => {
@@ -236,7 +236,9 @@ export default function Search() {
     if (filters.categories.length > 0) {
       courses = courses.filter((c) =>
         filters.categories.some((cat) =>
-          String(c.subject || "").toLowerCase().includes(cat.toLowerCase()),
+          String(c.subject || "")
+            .toLowerCase()
+            .includes(cat.toLowerCase()),
         ),
       );
       documents = documents.filter((d) =>
@@ -248,7 +250,9 @@ export default function Search() {
       );
       videos = videos.filter((v) =>
         filters.categories.some((cat) =>
-          String(v.subject || "").toLowerCase().includes(cat.toLowerCase()),
+          String(v.subject || "")
+            .toLowerCase()
+            .includes(cat.toLowerCase()),
         ),
       );
     }
@@ -344,13 +348,21 @@ export default function Search() {
     filteredResults.videos.length;
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-20 font-sans">
+    <div
+      className={`min-h-screen ${isTeacher ? "bg-orange-50/20" : "bg-slate-50/50"} pb-20 font-sans`}
+    >
       {/* HEADER TÌM KIẾM */}
-      <div className="bg-white border-b border-slate-200/80 pt-10 pb-8 px-4">
+      <div
+        className={`bg-white border-b ${isTeacher ? "border-orange-100" : "border-slate-200/80"} pt-10 pb-8 px-4`}
+      >
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2 tracking-tight"></h1>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2 tracking-tight">
+            {isTeacher ? "Thư viện Học liệu & Giáo án" : "Khám phá Tri thức"}
+          </h1>
           <p className="text-sm text-slate-500 mb-8">
-            Tìm kiếm hàng ngàn khóa học, tài liệu PDF và video bài giảng
+            {isTeacher
+              ? "Tìm kiếm giáo án chuyên sâu, tài liệu tham khảo và video nghiệp vụ"
+              : "Tìm kiếm hàng ngàn khóa học, tài liệu PDF và video bài giảng"}
           </p>
 
           <div
@@ -364,7 +376,9 @@ export default function Search() {
               }}
               className="relative flex items-center group"
             >
-              <SearchIcon className="w-6 h-6 absolute left-5 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+              <SearchIcon
+                className={`w-6 h-6 absolute left-5 text-slate-400 ${isTeacher ? "group-focus-within:text-orange-500" : "group-focus-within:text-blue-600"} transition-colors`}
+              />
               <input
                 type="text"
                 value={localSearchInput}
@@ -372,12 +386,12 @@ export default function Search() {
                 onFocus={() => {
                   if (suggestions.length > 0) setShowSuggestions(true);
                 }}
-                className="w-full pl-14 pr-32 py-4 bg-white border border-slate-300 rounded-full text-base font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all"
+                className={`w-full pl-14 pr-32 py-4 bg-white border border-slate-300 rounded-full text-base font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 ${isTeacher ? "focus:ring-orange-500/10 focus:border-orange-500" : "focus:ring-blue-500/10 focus:border-blue-600"} shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all`}
                 placeholder="Nhập từ khóa tìm kiếm..."
               />
               <button
                 type="submit"
-                className="absolute right-2 top-2 bottom-2 px-6 bg-slate-900 hover:bg-blue-600 text-white font-bold text-sm rounded-full transition-colors cursor-pointer shadow-md shadow-blue-600/20"
+                className={`absolute right-2 top-2 bottom-2 px-6 ${isTeacher ? "bg-orange-600 hover:bg-orange-700 shadow-orange-600/20" : "bg-slate-900 hover:bg-blue-600 shadow-blue-600/20"} text-white font-bold text-sm rounded-full transition-colors cursor-pointer shadow-md`}
               >
                 Tìm kiếm
               </button>
@@ -385,7 +399,7 @@ export default function Search() {
 
             {/* DROPDOWN GỢI Ý */}
             {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden text-left animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden text-left animate-in fade-in slide-in-from-top-2 duration-200 z-50">
                 {suggestions.map((item, idx) => (
                   <div
                     key={idx}
@@ -395,9 +409,11 @@ export default function Search() {
                     <div
                       className={`p-2.5 rounded-xl transition-colors ${
                         item.itemType === "course"
-                          ? "bg-blue-50 text-blue-600 group-hover:bg-blue-100"
+                          ? isTeacher
+                            ? "bg-orange-50 text-orange-600 group-hover:bg-orange-100"
+                            : "bg-blue-50 text-blue-600 group-hover:bg-blue-100"
                           : item.itemType === "document"
-                            ? "bg-orange-50 text-orange-500 group-hover:bg-orange-100"
+                            ? "bg-amber-50 text-amber-600 group-hover:bg-amber-100"
                             : item.itemType === "video"
                               ? "bg-red-50 text-red-500 group-hover:bg-red-100"
                               : "bg-slate-100 text-slate-600 group-hover:bg-slate-200"
@@ -415,7 +431,7 @@ export default function Search() {
                     </div>
                     <div className="flex-1 overflow-hidden">
                       <p
-                        className={`text-sm truncate ${item.itemType === "global" ? "font-black text-slate-900" : "font-bold text-slate-700 group-hover:text-blue-600 transition-colors"}`}
+                        className={`text-sm truncate ${item.itemType === "global" ? "font-black text-slate-900" : `font-bold text-slate-700 ${isTeacher ? "group-hover:text-orange-600" : "group-hover:text-blue-600"} transition-colors`}`}
                       >
                         {item.title}
                       </p>
@@ -424,8 +440,8 @@ export default function Search() {
                           {item.itemType === "course"
                             ? `Khóa học • ${item.teacher_name || "GV EduTech"}`
                             : item.itemType === "document"
-                              ? `Tài liệu PDF • ${item.student_name || "Thành viên"}`
-                              : `Video bài giảng • ${item.author}`}
+                              ? `Tài liệu • ${item.student_name || "Thành viên"}`
+                              : `Video • ${item.author}`}
                         </p>
                       )}
                     </div>
@@ -441,9 +457,11 @@ export default function Search() {
         {/* THANH LỌC NÂNG CAO */}
         <div
           ref={filterBarRef}
-          className="flex flex-wrap items-center gap-2.5 mb-8 border-b border-slate-200/80 pb-4 relative z-30"
+          className={`flex flex-wrap items-center gap-2.5 mb-8 border-b ${isTeacher ? "border-orange-100" : "border-slate-200/80"} pb-4 relative z-30`}
         >
-          <div className="flex items-center gap-1.5 text-slate-400 font-bold text-sm mr-1 hidden md:flex">
+          <div
+            className={`flex items-center gap-1.5 ${isTeacher ? "text-orange-500" : "text-slate-400"} font-bold text-sm mr-1 hidden md:flex`}
+          >
             <Filter className="w-4 h-4" /> BỘ LỌC:
           </div>
 
@@ -455,7 +473,13 @@ export default function Search() {
                   openFilterDropdown === "type" ? null : "type",
                 )
               }
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all shadow-sm ${activeTab !== "all" || openFilterDropdown === "type" ? "bg-slate-900 border-slate-900 text-white" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all shadow-sm ${
+                activeTab !== "all" || openFilterDropdown === "type"
+                  ? isTeacher
+                    ? "bg-orange-600 border-orange-600 text-white"
+                    : "bg-slate-900 border-slate-900 text-white"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
             >
               <Layers className="w-4 h-4" />
               {activeTab === "all"
@@ -504,11 +528,11 @@ export default function Search() {
                       setActiveTab(opt.id);
                       setOpenFilterDropdown(null);
                     }}
-                    className={`w-full text-left flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === opt.id ? "bg-slate-50 text-slate-900 font-bold" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
+                    className={`w-full text-left flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === opt.id ? (isTeacher ? "bg-orange-50 text-orange-700 font-bold" : "bg-slate-50 text-slate-900 font-bold") : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}
                   >
                     <div className="flex items-center gap-2.5">
                       <opt.icon
-                        className={`w-4 h-4 ${activeTab === opt.id ? "text-slate-900" : "text-slate-400"}`}
+                        className={`w-4 h-4 ${activeTab === opt.id ? (isTeacher ? "text-orange-600" : "text-slate-900") : "text-slate-400"}`}
                       />
                       {opt.label}
                     </div>
@@ -531,10 +555,18 @@ export default function Search() {
                   openFilterDropdown === "category" ? null : "category",
                 )
               }
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${openFilterDropdown === "category" || filters.categories.length > 0 ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${
+                openFilterDropdown === "category" ||
+                filters.categories.length > 0
+                  ? isTeacher
+                    ? "bg-orange-50 border-orange-300 text-orange-700"
+                    : "bg-blue-50 border-blue-300 text-blue-700"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
             >
               Chuyên ngành{" "}
-              {filters.categories.length > 0 && `(${filters.categories.length})`}
+              {filters.categories.length > 0 &&
+                `(${filters.categories.length})`}
               <ChevronDown
                 className={`w-4 h-4 transition-transform ${openFilterDropdown === "category" ? "rotate-180" : ""}`}
               />
@@ -551,15 +583,17 @@ export default function Search() {
                     availableCategories.map((cat) => (
                       <label
                         key={cat}
-                        className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer group transition-colors"
+                        className={`flex items-center gap-3 p-2 ${isTeacher ? "hover:bg-orange-50" : "hover:bg-blue-50"} rounded-lg cursor-pointer group transition-colors`}
                       >
                         <input
                           type="checkbox"
                           checked={filters.categories.includes(cat)}
                           onChange={() => handleCategoryToggle(cat)}
-                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                          className={`w-4 h-4 rounded border-slate-300 ${isTeacher ? "text-orange-600 focus:ring-orange-500 accent-orange-600" : "text-blue-600 focus:ring-blue-500 accent-blue-600"} cursor-pointer`}
                         />
-                        <span className="text-sm font-medium text-slate-700 group-hover:text-blue-800">
+                        <span
+                          className={`text-sm font-medium text-slate-700 ${isTeacher ? "group-hover:text-orange-800" : "group-hover:text-blue-800"}`}
+                        >
                           {cat}
                         </span>
                       </label>
@@ -577,7 +611,7 @@ export default function Search() {
                   </button>
                   <button
                     onClick={() => setOpenFilterDropdown(null)}
-                    className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors"
+                    className={`px-4 py-1.5 text-xs font-bold ${isTeacher ? "bg-orange-600 hover:bg-orange-700" : "bg-blue-600 hover:bg-blue-700"} text-white rounded-lg shadow-sm transition-colors`}
                   >
                     Áp dụng
                   </button>
@@ -597,7 +631,13 @@ export default function Search() {
                     openFilterDropdown === "length" ? null : "length",
                   )
                 }
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${openFilterDropdown === "length" || filters.length !== "" ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${
+                  openFilterDropdown === "length" || filters.length !== ""
+                    ? isTeacher
+                      ? "bg-orange-50 border-orange-300 text-orange-700"
+                      : "bg-blue-50 border-blue-300 text-blue-700"
+                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
               >
                 Độ dài {filters.length && "(1)"}
                 <ChevronDown
@@ -642,7 +682,7 @@ export default function Search() {
                     ].map((opt) => (
                       <label
                         key={opt.val}
-                        className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer group transition-colors"
+                        className={`flex items-center gap-3 p-2 ${isTeacher ? "hover:bg-orange-50" : "hover:bg-blue-50"} rounded-lg cursor-pointer group transition-colors`}
                       >
                         <input
                           type="radio"
@@ -651,10 +691,12 @@ export default function Search() {
                           onChange={() =>
                             setFilters((p) => ({ ...p, length: opt.val }))
                           }
-                          className="w-4 h-4 border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600 shrink-0"
+                          className={`w-4 h-4 border-slate-300 ${isTeacher ? "text-orange-600 focus:ring-orange-500 accent-orange-600" : "text-blue-600 focus:ring-blue-500 accent-blue-600"} cursor-pointer shrink-0`}
                         />
                         <div className="flex flex-col">
-                          <span className="text-sm font-bold text-slate-700 group-hover:text-blue-800 leading-tight">
+                          <span
+                            className={`text-sm font-bold text-slate-700 ${isTeacher ? "group-hover:text-orange-800" : "group-hover:text-blue-800"} leading-tight`}
+                          >
                             {opt.label}
                           </span>
                           <span className="text-[11px] font-medium text-slate-400 mt-0.5">
@@ -673,7 +715,7 @@ export default function Search() {
                     </button>
                     <button
                       onClick={() => setOpenFilterDropdown(null)}
-                      className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors"
+                      className={`px-4 py-1.5 text-xs font-bold ${isTeacher ? "bg-orange-600 hover:bg-orange-700" : "bg-blue-600 hover:bg-blue-700"} text-white rounded-lg shadow-sm transition-colors`}
                     >
                       Áp dụng
                     </button>
@@ -691,7 +733,13 @@ export default function Search() {
                   openFilterDropdown === "date" ? null : "date",
                 )
               }
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${openFilterDropdown === "date" || filters.date !== "" ? "bg-blue-50 border-blue-300 text-blue-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all ${
+                openFilterDropdown === "date" || filters.date !== ""
+                  ? isTeacher
+                    ? "bg-orange-50 border-orange-300 text-orange-700"
+                    : "bg-blue-50 border-blue-300 text-blue-700"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
             >
               Ngày đăng tải {filters.date && "(1)"}
               <ChevronDown
@@ -709,7 +757,7 @@ export default function Search() {
                   ].map((opt) => (
                     <label
                       key={opt.val}
-                      className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer group transition-colors"
+                      className={`flex items-center gap-3 p-2 ${isTeacher ? "hover:bg-orange-50" : "hover:bg-blue-50"} rounded-lg cursor-pointer group transition-colors`}
                     >
                       <input
                         type="radio"
@@ -718,9 +766,11 @@ export default function Search() {
                         onChange={() =>
                           setFilters((p) => ({ ...p, date: opt.val }))
                         }
-                        className="w-4 h-4 border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                        className={`w-4 h-4 border-slate-300 ${isTeacher ? "text-orange-600 focus:ring-orange-500 accent-orange-600" : "text-blue-600 focus:ring-blue-500 accent-blue-600"} cursor-pointer`}
                       />
-                      <span className="text-sm font-medium text-slate-700 group-hover:text-blue-800">
+                      <span
+                        className={`text-sm font-medium text-slate-700 ${isTeacher ? "group-hover:text-orange-800" : "group-hover:text-blue-800"}`}
+                      >
                         {opt.label}
                       </span>
                     </label>
@@ -735,7 +785,7 @@ export default function Search() {
                   </button>
                   <button
                     onClick={() => setOpenFilterDropdown(null)}
-                    className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors"
+                    className={`px-4 py-1.5 text-xs font-bold ${isTeacher ? "bg-orange-600 hover:bg-orange-700" : "bg-blue-600 hover:bg-blue-700"} text-white rounded-lg shadow-sm transition-colors`}
                   >
                     Áp dụng
                   </button>
@@ -758,7 +808,9 @@ export default function Search() {
         {/* HIỂN THỊ KẾT QUẢ */}
         {isLoading ? (
           <div className="py-24 flex flex-col items-center justify-center space-y-4">
-            <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+            <Loader2
+              className={`w-10 h-10 animate-spin ${isTeacher ? "text-orange-600" : "text-blue-600"}`}
+            />
             <p className="text-sm font-bold text-slate-500">
               Đang đồng bộ cơ sở dữ liệu...
             </p>
@@ -779,7 +831,7 @@ export default function Search() {
             {hasActiveFilters && (
               <button
                 onClick={clearAllFilters}
-                className="mt-6 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors cursor-pointer"
+                className={`mt-6 px-6 py-2.5 ${isTeacher ? "bg-orange-600 hover:bg-orange-700" : "bg-blue-600 hover:bg-blue-700"} text-white font-bold rounded-xl shadow-md transition-colors cursor-pointer`}
               >
                 Xóa bộ lọc
               </button>
@@ -795,7 +847,9 @@ export default function Search() {
                     <h3 className="text-xl font-black text-slate-900 tracking-tight">
                       Khóa học chuyên sâu
                     </h3>
-                    <span className="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-black">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-md ${isTeacher ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"} text-xs font-black`}
+                    >
                       {filteredResults.courses.length}
                     </span>
                   </div>
@@ -808,7 +862,7 @@ export default function Search() {
                             `/${role}/courses/${course.id || course.id_course}`,
                           )
                         }
-                        className="bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer group hover:-translate-y-1.5 hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 flex flex-col"
+                        className={`bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer group hover:-translate-y-1.5 hover:shadow-xl ${isTeacher ? "hover:shadow-orange-900/5" : "hover:shadow-blue-900/5"} transition-all duration-300 flex flex-col`}
                       >
                         <div className="relative aspect-video bg-slate-100 overflow-hidden border-b border-slate-100">
                           {course.thumbnail ? (
@@ -827,7 +881,9 @@ export default function Search() {
                           </div>
                         </div>
                         <div className="p-4 flex flex-col flex-1">
-                          <h4 className="font-bold text-slate-900 leading-snug line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors">
+                          <h4
+                            className={`font-bold text-slate-900 leading-snug line-clamp-2 mb-2 ${isTeacher ? "group-hover:text-orange-600" : "group-hover:text-blue-600"} transition-colors`}
+                          >
                             {course.title}
                           </h4>
                           <div className="flex items-center gap-2 mt-auto text-xs text-slate-500 font-medium">
@@ -840,7 +896,9 @@ export default function Search() {
                             <span className="px-2 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider truncate max-w-[120px]">
                               {course.subject || "Chuyên ngành"}
                             </span>
-                            <span className="text-xs font-black text-blue-600 group-hover:underline">
+                            <span
+                              className={`text-xs font-black ${isTeacher ? "text-orange-600" : "text-blue-600"} group-hover:underline`}
+                            >
                               Chi tiết
                             </span>
                           </div>
@@ -926,9 +984,8 @@ export default function Search() {
                   {/* Grid 5 cột chuẩn kích thước video dọc 9:16 */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {filteredResults.videos.map((vid) => {
-                      const initialLetter = vid.author
-                        ?.replace(/^GV\.\s*/, "")
-                        .charAt(0) || "G";
+                      const initialLetter =
+                        vid.author?.replace(/^GV\.\s*/, "").charAt(0) || "G";
 
                       return (
                         <div

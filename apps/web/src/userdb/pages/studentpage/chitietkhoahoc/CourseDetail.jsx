@@ -29,8 +29,7 @@ import {
   Loader2,
   CreditCard,
   ArrowRight,
-  CreditCard,
-  ArrowRight,
+  Eye,
 } from "lucide-react";
 
 import { courseService } from "../../../../api/course.api";
@@ -157,6 +156,7 @@ export default function CourseDetailPage({ onBack }) {
   const navigate = useNavigate();
   const location = useLocation();
   const role = localStorage.getItem("role")?.toLowerCase() || "student";
+  const isTeacher = role === "teacher" || role === "instructor";
 
   const storedUser = useMemo(() => {
     try {
@@ -178,6 +178,7 @@ export default function CourseDetailPage({ onBack }) {
   // 🎯 Bóc tách ID an toàn
   const targetId = useMemo(() => {
     if (params?.id) return String(params.id).trim();
+    if (params?.courseId) return String(params.courseId).trim();
     const pathParts = location.pathname.split("/").filter(Boolean);
     const lastPart = pathParts[pathParts.length - 1];
     return lastPart && !isNaN(lastPart) ? String(lastPart).trim() : "";
@@ -209,9 +210,9 @@ export default function CourseDetailPage({ onBack }) {
 
   // Kiểm tra học sinh đã tham gia khóa học này chưa
   const checkEnrollmentStatus = async (courseId) => {
+    if (isTeacher) return;
     if (!currentUserId || !courseId) return;
     try {
-      // 1. Kiểm tra trong danh sách khóa học của học sinh từ course-service
       const studentCoursesRes = await fetch(
         `${courseBaseUrl}/students/${currentUserId}/courses`,
       ).catch(() => null);
@@ -227,7 +228,6 @@ export default function CourseDetailPage({ onBack }) {
         }
       }
 
-      // 2. Kiểm tra giao dịch thanh toán thành công từ payment-service
       const payCheckRes = await fetch(
         `${paymentBaseUrl}/check-enrollment/${currentUserId}/${courseId}`,
       ).catch(() => null);
@@ -413,13 +413,11 @@ export default function CourseDetailPage({ onBack }) {
     setOpenChapters(nextState);
   };
 
-  // 🎯 XỬ LÝ ĐĂNG KÝ HỌC PHẦN (CÓ PHÍ -> VNPAY, MIỄN PHÍ -> GHI DANH NGAY)
   const handleRegisterOrPay = async () => {
     if (!course) return;
     setIsProcessing(true);
 
     try {
-      // 1. TRƯỜNG HỢP KHÓA HỌC CÓ PHÍ -> TẠO URL THANH TOÁN VNPAY
       if (course.price > 0) {
         triggerToast("🔄 Đang kết nối tới cổng thanh toán VNPay...");
         const payload = {
@@ -442,14 +440,11 @@ export default function CourseDetailPage({ onBack }) {
         const data = await res.json();
         if (res.ok && data.payment_url) {
           setShowConfirmModal(false);
-          // Chuyển hướng sang cổng thanh toán VNPay sandbox
           window.location.href = data.payment_url;
         } else {
           triggerToast(data.error || "Không thể khởi tạo giao dịch VNPay!");
         }
-      }
-      // 2. TRƯỜNG HỢP KHÓA HỌC MIỄN PHÍ -> GHI DANH TRỰC TIẾP VÀO LỚP
-      else {
+      } else {
         triggerToast("⏳ Đang ghi danh học phần...");
         const joinPayload = {
           student_id: Number(currentUserId),
@@ -500,7 +495,9 @@ export default function CourseDetailPage({ onBack }) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center space-y-3 font-sans">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-900" />
+        <Loader2
+          className={`w-8 h-8 animate-spin ${isTeacher ? "text-orange-600" : "text-blue-900"}`}
+        />
         <p className="text-xs font-bold text-slate-500">
           Đang đồng bộ dữ liệu khóa học ID: #{targetId || "..."}
         </p>
@@ -516,7 +513,7 @@ export default function CourseDetailPage({ onBack }) {
         </p>
         <button
           onClick={handleGoBack}
-          className="px-4 py-2 bg-blue-900 text-white rounded-xl text-xs font-bold cursor-pointer"
+          className={`px-4 py-2 ${isTeacher ? "bg-orange-600 hover:bg-orange-700" : "bg-blue-900 hover:bg-blue-800"} text-white rounded-xl text-xs font-bold cursor-pointer transition`}
         >
           Quay lại trang trước
         </button>
@@ -555,13 +552,13 @@ export default function CourseDetailPage({ onBack }) {
           border-radius: 10px;
           font-size: 13px;
           font-weight: 700;
-          color: #1e3a8a;
+          color: ${isTeacher ? "#ea580c" : "#1e3a8a"};
           cursor: pointer;
           transition: all 0.2s ease;
         }
         .back-interactive-btn:hover {
-          background: #e0e7ff;
-          border-color: #1e3a8a;
+          background: ${isTeacher ? "#fff7ed" : "#e0e7ff"};
+          border-color: ${isTeacher ? "#ea580c" : "#1e3a8a"};
           transform: translateX(-2px);
         }
         .header-tool-btn {
@@ -579,12 +576,16 @@ export default function CourseDetailPage({ onBack }) {
         }
         .header-tool-btn:hover {
           background: #f8fafc;
-          color: #1e3a8a;
-          border-color: #93c5fd;
+          color: ${isTeacher ? "#ea580c" : "#1e3a8a"};
+          border-color: ${isTeacher ? "#fed7aa" : "#93c5fd"};
         }
         .detail-hero-stage {
           position: relative;
-          background: radial-gradient(circle at 10% 20%, #1e3a8a 0%, #0f172a 75%, #020617 100%);
+          background: ${
+            isTeacher
+              ? "radial-gradient(circle at 10% 20%, #7c2d12 0%, #431407 75%, #180802 100%)"
+              : "radial-gradient(circle at 10% 20%, #1e3a8a 0%, #0f172a 75%, #020617 100%)"
+          };
           color: #ffffff;
           padding: 48px 24px 56px;
           overflow: hidden;
@@ -604,7 +605,7 @@ export default function CourseDetailPage({ onBack }) {
           right: 20%;
           width: 360px;
           height: 360px;
-          background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, transparent 70%);
+          background: radial-gradient(circle, ${isTeacher ? "rgba(249, 115, 22, 0.25)" : "rgba(56, 189, 248, 0.25)"} 0%, transparent 70%);
           filter: blur(60px);
           pointer-events: none;
         }
@@ -624,9 +625,9 @@ export default function CourseDetailPage({ onBack }) {
           gap: 6px;
           padding: 4px 12px;
           border-radius: 9999px;
-          background: rgba(56, 189, 248, 0.15);
-          border: 1px solid rgba(56, 189, 248, 0.4);
-          color: #38bdf8;
+          background: ${isTeacher ? "rgba(249, 115, 22, 0.15)" : "rgba(56, 189, 248, 0.15)"};
+          border: 1px solid ${isTeacher ? "rgba(249, 115, 22, 0.4)" : "rgba(56, 189, 248, 0.4)"};
+          color: ${isTeacher ? "#fb923c" : "#38bdf8"};
           font-size: 11px;
           font-weight: 800;
           letter-spacing: 0.5px;
@@ -682,7 +683,7 @@ export default function CourseDetailPage({ onBack }) {
           padding: 14px;
           border-radius: 12px;
           border: none;
-          background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+          background: ${isTeacher ? "linear-gradient(135deg, #059669 0%, #047857 100%)" : "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)"};
           color: #ffffff;
           font-size: 14px;
           font-weight: 800;
@@ -693,13 +694,12 @@ export default function CourseDetailPage({ onBack }) {
           align-items: center;
           justify-content: center;
           gap: 8px;
-          box-shadow: 0 8px 18px rgba(234, 88, 12, 0.3);
+          box-shadow: ${isTeacher ? "0 8px 18px rgba(5, 150, 105, 0.3)" : "0 8px 18px rgba(234, 88, 12, 0.3)"};
           transition: all 0.25s ease;
         }
         .reg-sparkle-btn:hover {
           transform: translateY(-2px);
-          box-shadow: 0 12px 24px rgba(234, 88, 12, 0.4);
-          background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+          opacity: 0.95;
         }
         .reg-sparkle-btn.registered {
           background: linear-gradient(135deg, #059669 0%, #047857 100%);
@@ -733,7 +733,7 @@ export default function CourseDetailPage({ onBack }) {
           transition: color 0.2s;
         }
         .modern-tab-btn.active {
-          color: #1e3a8a;
+          color: ${isTeacher ? "#ea580c" : "#1e3a8a"};
         }
         .modern-tab-btn.active::after {
           content: '';
@@ -742,7 +742,7 @@ export default function CourseDetailPage({ onBack }) {
           left: 0;
           right: 0;
           height: 3px;
-          background: #1e3a8a;
+          background: ${isTeacher ? "#ea580c" : "#1e3a8a"};
           border-radius: 3px;
         }
         .chap-container {
@@ -793,7 +793,7 @@ export default function CourseDetailPage({ onBack }) {
           height: 72px;
           border-radius: 14px;
           background: #f1f5f9;
-          border: 2px solid #38bdf8;
+          border: 2px solid ${isTeacher ? "#fb923c" : "#38bdf8"};
           overflow: hidden;
           flex-shrink: 0;
         }
@@ -821,7 +821,7 @@ export default function CourseDetailPage({ onBack }) {
       <header className="glass-nav">
         <button className="back-interactive-btn" onClick={handleGoBack}>
           <ArrowLeft className="w-4 h-4" />
-          <span>Quay lại trang chủ</span>
+          <span>Quay lại trang trước</span>
         </button>
         <div className="flex items-center gap-2">
           <button
@@ -870,7 +870,9 @@ export default function CourseDetailPage({ onBack }) {
 
             <div className="hero-chips-bar">
               <div className="hero-chip">
-                <GraduationCap className="w-4 h-4 text-sky-400" />
+                <GraduationCap
+                  className={`w-4 h-4 ${isTeacher ? "text-orange-400" : "text-sky-400"}`}
+                />
                 <span>
                   Đơn vị: <strong>{course.grade}</strong>
                 </span>
@@ -896,10 +898,12 @@ export default function CourseDetailPage({ onBack }) {
             </div>
           </div>
 
-          {/* Hộp widget Đăng ký / Vào học */}
+          {/* Hộp widget Tham khảo / Vào học */}
           <div className="glass-side-widget">
             <h3 className="font-extrabold text-sm uppercase tracking-wide text-slate-900 mb-3 pb-2 border-b border-slate-100 flex items-center justify-between">
-              <span>Thông tin học phần</span>
+              <span>
+                {isTeacher ? "Nghiệp vụ giáo án" : "Thông tin học phần"}
+              </span>
               <span
                 className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
                   course.price > 0
@@ -907,9 +911,11 @@ export default function CourseDetailPage({ onBack }) {
                     : "text-emerald-700 bg-emerald-100"
                 }`}
               >
-                {course.price > 0
-                  ? `${course.price.toLocaleString("vi-VN")} đ`
-                  : "Miễn phí"}
+                {isTeacher
+                  ? "Chế độ Giảng viên"
+                  : course.price > 0
+                    ? `${course.price.toLocaleString("vi-VN")} đ`
+                    : "Miễn phí"}
               </span>
             </h3>
 
@@ -935,40 +941,44 @@ export default function CourseDetailPage({ onBack }) {
             </div>
             <div className="side-metric-item">
               <span className="text-slate-500 font-medium">
-                Trạng thái ghi danh
+                {isTeacher ? "Quyền hạn" : "Trạng thái ghi danh"}
               </span>
               <span
-                className={`font-extrabold ${isRegistered ? "text-emerald-600" : "text-blue-900"}`}
+                className={`font-extrabold ${isTeacher ? "text-orange-600" : isRegistered ? "text-emerald-600" : "text-blue-900"}`}
               >
-                {isRegistered ? "Đã vào lớp" : "Đang mở tuyển sinh"}
+                {isTeacher
+                  ? "Truy cập không giới hạn"
+                  : isRegistered
+                    ? "Đã vào lớp"
+                    : "Đang mở tuyển sinh"}
               </span>
             </div>
 
             <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2 overflow-hidden">
               <div
-                className="bg-blue-900 h-full rounded-full"
+                className={`h-full rounded-full ${isTeacher ? "bg-orange-600" : "bg-blue-900"}`}
                 style={{ width: `${course.profileProgress}%` }}
               />
             </div>
 
-            {/* NÚT THAO TÁC CHÍNH */}
+            {/* 🎯 NÚT BẤM DÀNH CHO GIẢNG VIÊN ĐI THẲNG VÀO KHÔNG GIAN HỌC */}
             <button
-              className={`reg-sparkle-btn ${isRegistered ? "registered" : ""}`}
-              disabled={isProcessing}
+              className="reg-sparkle-btn"
               onClick={() => {
-                if (isRegistered) {
-                  // Nếu đã đăng ký/thanh toán -> Bấm vào chuyển thẳng đến không gian học
-                  navigate(`/student/courses/${course.id}/learn`);
+                if (isTeacher) {
+                  navigate(`/teacher/courses/${course.id}/learn`);
+                } else if (isRegistered) {
+                  navigate(`/teacher/courses/${course.id}/learn`);
                 } else {
-                  // Chưa đăng ký -> Mở Modal xác nhận
                   setShowConfirmModal(true);
                 }
               }}
             >
-              {isProcessing ? (
+              {isTeacher ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>ĐANG XỬ LÝ...</span>
+                  <BookOpen className="w-4 h-4" />
+                  <span>VÀO LỚP HỌC (GIẢNG VIÊN)</span>
+                  <ArrowRight className="w-4 h-4" />
                 </>
               ) : isRegistered ? (
                 <>
@@ -1019,33 +1029,51 @@ export default function CourseDetailPage({ onBack }) {
 
           {activeTab === "curriculum" && (
             <div>
-              <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 mb-6">
-                <h4 className="font-extrabold text-sm text-blue-950 mb-2 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-blue-800" /> Điểm nổi bật
-                  của môn học
+              <div
+                className={`border rounded-xl p-4 mb-6 ${isTeacher ? "bg-orange-50/70 border-orange-200" : "bg-blue-50/70 border-blue-200"}`}
+              >
+                <h4
+                  className={`font-extrabold text-sm mb-2 flex items-center gap-2 ${isTeacher ? "text-orange-950" : "text-blue-950"}`}
+                >
+                  <ShieldCheck
+                    className={`w-4 h-4 ${isTeacher ? "text-orange-700" : "text-blue-800"}`}
+                  />
+                  {isTeacher
+                    ? "Tài nguyên & Tiêu chuẩn sư phạm"
+                    : "Điểm nổi bật của môn học"}
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-900">
+                <div
+                  className={`grid grid-cols-1 md:grid-cols-2 gap-2 text-xs ${isTeacher ? "text-orange-900" : "text-blue-900"}`}
+                >
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-800 shrink-0" />
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full ${isTeacher ? "bg-orange-600" : "bg-blue-800"} shrink-0`}
+                    />
                     <span>
                       Nội dung giảng dạy bám sát thực tiễn chương trình{" "}
                       {course.grade}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-800 shrink-0" />
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full ${isTeacher ? "bg-orange-600" : "bg-blue-800"} shrink-0`}
+                    />
                     <span>
                       Hệ thống bài tập thực hành kèm tài liệu tải về trực tiếp
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-800 shrink-0" />
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full ${isTeacher ? "bg-orange-600" : "bg-blue-800"} shrink-0`}
+                    />
                     <span>Được cấp chứng chỉ hoàn thành học phần</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-800 shrink-0" />
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full ${isTeacher ? "bg-orange-600" : "bg-blue-800"} shrink-0`}
+                    />
                     <span>
-                      Hỗ trợ tương tác và giải đáp thắc mắc với Giảng viên
+                      Hỗ trợ tương tác và giải đáp thắc mắc chuyên môn
                     </span>
                   </div>
                 </div>
@@ -1057,7 +1085,7 @@ export default function CourseDetailPage({ onBack }) {
                 </span>
                 <div className="flex gap-2">
                   <button
-                    className="text-xs font-bold text-blue-900 hover:underline cursor-pointer"
+                    className={`text-xs font-bold ${isTeacher ? "text-orange-700" : "text-blue-900"} hover:underline cursor-pointer`}
                     onClick={() => toggleAllChapters(true)}
                   >
                     Mở tất cả
@@ -1082,7 +1110,9 @@ export default function CourseDetailPage({ onBack }) {
                         onClick={() => toggleChapter(chap.id)}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-800 font-extrabold text-xs flex items-center justify-center">
+                          <div
+                            className={`w-7 h-7 rounded-lg ${isTeacher ? "bg-orange-50 text-orange-700" : "bg-blue-50 text-blue-800"} font-extrabold text-xs flex items-center justify-center`}
+                          >
                             {chap.id.toUpperCase()}
                           </div>
                           <div>
@@ -1106,7 +1136,9 @@ export default function CourseDetailPage({ onBack }) {
                           {chap.lessons.map((ls, idx) => (
                             <div key={idx} className="lesson-row-card">
                               <div className="flex items-center gap-2.5">
-                                <BookOpen className="w-3.5 h-3.5 text-blue-800 shrink-0" />
+                                <BookOpen
+                                  className={`w-3.5 h-3.5 ${isTeacher ? "text-orange-600" : "text-blue-800"} shrink-0`}
+                                />
                                 <span className="font-semibold text-slate-800">
                                   {ls.name}
                                 </span>
@@ -1139,7 +1171,7 @@ export default function CourseDetailPage({ onBack }) {
               {materials.map((mat) => (
                 <div
                   key={mat.id}
-                  className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl hover:border-sky-400 hover:shadow-xs transition"
+                  className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl hover:border-orange-400 hover:shadow-xs transition"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0">
@@ -1155,7 +1187,7 @@ export default function CourseDetailPage({ onBack }) {
                     </div>
                   </div>
                   <button
-                    className="p-2.5 bg-slate-100 hover:bg-blue-900 hover:text-white text-slate-600 rounded-lg transition shrink-0 cursor-pointer"
+                    className={`p-2.5 bg-slate-100 ${isTeacher ? "hover:bg-orange-600" : "hover:bg-blue-900"} hover:text-white text-slate-600 rounded-lg transition shrink-0 cursor-pointer`}
                     onClick={() => {
                       if (mat.url) {
                         window.open(mat.url, "_blank");
@@ -1254,7 +1286,9 @@ export default function CourseDetailPage({ onBack }) {
                 <p className="text-xs text-slate-500 font-semibold">
                   {course.teacher.title}
                 </p>
-                <p className="text-[11px] text-blue-900 font-bold">
+                <p
+                  className={`text-[11px] ${isTeacher ? "text-orange-600" : "text-blue-900"} font-bold`}
+                >
                   {course.teacher.department}
                 </p>
               </div>
@@ -1276,16 +1310,21 @@ export default function CourseDetailPage({ onBack }) {
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs">
-            <h5 className="font-extrabold text-xs text-slate-900 uppercase mb-2 flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-blue-800" /> Hỗ trợ sinh viên
+            <h5
+              className={`font-extrabold text-xs text-slate-900 uppercase mb-2 flex items-center gap-2`}
+            >
+              <HelpCircle
+                className={`w-4 h-4 ${isTeacher ? "text-orange-600" : "text-blue-800"}`}
+              />{" "}
+              Hỗ trợ chuyên môn
             </h5>
             <p className="text-xs text-slate-500 mb-3 leading-relaxed">
-              Cần tư vấn xếp trùng lịch hoặc hướng dẫn thanh toán học phần? Liên
-              hệ phòng Đào tạo.
+              Cần trao đổi giáo án hoặc chỉnh sửa học phần? Liên hệ hội đồng
+              chuyên môn.
             </p>
             <a
               href={`mailto:${course.teacher.email}`}
-              className="text-xs font-bold text-blue-900 hover:underline flex items-center gap-1"
+              className={`text-xs font-bold ${isTeacher ? "text-orange-600" : "text-blue-900"} hover:underline flex items-center gap-1`}
             >
               Gửi email tới Giảng viên phụ trách{" "}
               <ExternalLink className="w-3 h-3" />
@@ -1294,7 +1333,7 @@ export default function CourseDetailPage({ onBack }) {
         </aside>
       </main>
 
-      {/* MODAL XÁC NHẬN ĐĂNG KÝ / THANH TOÁN */}
+      {/* MODAL XÁC NHẬN ĐĂNG KÝ / THANH TOÁN (DÀNH CHO HỌC VIÊN) */}
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
