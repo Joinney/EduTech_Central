@@ -21,7 +21,9 @@ import {
   MessageSquare,
   Send,
   GraduationCap,
-  ShieldCheck
+  ShieldCheck,
+  History,
+  Heart
 } from "lucide-react"
 
 export default function Videos() {
@@ -58,13 +60,20 @@ export default function Videos() {
   const [selectedSubject, setSelectedSubject] = useState("all")
   const [toastMsg, setToastMsg] = useState("")
 
+  // Tương tác cá nhân
   const [likedMap, setLikedMap] = useState({})
   const [bookmarkedMap, setBookmarkedMap] = useState({})
 
+  // Modal Lịch sử video (Đã lưu & Đã thích)
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [historyTab, setHistoryTab] = useState("bookmarks") // "bookmarks" | "likes"
+
+  // Bình luận
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState("")
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
 
+  // Modal tải video (Teacher)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [uploadMode, setUploadMode] = useState("file")
   const [uploading, setUploading] = useState(false)
@@ -84,6 +93,7 @@ export default function Videos() {
     setTimeout(() => setToastMsg(""), 3000)
   }
 
+  // 1. Nạp danh sách Video
   const fetchVideos = async () => {
     setIsLoading(true)
     try {
@@ -107,6 +117,7 @@ export default function Videos() {
     }
   }
 
+  // 2. Nạp trạng thái Like & Bookmark của User
   const fetchUserInteractions = async () => {
     if (!currentUserId) return
     try {
@@ -125,6 +136,7 @@ export default function Videos() {
     }
   }
 
+  // 3. Nạp danh sách bình luận
   const fetchComments = async (videoId) => {
     if (!videoId) return
     try {
@@ -138,6 +150,7 @@ export default function Videos() {
     }
   }
 
+  // 4. Ghi nhận lượt xem
   const viewedVideosRef = useRef(new Set())
   const recordView = async (videoId) => {
     if (!videoId || viewedVideosRef.current.has(videoId)) return
@@ -165,6 +178,7 @@ export default function Videos() {
     }
   }, [currentVideo?.id])
 
+  // 5. Xử lý Thích Video
   const handleLike = async (vidId) => {
     try {
       const res = await fetch(`${baseUrl}/videos/${vidId}/like`, {
@@ -186,6 +200,7 @@ export default function Videos() {
     }
   }
 
+  // 6. Xử lý Lưu/Bookmark Video
   const handleBookmark = async (vidId) => {
     try {
       const res = await fetch(`${baseUrl}/videos/${vidId}/bookmark`, {
@@ -196,13 +211,14 @@ export default function Videos() {
       if (res.ok) {
         const data = await res.json()
         setBookmarkedMap(prev => ({ ...prev, [vidId]: data.bookmarked }))
-        triggerToast(data.bookmarked ? "📌 Đã lưu vào bài giảng yêu thích" : "Đã gỡ bài giảng khỏi danh sách lưu")
+        triggerToast(data.bookmarked ? "📌 Đã lưu vào bài giảng yêu thích" : "Đã gỡ khỏi danh sách lưu")
       }
     } catch (err) {
       triggerToast("Lỗi kết nối khi lưu video!")
     }
   }
 
+  // 7. Gửi bình luận
   const handleSendComment = async (e) => {
     e.preventDefault()
     if (!newComment.trim() || !currentVideo?.id) return
@@ -340,11 +356,19 @@ export default function Videos() {
     return videos.filter(v => (v.subject || "").toLowerCase() === selectedSubject.toLowerCase())
   }, [videos, selectedSubject])
 
+  // Lọc danh sách video đã lưu và đã thích của học viên
+  const bookmarkedVideos = useMemo(() => {
+    return videos.filter(v => bookmarkedMap[v.id])
+  }, [videos, bookmarkedMap])
+
+  const likedVideos = useMemo(() => {
+    return videos.filter(v => likedMap[v.id])
+  }, [videos, likedMap])
+
   const topInstructors = useMemo(() => {
     const stats = {}
 
     videos.forEach((v) => {
-      // Dùng ID làm khóa gom nhóm chính để tránh bị trùng tên do ký tự/dấu cách
       const teacherKey = v.teacher_id ? String(v.teacher_id) : (v.teacher_name || "default")
       const displayName = formatNameWithRole(v.teacher_name, "teacher")
 
@@ -409,7 +433,7 @@ export default function Videos() {
         </div>
       )}
 
-      {/* TOP BAR: Rút gọn khoảng cách thừa */}
+      {/* TOP BAR: Lọc môn học, Nút Lịch sử & Đăng video */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 bg-white px-4 py-2 rounded-2xl border border-slate-200/80 shadow-2xs">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
@@ -424,6 +448,7 @@ export default function Videos() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Bộ lọc môn học */}
           <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl text-xs font-bold border border-slate-200/60">
             {["all", "Toán Học", "Tin Học", "Vật Lý", "Tiếng Anh"].map((sub) => (
               <button
@@ -440,6 +465,19 @@ export default function Videos() {
             ))}
           </div>
 
+          {/* 🎯 NÚT LỊCH SỬ VIDEO ĐÃ LƯU & ĐÃ THÍCH */}
+          <button
+            onClick={() => setShowHistoryModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition cursor-pointer"
+            title="Xem lại các video bạn đã thích hoặc lưu"
+          >
+            <History className="w-3.5 h-3.5 text-orange-600" />
+            <span>Lịch Sử Video</span>
+            {(bookmarkedVideos.length > 0 || likedVideos.length > 0) && (
+              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+            )}
+          </button>
+
           {isTeacher && (
             <button
               onClick={() => setShowUploadModal(true)}
@@ -452,7 +490,7 @@ export default function Videos() {
         </div>
       </div>
 
-      {/* BỐ CỤC 3 CỘT CHUẨN: 5 - 3 - 4 */}
+      {/* BỐ CỤC 3 CỘT: 5 - 3 - 4 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
         
         {/* ======================================================== */}
@@ -460,7 +498,6 @@ export default function Videos() {
         {/* ======================================================== */}
         <div className="lg:col-span-5 space-y-3">
           
-          {/* 🎯 ĐƯA PHẦN TIÊU ĐỀ & CHI TIẾT VIDEO LÊN ĐẦU CỘT 1 */}
           {currentVideo && (
             <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-2xs space-y-2.5">
               <div className="flex items-start justify-between gap-2">
@@ -479,7 +516,6 @@ export default function Videos() {
                   </h2>
                 </div>
 
-                {/* Các nút tương tác: Like, Lưu, Chia sẻ */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button 
                     onClick={() => handleLike(currentVideo.id)}
@@ -656,7 +692,7 @@ export default function Videos() {
         </div>
 
         {/* ======================================================== */}
-        {/* CỘT 2: KHUNG VIDEO DỌC TIKTOK (3 CỘT - GỌN GÀNG, KHÔNG THỪA) */}
+        {/* CỘT 2: KHUNG VIDEO DỌC TIKTOK (3 CỘT) */}
         {/* ======================================================== */}
         <div className="lg:col-span-3 flex justify-center">
           <div className="bg-slate-950 p-1.5 rounded-2xl shadow-xl border border-slate-800 inline-block">
@@ -691,7 +727,7 @@ export default function Videos() {
         </div>
 
         {/* ======================================================== */}
-        {/* CỘT 3: THẢO LUẬN & BÌNH LUẬN (4 CỘT - CAO 492PX KHỚP KHUNG VIDEO) */}
+        {/* CỘT 3: THẢO LUẬN & BÌNH LUẬN (4 CỘT) */}
         {/* ======================================================== */}
         <div className="lg:col-span-4">
           <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-2xs flex flex-col h-[492px]">
@@ -703,7 +739,6 @@ export default function Videos() {
               <span className="text-[10px] text-slate-400">Hỏi đáp bài học</span>
             </div>
 
-            {/* Danh sách bình luận */}
             <div className="space-y-2 flex-1 overflow-y-auto pr-1 py-2">
               {comments.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-4 text-slate-400 text-xs">
@@ -740,7 +775,6 @@ export default function Videos() {
               )}
             </div>
 
-            {/* Ô nhập bình luận cố định dưới chân */}
             <form onSubmit={handleSendComment} className="pt-2 border-t border-slate-100 flex gap-2 items-start">
               <div className="shrink-0 pt-0.5">
                 {renderUserAvatar(currentUserAvatar, currentUserName, isTeacher)}
@@ -769,7 +803,169 @@ export default function Videos() {
 
       </div>
 
-      {/* MODAL UPLOAD */}
+      {/* 🎯 POPUP MODAL LỊCH SỬ HOẠT ĐỘNG (ĐÃ LƯU & ĐÃ THÍCH) */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 flex flex-col max-h-[85vh]">
+            
+            {/* Modal Header */}
+            <div className="px-5 py-3.5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
+                  <History className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-sm">Lịch Sử Hoạt Động Video</h3>
+                  <p className="text-[10px] text-slate-400">Các bài giảng bạn đã lưu và yêu thích</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowHistoryModal(false)} 
+                className="text-slate-400 hover:text-red-500 transition cursor-pointer p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tab chuyển đổi: Đã lưu vs Đã thích */}
+            <div className="p-3 border-b border-slate-100 bg-white">
+              <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setHistoryTab("bookmarks")}
+                  className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    historyTab === "bookmarks"
+                      ? "bg-white text-amber-600 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Bookmark className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                  <span>Đã Lưu ({bookmarkedVideos.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setHistoryTab("likes")}
+                  className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    historyTab === "likes"
+                      ? "bg-white text-rose-600 shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
+                  <span>Đã Thích ({likedVideos.length})</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Danh sách video theo Tab */}
+            <div className="p-4 overflow-y-auto space-y-2 flex-1">
+              {historyTab === "bookmarks" ? (
+                bookmarkedVideos.length === 0 ? (
+                  <div className="text-center py-10 text-slate-400 space-y-2">
+                    <Bookmark className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="text-xs">Bạn chưa lưu bài giảng nào vào bộ sưu tập.</p>
+                  </div>
+                ) : (
+                  bookmarkedVideos.map((vid) => (
+                    <div
+                      key={vid.id}
+                      className="p-2.5 rounded-xl border border-slate-200/80 hover:border-orange-300 bg-slate-50/50 hover:bg-orange-50/30 transition flex items-center justify-between gap-3 group"
+                    >
+                      <div 
+                        onClick={() => {
+                          setCurrentVideo(vid)
+                          setShowHistoryModal(false)
+                        }}
+                        className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                      >
+                        <div className="relative w-12 h-16 rounded-lg overflow-hidden shrink-0 bg-slate-900">
+                          <img 
+                            src={vid.thumbnail_url || "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=300&q=80"} 
+                            alt={vid.title} 
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute bottom-0.5 right-0.5 bg-black/75 text-[8px] text-white px-1 rounded font-mono">
+                            {vid.duration || "Tự do"}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-xs font-bold text-slate-800 truncate group-hover:text-orange-600">
+                            {vid.title}
+                          </h4>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{formatNameWithRole(vid.teacher_name, "teacher")}</p>
+                          <span className="inline-block mt-1 px-1.5 py-0.2 bg-amber-50 text-amber-700 rounded text-[9px] font-bold">
+                            {vid.subject}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleBookmark(vid.id)}
+                        className="p-1.5 text-amber-500 hover:text-slate-400 hover:bg-slate-100 rounded-lg transition"
+                        title="Bỏ lưu"
+                      >
+                        <Bookmark className="w-4 h-4 fill-amber-500" />
+                      </button>
+                    </div>
+                  ))
+                )
+              ) : (
+                likedVideos.length === 0 ? (
+                  <div className="text-center py-10 text-slate-400 space-y-2">
+                    <Heart className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="text-xs">Bạn chưa nhấn thích bài giảng nào.</p>
+                  </div>
+                ) : (
+                  likedVideos.map((vid) => (
+                    <div
+                      key={vid.id}
+                      className="p-2.5 rounded-xl border border-slate-200/80 hover:border-orange-300 bg-slate-50/50 hover:bg-orange-50/30 transition flex items-center justify-between gap-3 group"
+                    >
+                      <div 
+                        onClick={() => {
+                          setCurrentVideo(vid)
+                          setShowHistoryModal(false)
+                        }}
+                        className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                      >
+                        <div className="relative w-12 h-16 rounded-lg overflow-hidden shrink-0 bg-slate-900">
+                          <img 
+                            src={vid.thumbnail_url || "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=300&q=80"} 
+                            alt={vid.title} 
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute bottom-0.5 right-0.5 bg-black/75 text-[8px] text-white px-1 rounded font-mono">
+                            {vid.duration || "Tự do"}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-xs font-bold text-slate-800 truncate group-hover:text-orange-600">
+                            {vid.title}
+                          </h4>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{formatNameWithRole(vid.teacher_name, "teacher")}</p>
+                          <span className="inline-block mt-1 px-1.5 py-0.2 bg-rose-50 text-rose-700 rounded text-[9px] font-bold">
+                            {vid.subject}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleLike(vid.id)}
+                        className="p-1.5 text-rose-500 hover:text-slate-400 hover:bg-slate-100 rounded-lg transition"
+                        title="Bỏ thích"
+                      >
+                        <Heart className="w-4 h-4 fill-rose-500" />
+                      </button>
+                    </div>
+                  ))
+                )
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL UPLOAD DÀNH CHO GIẢNG VIÊN */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
