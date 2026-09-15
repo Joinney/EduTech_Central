@@ -1,41 +1,25 @@
-package main
+package services
 
 import (
-	"context"
-	"fmt"
-	"log"
-	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var (
-	MongoClient    *mongo.Client
-	QuizDB         *mongo.Database
-	ExamsCol       *mongo.Collection
-	SubmissionsCol *mongo.Collection
-	SessionsCol    *mongo.Collection // 👈 Lưu tiến độ làm bài theo thời gian thực
-)
-
-// 1. Cấu trúc câu hỏi trắc nghiệm
 type QuestionItem struct {
 	QuestionID int      `json:"question_id" bson:"question_id"`
 	Question   string   `json:"question" bson:"question"`
-	Options    []string `json:"options" bson:"options"`         // A, B, C, D
-	CorrectAns int      `json:"correct_ans" bson:"correct_ans"` // Index 0 (A), 1 (B), 2 (C), 3 (D)
+	Options    []string `json:"options" bson:"options"`
+	CorrectAns int      `json:"correct_ans" bson:"correct_ans"`
 	Points     float64  `json:"points" bson:"points"`
 }
 
-// 2. Cấu trúc Đề thi trong MongoDB
 type ExamDocument struct {
 	ID             primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	CourseID       uint               `json:"course_id" bson:"course_id"`
 	CourseTitle    string             `json:"course_title" bson:"course_title"`
 	Title          string             `json:"title" bson:"title"`
-	Type           string             `json:"type" bson:"type"` // "QUIZ" hoặc "ESSAY"
+	Type           string             `json:"type" bson:"type"`
 	DurationMins   int                `json:"duration_mins" bson:"duration_mins"`
 	StartTime      string             `json:"start_time" bson:"start_time"`
 	EndTime        string             `json:"end_time" bson:"end_time"`
@@ -47,14 +31,12 @@ type ExamDocument struct {
 	CreatedAt      time.Time          `json:"created_at" bson:"created_at"`
 }
 
-// 3. Cấu trúc Nhật ký vi phạm chuyển Tab
 type TabViolationLog struct {
 	Timestamp  time.Time `json:"timestamp" bson:"timestamp"`
 	Action     string    `json:"action" bson:"action"`
 	WarningMsg string    `json:"warning_msg" bson:"warning_msg"`
 }
 
-// 4. Cấu trúc Phiên làm bài thời gian thực (Lưu tiến độ & Đồng bộ đa thiết bị)
 type StudentExamSession struct {
 	ID               primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	ExamID           primitive.ObjectID `json:"exam_id" bson:"exam_id"`
@@ -68,7 +50,6 @@ type StudentExamSession struct {
 	LastUpdatedAt    time.Time          `json:"last_updated_at" bson:"last_updated_at"`
 }
 
-// 5. Cấu trúc Bài nộp hoàn chỉnh
 type StudentSubmission struct {
 	ID              primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	ExamID          primitive.ObjectID `json:"exam_id" bson:"exam_id"`
@@ -83,32 +64,4 @@ type StudentSubmission struct {
 	TimeSpentSecs   int                `json:"time_spent_secs" bson:"time_spent_secs"`
 	EssayFileURL    string             `json:"essay_file_url" bson:"essay_file_url"`
 	SubmittedAt     time.Time          `json:"submitted_at" bson:"submitted_at"`
-}
-
-func InitMongoDB() {
-	mongoURI := os.Getenv("MONGO_URI")
-	if mongoURI == "" {
-		mongoURI = "mongodb+srv://thugoodcat_db_user:BVpl3MX7cQ05zEqS@edutech.u4syj9y.mongodb.net/edutech_quiz_db?retryWrites=true&w=majority&appName=EduTech"
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	clientOptions := options.Client().ApplyURI(mongoURI)
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		log.Fatalf("❌ Lỗi kết nối MongoDB Atlas: %v", err)
-	}
-
-	if err := client.Ping(ctx, nil); err != nil {
-		log.Fatalf("❌ Không thể Ping MongoDB Atlas: %v", err)
-	}
-
-	MongoClient = client
-	QuizDB = client.Database("edutech_quiz_db")
-	ExamsCol = QuizDB.Collection("exams")
-	SubmissionsCol = QuizDB.Collection("submissions")
-	SessionsCol = QuizDB.Collection("exam_sessions")
-
-	fmt.Println("🍃 [quiz-service] Kết nối thành công tới MongoDB Atlas (edutech_quiz_db)!")
 }

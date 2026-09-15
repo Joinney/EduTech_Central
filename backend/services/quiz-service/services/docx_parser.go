@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"archive/zip"
@@ -10,9 +10,7 @@ import (
 	"strings"
 )
 
-// ParseDocxQuestionsFromURL tải file docx từ Cloudinary/URL và bóc tách câu hỏi
 func ParseDocxQuestionsFromURL(fileURL string) ([]QuestionItem, error) {
-	// 1. Tải dữ liệu file từ Cloudinary
 	req, err := http.NewRequest("GET", fileURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("URL file không hợp lệ: %v", err)
@@ -40,13 +38,11 @@ func ParseDocxQuestionsFromURL(fileURL string) ([]QuestionItem, error) {
 		return nil, fmt.Errorf("file tải về bị rỗng (0 bytes)")
 	}
 
-	// 2. Mở file DOCX dưới dạng ZIP Archive (chuẩn OpenXML)
 	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return nil, fmt.Errorf("tệp không đúng định dạng .docx chuẩn (OpenXML zip): %v", err)
 	}
 
-	// 3. Tìm file document.xml bên trong tệp zip (không phân biệt hoa/thường)
 	var documentXMLFile *zip.File
 	for _, f := range zipReader.File {
 		name := strings.ToLower(f.Name)
@@ -72,18 +68,14 @@ func ParseDocxQuestionsFromURL(fileURL string) ([]QuestionItem, error) {
 	}
 
 	xmlContent := string(xmlBytes)
-
-	// 4. Chuyển đổi các thẻ đoạn văn/ngắt dòng của Word thành ký tự xuống dòng \n
 	xmlContent = strings.ReplaceAll(xmlContent, "</w:p>", "\n")
 	xmlContent = strings.ReplaceAll(xmlContent, "</w:tr>", "\n")
 	xmlContent = strings.ReplaceAll(xmlContent, "<w:br/>", "\n")
 	xmlContent = strings.ReplaceAll(xmlContent, "<w:cr/>", "\n")
 
-	// 5. Xóa toàn bộ thẻ XML <...>
 	reTag := regexp.MustCompile(`<[^>]*>`)
 	plainText := reTag.ReplaceAllString(xmlContent, "")
 
-	// 6. Giải mã các ký tự entity XML
 	plainText = strings.ReplaceAll(plainText, "&lt;", "<")
 	plainText = strings.ReplaceAll(plainText, "&gt;", ">")
 	plainText = strings.ReplaceAll(plainText, "&amp;", "&")
@@ -95,9 +87,6 @@ func ParseDocxQuestionsFromURL(fileURL string) ([]QuestionItem, error) {
 	return extractQuestionsFromText(plainText), nil
 }
 
-// Bóc tách text câu hỏi theo format:
-// Câu 1: / Bài 1: Nội dung câu hỏi...
-// A. *Đáp án 1   B. Đáp án 2   C. Đáp án 3   D. Đáp án 4
 func extractQuestionsFromText(text string) []QuestionItem {
 	lines := strings.Split(text, "\n")
 	var questions []QuestionItem
