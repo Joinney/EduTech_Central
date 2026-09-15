@@ -1,512 +1,119 @@
 package main
 
 import (
-	"context"
 	"net/http"
 	"os"
-	"strconv"
-	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"quiz-service/configs"
+	"quiz-service/middlewares"
+	"quiz-service/routes"
 )
 
+const landingHTML = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>EduTech Quiz Service</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fafafa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #fed7aa;
+      border-radius: 24px;
+      padding: 56px 48px;
+      text-align: center;
+      max-width: 580px;
+      box-shadow: 0 10px 30px rgba(251, 146, 60, 0.08);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      border-radius: 999px;
+      background: #ffedd5;
+      color: #ea580c;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .dot {
+      width: 7px;
+      height: 7px;
+      background: #ea580c;
+      border-radius: 50%;
+    }
+    h1 {
+      color: #ea580c;
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+    p {
+      color: #4b5563;
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    .btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: white;
+      text-decoration: none;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(234, 88, 12, 0.45);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">
+      <span class="dot"></span> MICROSERVICE ONLINE
+    </div>
+    <h1>EduTech Quiz Service</h1>
+    <p>Hệ thống trắc nghiệm, quản lý đề thi & giám sát phiên thi trực tuyến! 🚀</p>
+    <a href="/docs" class="btn">Vào Swagger xem API &rarr;</a>
+  </div>
+</body>
+</html>`
+
 func main() {
-	InitMongoDB()
+	configs.InitMongoDB()
 
 	r := gin.Default()
+	r.Use(middlewares.CORSMiddleware())
 
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	// Landing Page trang chủ
+	r.GET("/", func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(landingHTML))
+	})
 
-	api := r.Group("/api/v1/quizzes")
-	{
-		api.POST("/create", createExamHandler)
-		api.POST("/parse-preview", parsePreviewHandler)
-		api.GET("/course/:course_id", getExamsByCourseHandler)
-
-		// 🎯 1. API học sinh lấy đề (ẩn đáp án)
-		api.GET("/:exam_id", getExamDetailHandler)
-
-		// 🎯 2. API giáo viên lấy đầy đủ đề thi kèm đáp án chính xác
-		api.GET("/:exam_id/full", getExamFullDetailHandler)
-
-		// Phiên làm bài & Tự lưu tiến độ
-		api.POST("/:exam_id/start", startOrResumeSessionHandler)
-		api.POST("/:exam_id/save-progress", saveSessionProgressHandler)
-
-		// Nộp bài & Báo cáo
-		api.POST("/:exam_id/submit", submitExamHandler)
-		api.GET("/:exam_id/submission/:student_id", getStudentSubmissionHandler)
-		api.GET("/:exam_id/submissions", getAllSubmissionsHandler)
-	}
+	// Đăng ký toàn bộ Quiz APIs + Swagger UI
+	routes.RegisterQuizRoutes(r)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8003"
 	}
 	r.Run(":" + port)
-}
-
-// API dành riêng cho Giáo viên: Giữ nguyên đáp án đúng để đối chiếu
-func getExamFullDetailHandler(c *gin.Context) {
-	examIDStr := c.Param("exam_id")
-	objID, err := primitive.ObjectIDFromHex(examIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
-		return
-	}
-
-	var exam ExamDocument
-	err = ExamsCol.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&exam)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy bài thi"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": exam})
-}
-
-// API dành cho Học sinh: Ẩn đáp án đúng tránh lộ đề
-func getExamDetailHandler(c *gin.Context) {
-	examIDStr := c.Param("exam_id")
-	objID, err := primitive.ObjectIDFromHex(examIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
-		return
-	}
-
-	var exam ExamDocument
-	err = ExamsCol.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&exam)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy bài thi"})
-		return
-	}
-
-	safeQuestions := make([]QuestionItem, len(exam.Questions))
-	for i, q := range exam.Questions {
-		safeQuestions[i] = QuestionItem{
-			QuestionID: q.QuestionID,
-			Question:   q.Question,
-			Options:    q.Options,
-			Points:     q.Points,
-			CorrectAns: -1,
-		}
-	}
-	exam.Questions = safeQuestions
-
-	c.JSON(http.StatusOK, gin.H{"data": exam})
-}
-
-// API: Bắt đầu hoặc Tiếp tục phiên làm bài (Tính giờ thực tế từ Server)
-func startOrResumeSessionHandler(c *gin.Context) {
-	examIDStr := c.Param("exam_id")
-	objID, err := primitive.ObjectIDFromHex(examIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
-		return
-	}
-
-	var req struct {
-		StudentID   uint   `json:"student_id" binding:"required"`
-		StudentName string `json:"student_name"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Thiếu thông tin học sinh"})
-		return
-	}
-
-	var existingSubmission StudentSubmission
-	err = SubmissionsCol.FindOne(context.Background(), bson.M{
-		"exam_id":    objID,
-		"student_id": req.StudentID,
-	}).Decode(&existingSubmission)
-	if err == nil {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error":        "Bạn đã hoàn thành bài thi này trước đó!",
-			"is_submitted": true,
-		})
-		return
-	}
-
-	var exam ExamDocument
-	if err := ExamsCol.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&exam); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Không tìm thấy đề thi"})
-		return
-	}
-
-	totalDurationSecs := exam.DurationMins * 60
-	if totalDurationSecs <= 0 {
-		totalDurationSecs = 15 * 60
-	}
-
-	var session StudentExamSession
-	err = SessionsCol.FindOne(context.Background(), bson.M{
-		"exam_id":    objID,
-		"student_id": req.StudentID,
-	}).Decode(&session)
-
-	now := time.Now()
-
-	if err != nil {
-		session = StudentExamSession{
-			ID:               primitive.NewObjectID(),
-			ExamID:           objID,
-			StudentID:        req.StudentID,
-			StudentName:      req.StudentName,
-			Answers:          make(map[string]int),
-			FlaggedQuestions: []int{},
-			ViolationsCount:  0,
-			ViolationLogs:    []TabViolationLog{},
-			StartedAt:        now,
-			LastUpdatedAt:    now,
-		}
-		SessionsCol.InsertOne(context.Background(), session)
-	}
-
-	elapsedSecs := int(now.Sub(session.StartedAt).Seconds())
-	remainingSecs := totalDurationSecs - elapsedSecs
-	isExpired := false
-
-	if remainingSecs <= 0 {
-		remainingSecs = 0
-		isExpired = true
-	}
-
-	safeQuestions := make([]QuestionItem, len(exam.Questions))
-	for i, q := range exam.Questions {
-		safeQuestions[i] = QuestionItem{
-			QuestionID: q.QuestionID,
-			Question:   q.Question,
-			Options:    q.Options,
-			Points:     q.Points,
-			CorrectAns: -1,
-		}
-	}
-	exam.Questions = safeQuestions
-
-	c.JSON(http.StatusOK, gin.H{
-		"exam":              exam,
-		"session_id":        session.ID.Hex(),
-		"started_at":        session.StartedAt,
-		"remaining_seconds": remainingSecs,
-		"is_expired":        isExpired,
-		"saved_answers":     session.Answers,
-		"saved_flagged":     session.FlaggedQuestions,
-		"violations_count":  session.ViolationsCount,
-		"violation_logs":    session.ViolationLogs,
-	})
-}
-
-// API: Tự động lưu tiến độ làm bài
-func saveSessionProgressHandler(c *gin.Context) {
-	examIDStr := c.Param("exam_id")
-	objID, err := primitive.ObjectIDFromHex(examIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
-		return
-	}
-
-	var req struct {
-		StudentID        uint              `json:"student_id" binding:"required"`
-		Answers          map[string]int    `json:"answers"`
-		FlaggedQuestions []int             `json:"flagged_questions"`
-		ViolationsCount  int               `json:"violations_count"`
-		ViolationLogs    []TabViolationLog `json:"violation_logs"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu cập nhật không hợp lệ"})
-		return
-	}
-
-	filter := bson.M{
-		"exam_id":    objID,
-		"student_id": req.StudentID,
-	}
-
-	update := bson.M{
-		"$set": bson.M{
-			"answers":           req.Answers,
-			"flagged_questions": req.FlaggedQuestions,
-			"violations_count":  req.ViolationsCount,
-			"violation_logs":    req.ViolationLogs,
-			"last_updated_at":   time.Now(),
-		},
-	}
-
-	opts := options.Update().SetUpsert(false)
-	_, err = SessionsCol.UpdateOne(context.Background(), filter, update, opts)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu tiến độ"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Đã lưu tiến độ thành công"})
-}
-
-// Bóc tách xem trước câu hỏi từ file Word
-func parsePreviewHandler(c *gin.Context) {
-	var req struct {
-		FileDocURL string `json:"file_doc_url" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Vui lòng cung cấp file_doc_url"})
-		return
-	}
-
-	questions, err := ParseDocxQuestionsFromURL(req.FileDocURL)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Lỗi đọc file Word: " + err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data":            questions,
-		"total_questions": len(questions),
-	})
-}
-
-// Tạo đề thi
-func createExamHandler(c *gin.Context) {
-	var req struct {
-		CourseID       uint    `json:"course_id"`
-		CourseTitle    string  `json:"course_title"`
-		Title          string  `json:"title" binding:"required"`
-		Type           string  `json:"type"`
-		DurationMins   int     `json:"duration_mins"`
-		StartTime      string  `json:"start_time"`
-		EndTime        string  `json:"end_time"`
-		TotalQuestions int     `json:"total_questions"`
-		PassScore      float64 `json:"pass_score"`
-		FileDocURL     string  `json:"file_doc_url"`
-		Description    string  `json:"description"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ: " + err.Error()})
-		return
-	}
-
-	if req.Type == "" {
-		req.Type = "QUIZ"
-	}
-	if req.DurationMins == 0 {
-		req.DurationMins = 15
-	}
-	if req.PassScore == 0 {
-		req.PassScore = 5.0
-	}
-
-	var questions []QuestionItem
-
-	if req.Type == "QUIZ" && req.FileDocURL != "" {
-		parsed, err := ParseDocxQuestionsFromURL(req.FileDocURL)
-		if err == nil && len(parsed) > 0 {
-			questions = parsed
-			req.TotalQuestions = len(parsed)
-		}
-	}
-
-	doc := ExamDocument{
-		ID:             primitive.NewObjectID(),
-		CourseID:       req.CourseID,
-		CourseTitle:    req.CourseTitle,
-		Title:          req.Title,
-		Type:           req.Type,
-		DurationMins:   req.DurationMins,
-		StartTime:      req.StartTime,
-		EndTime:        req.EndTime,
-		TotalQuestions: req.TotalQuestions,
-		PassScore:      req.PassScore,
-		FileDocURL:     req.FileDocURL,
-		Description:    req.Description,
-		Questions:      questions,
-		CreatedAt:      time.Now(),
-	}
-
-	_, err := ExamsCol.InsertOne(context.Background(), doc)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu đề thi vào MongoDB Atlas"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Khởi tạo bài thi thành công",
-		"data":    doc,
-	})
-}
-
-func getExamsByCourseHandler(c *gin.Context) {
-	cIDStr := c.Param("course_id")
-	courseID, _ := strconv.Atoi(cIDStr)
-
-	cursor, err := ExamsCol.Find(context.Background(), bson.M{"course_id": uint(courseID)})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi truy vấn MongoDB"})
-		return
-	}
-	defer cursor.Close(context.Background())
-
-	var list []ExamDocument
-	if err := cursor.All(context.Background(), &list); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi parse dữ liệu"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": list})
-}
-
-// Nộp bài thi
-func submitExamHandler(c *gin.Context) {
-	examIDStr := c.Param("exam_id")
-	objID, err := primitive.ObjectIDFromHex(examIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
-		return
-	}
-
-	var req struct {
-		StudentID       uint              `json:"student_id" binding:"required"`
-		StudentName     string            `json:"student_name"`
-		Answers         map[string]int    `json:"answers"`
-		ViolationsCount int               `json:"violations_count"`
-		ViolationLogs   []TabViolationLog `json:"violation_logs"`
-		TimeSpentSecs   int               `json:"time_spent_secs"`
-		EssayFileURL    string            `json:"essay_file_url"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu nộp bài không hợp lệ"})
-		return
-	}
-
-	var existing StudentSubmission
-	err = SubmissionsCol.FindOne(context.Background(), bson.M{
-		"exam_id":    objID,
-		"student_id": req.StudentID,
-	}).Decode(&existing)
-
-	if err == nil {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Bạn đã hoàn thành bài thi này trước đó và không được phép làm lại!",
-			"data":  existing,
-		})
-		return
-	}
-
-	var exam ExamDocument
-	if err := ExamsCol.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&exam); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Bài thi không tồn tại"})
-		return
-	}
-
-	totalCorrect := 0
-	finalScore := 0.0
-
-	if exam.Type == "QUIZ" && len(exam.Questions) > 0 {
-		for i, q := range exam.Questions {
-			key := strconv.Itoa(i)
-			if studentAns, exists := req.Answers[key]; exists && studentAns == q.CorrectAns {
-				totalCorrect++
-			}
-		}
-		finalScore = float64(totalCorrect) / float64(len(exam.Questions)) * 10.0
-		finalScore = float64(int(finalScore*10)) / 10.0
-	}
-
-	sub := StudentSubmission{
-		ID:              primitive.NewObjectID(),
-		ExamID:          objID,
-		CourseID:        exam.CourseID,
-		StudentID:       req.StudentID,
-		StudentName:     req.StudentName,
-		Answers:         req.Answers,
-		TotalCorrect:    totalCorrect,
-		Score:           finalScore,
-		ViolationsCount: req.ViolationsCount,
-		ViolationLogs:   req.ViolationLogs,
-		TimeSpentSecs:   req.TimeSpentSecs,
-		EssayFileURL:    req.EssayFileURL,
-		SubmittedAt:     time.Now(),
-	}
-
-	_, err = SubmissionsCol.InsertOne(context.Background(), sub)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu kết quả bài thi"})
-		return
-	}
-
-	// Xóa phiên làm bài tạm sau khi nộp thành công
-	SessionsCol.DeleteOne(context.Background(), bson.M{
-		"exam_id":    objID,
-		"student_id": req.StudentID,
-	})
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Nộp bài thi thành công",
-		"data":    sub,
-	})
-}
-
-func getStudentSubmissionHandler(c *gin.Context) {
-	examIDStr := c.Param("exam_id")
-	objID, _ := primitive.ObjectIDFromHex(examIDStr)
-	sIDStr := c.Param("student_id")
-	studentID, _ := strconv.Atoi(sIDStr)
-
-	var sub StudentSubmission
-	err := SubmissionsCol.FindOne(context.Background(), bson.M{
-		"exam_id":    objID,
-		"student_id": uint(studentID),
-	}).Decode(&sub)
-
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"has_submitted": false})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"has_submitted": true, "data": sub})
-}
-
-func getAllSubmissionsHandler(c *gin.Context) {
-	examIDStr := c.Param("exam_id")
-	objID, err := primitive.ObjectIDFromHex(examIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Exam ID không hợp lệ"})
-		return
-	}
-
-	// 1. Lấy danh sách các bài đã hoàn thành nộp
-	cursor, err := SubmissionsCol.Find(context.Background(), bson.M{"exam_id": objID})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi truy vấn danh sách nộp bài"})
-		return
-	}
-	defer cursor.Close(context.Background())
-
-	var subsList []StudentSubmission
-	cursor.All(context.Background(), &subsList)
-
-	// 2. 🎯 Lấy danh sách các phiên ĐANG LÀM BÀI theo thời gian thực
-	sessCursor, err := SessionsCol.Find(context.Background(), bson.M{"exam_id": objID})
-	var activeSessions []StudentExamSession
-	if err == nil {
-		defer sessCursor.Close(context.Background())
-		sessCursor.All(context.Background(), &activeSessions)
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"data":            subsList,
-		"active_sessions": activeSessions,
-	})
 }
