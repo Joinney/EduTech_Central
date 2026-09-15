@@ -43,7 +43,6 @@ export default function TroLyAIPage() {
   const [selectedSubject, setSelectedSubject] = useState("Tự động phát hiện");
   const [copiedId, setCopiedId] = useState(null);
 
-  // Ảnh đại diện
   const userAvatar = "https://ui-avatars.com/api/?name=Hoc+Sinh&background=0D8ABC&color=fff"; 
 
   const fallbackModels = [
@@ -63,13 +62,13 @@ export default function TroLyAIPage() {
   const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash-vision-exp");
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
 
-  // State tin nhắn (Đã bỏ State SavedSessions vì không cần hiển thị danh sách ở trang này nữa)
   const [messages, setMessages] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   
   const [attachedImage, setAttachedImage] = useState(null);
   const [attachedDoc, setAttachedDoc] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const docInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -79,7 +78,6 @@ export default function TroLyAIPage() {
 
   const API_URL = import.meta.env.VITE_API_AI_URL || "http://localhost:8000/api/v1/ai";
 
-  // Đóng model dropdown khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target)) {
@@ -90,7 +88,6 @@ export default function TroLyAIPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Tải danh sách model
   useEffect(() => {
     const fetchModels = async () => {
       try {
@@ -108,13 +105,32 @@ export default function TroLyAIPage() {
     fetchModels();
   }, []);
 
-  // 🎯 QUAN TRỌNG: Nạp lịch sử chat nếu URL có truyền ?session= (Bấm từ Menu ngoài)
+  const fetchHistory = async () => {
+    try {
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const userId = currentUser.id || currentUser._id || currentUser.uid || currentUser.userId || currentUser.email || currentUser.fullName || currentUser.full_name || "guest";
+
+      const res = await fetch(`${API_URL}/chat/history?user_id=${userId}`);
+      const data = await res.json();
+      if (data.success) {
+        return data.data; 
+      }
+    } catch (err) {
+      console.error("Lỗi tải lịch sử chat:", err);
+    }
+    return null;
+  };
+
   useEffect(() => {
     const loadInitialData = async () => {
       const params = new URLSearchParams(location.search);
       const urlSessionId = params.get("session");
+      const openHistory = params.get("openHistory");
 
-      // Nếu không có session trên URL (Tạo mới), dọn dẹp giao diện
+      if (openHistory === "true") {
+        setIsSidebarOpen(true);
+      }
+
       if (!urlSessionId) {
         setMessages([]);
         setCurrentSessionId(null);
@@ -123,47 +139,39 @@ export default function TroLyAIPage() {
         return;
       }
 
-      // Nếu có session ID, gọi API lấy chi tiết để nạp
-      try {
-        const res = await fetch(`${API_URL}/chat/history?user_id=guest`);
-        const data = await res.json();
-        if (data.success) {
-          const targetSession = data.data.find(s => s.id === urlSessionId);
-          if (targetSession) {
-            const loadedMessages = targetSession.messages.map((msg, index) => {
-              
-              // Tách hình ảnh ra khỏi nội dung Text (Bảo vệ lỗi Crash Markdown)
-              let textContent = msg.content;
-              let imageUrl = null;
-              
-              if (Array.isArray(msg.content)) {
-                const textObj = msg.content.find(item => item.type === "text");
-                const imgObj = msg.content.find(item => item.type === "image_url");
-                textContent = textObj ? textObj.text : "";
-                imageUrl = imgObj ? imgObj.image_url.url : null;
-              }
+      const historyData = await fetchHistory();
+      if (historyData) {
+        const targetSession = historyData.find(s => s.id === urlSessionId);
+        if (targetSession) {
+          const loadedMessages = targetSession.messages.map((msg, index) => {
+            let textContent = msg.content;
+            let imageUrl = null;
+            
+            if (Array.isArray(msg.content)) {
+              const textObj = msg.content.find(item => item.type === "text");
+              const imgObj = msg.content.find(item => item.type === "image_url");
+              textContent = textObj ? textObj.text : "";
+              imageUrl = imgObj ? imgObj.image_url.url : null;
+            }
 
-              return {
-                id: `loaded-${index}`,
-                role: msg.role,
-                content: textContent,
-                image: imageUrl,
-                time: ""
-              };
-            });
+            return {
+              id: `loaded-${index}`,
+              role: msg.role,
+              content: textContent,
+              image: imageUrl,
+              time: ""
+            };
+          });
 
-            setMessages(loadedMessages);
-            setCurrentSessionId(targetSession.id);
-            setSelectedSubject(targetSession.subject || "Tự động phát hiện");
-          }
+          setMessages(loadedMessages);
+          setCurrentSessionId(targetSession.id);
+          setSelectedSubject(targetSession.subject || "Tự động phát hiện");
         }
-      } catch (err) {
-        console.error("Lỗi khi khôi phục đoạn chat:", err);
       }
     };
 
     loadInitialData();
-  }, [location.search]); // Chạy lại mỗi khi URL thay đổi
+  }, [location.search]);
 
   const promptSuggestions = [
     {
@@ -357,7 +365,7 @@ export default function TroLyAIPage() {
             ]
           };
         }
-        return { role: m.role, content: m.content };
+        return { role: m.role, content: m.content || "" };
       });
 
       apiMessages.push({
@@ -404,7 +412,7 @@ export default function TroLyAIPage() {
         );
       }
 
-      // Tự động lưu lịch sử vào MongoDB
+      // 🎯 LƯU DB: ÉP KIỂU STRING VÀ LÀM SẠCH PAYLOAD TRÁNH 422
       try {
         const fullHistory = [
           ...messages,
@@ -412,13 +420,25 @@ export default function TroLyAIPage() {
           { role: "assistant", content: accumulatedText }
         ];
 
+        // 1. Làm sạch payload: Chỉ gửi role và content cho Backend, bỏ id/image/doc
+        const cleanHistory = fullHistory.map(m => ({
+          role: String(m.role),
+          content: m.content || ""
+        }));
+
+        // 2. Ép kiểu UserID sang String để tránh lỗi Strict Type của FastAPI
+        const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const rawUserId = currentUser.id || currentUser._id || currentUser.uid || currentUser.userId || currentUser.email || currentUser.fullName || currentUser.full_name || "guest";
+        const userIdString = String(rawUserId);
+
         const saveRes = await fetch(`${API_URL}/chat/save`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            session_id: currentSessionId,
-            subject: selectedSubject,
-            messages: fullHistory
+            session_id: currentSessionId || null,
+            user_id: userIdString, 
+            subject: selectedSubject || "Chung",
+            messages: cleanHistory
           })
         });
         
@@ -426,9 +446,9 @@ export default function TroLyAIPage() {
         if (saveData.success) {
           if (!currentSessionId) setCurrentSessionId(saveData.session_id);
           
-          // Thêm ID vào URL để người dùng F5 không bị mất
           const role = localStorage.getItem('role') || 'student';
-          window.history.replaceState({}, document.title, `/${role}/ai-assistant?session=${saveData.session_id || currentSessionId}`);
+          // Thay đổi URL để Sidebar lắng nghe và update
+          navigate(`/${role}/ai-assistant?session=${saveData.session_id || currentSessionId}`, { replace: true });
         }
       } catch (saveErr) {
         console.error("Lỗi tự động lưu lịch sử:", saveErr);
@@ -460,10 +480,9 @@ export default function TroLyAIPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Điều hướng Reset về trang chat mới
   const handleResetChat = () => {
     const role = localStorage.getItem('role') || 'student';
-    navigate(`/${role}/ai-assistant`);
+    navigate(`/${role}/ai-assistant`, { replace: true });
   };
 
   const currentSelectedModelObj = availableModels.find(m => m.id === selectedModel) || {
@@ -480,7 +499,6 @@ export default function TroLyAIPage() {
       onDrop={handleDrop}
       className="flex flex-col h-[calc(100vh-4.5rem)] w-full bg-white font-sans text-slate-800 antialiased overflow-hidden select-none relative"
     >
-      {/* Overlay kéo thả ảnh/tệp */}
       {isDragging && (
         <div className="fixed inset-0 bg-blue-600/10 backdrop-blur-md border-4 border-dashed border-blue-500 z-50 flex flex-col items-center justify-center pointer-events-none">
           <div className="w-20 h-20 rounded-3xl bg-white shadow-2xl flex items-center justify-center text-blue-600 animate-bounce">
@@ -491,7 +509,6 @@ export default function TroLyAIPage() {
         </div>
       )}
 
-      {/* Input File ẩn */}
       <input
         type="file"
         ref={docInputRef}
@@ -509,7 +526,7 @@ export default function TroLyAIPage() {
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* 🟢 KHUNG CHAT CHÍNH VÀ DUY NHẤT (Không còn Sidebar nào che khuất nữa) */}
+        {/* KHUNG CHAT CHÍNH VÀ DUY NHẤT */}
         <div className="flex-1 flex flex-col h-full w-full bg-white relative overflow-hidden">
           
           {messages.length === 0 ? (
@@ -694,64 +711,42 @@ export default function TroLyAIPage() {
                           ? `Đã nhận "${attachedDoc.filename}". Đặt câu hỏi về tệp này hoặc nhấn gửi...`
                           : "Hỏi AI bất kỳ điều gì, dán đề bài hoặc kéo thả tệp..."
                       }
-                      className="w-full bg-transparent border-none outline-none text-[13px] sm:text-sm text-slate-800 placeholder:text-slate-400 py-1 sm:py-1.5 min-w-0"
+                      className="w-full bg-transparent border-none outline-none text-[13px] sm:text-sm text-slate-800 placeholder:text-slate-400 px-3 py-1.5 leading-relaxed"
                     />
 
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-                      <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 text-slate-400">
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-1 px-1">
+                      <div className="flex items-center space-x-1.5">
                         <button
                           type="button"
                           onClick={() => docInputRef.current?.click()}
-                          disabled={uploadingFile}
-                          title="Đính kèm tệp PDF/Word/Ảnh"
+                          disabled={loading || uploadingFile}
                           className="p-1.5 sm:p-2 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
+                          title="Tải ảnh hoặc tài liệu PDF/Word"
                         >
                           <Paperclip className="w-4 h-4 text-slate-600" />
                         </button>
+
                         <button
                           type="button"
                           onClick={() => cameraInputRef.current?.click()}
-                          disabled={uploadingFile}
-                          title="Scan hình ảnh"
-                          className="p-1.5 sm:p-2 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
+                          disabled={loading || uploadingFile}
+                          className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                          title="Chụp ảnh đề bài"
                         >
                           <Camera className="w-4 h-4 text-slate-600" />
                         </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                          className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-slate-50 hover:bg-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-700 border border-slate-200/80 ml-1 transition cursor-pointer"
-                        >
-                          <Sparkles className="w-2.5 h-2.5 text-blue-500 fill-blue-500 shrink-0" />
-                          <span className="truncate hidden sm:inline">{currentSelectedModelObj.name}</span>
-                          <ChevronDown className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-                        </button>
                       </div>
 
-                      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                        <button
-                          type="button"
-                          title="Nhập giọng nói"
-                          className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
-                        >
-                          <Mic className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!inputMessage.trim() && !attachedImage && !attachedDoc}
-                          onClick={() => handleSendMessage()}
-                          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#0f172a] hover:bg-blue-600 disabled:bg-slate-200 text-white flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-xs"
-                        >
-                          <ArrowUp className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSendMessage()}
+                        disabled={loading || uploadingFile || (!inputMessage.trim() && !attachedImage && !attachedDoc)}
+                        className="w-8 h-8 rounded-full bg-slate-900 hover:bg-black disabled:bg-slate-200 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-
-                  <p className="text-[9px] sm:text-[10px] text-slate-400 text-center select-none px-2 leading-tight">
-                    EduTech AI có thể đưa ra kết quả chưa chính xác. Hãy kiểm tra lại các công thức và tài liệu quan trọng.
-                  </p>
                 </div>
               </div>
             </div>
@@ -933,7 +928,7 @@ export default function TroLyAIPage() {
                           onKeyDown={handleKeyDown}
                           placeholder="Hỏi tiếp câu khác hoặc tải file PDF/Word/ảnh đề bài..."
                           disabled={loading || uploadingFile}
-                          className="w-full bg-transparent border-none outline-none text-xs md:text-sm text-slate-800 placeholder:text-slate-400 px-3 py-1.5 leading-relaxed"
+                          className="w-full bg-transparent border-none outline-none text-[13px] sm:text-sm text-slate-800 placeholder:text-slate-400 px-3 py-1.5 leading-relaxed"
                         />
 
                         <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-1 px-1">
@@ -942,7 +937,7 @@ export default function TroLyAIPage() {
                               type="button"
                               onClick={() => docInputRef.current?.click()}
                               disabled={loading || uploadingFile}
-                              className="p-1.5 rounded-xl text-slate-500 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                              className="p-1.5 sm:p-2 hover:text-slate-600 rounded-full hover:bg-slate-100 transition cursor-pointer"
                               title="Tải ảnh hoặc tài liệu PDF/Word"
                             >
                               <Paperclip className="w-4 h-4 text-slate-600" />

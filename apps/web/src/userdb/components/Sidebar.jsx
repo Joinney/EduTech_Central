@@ -25,7 +25,7 @@ import {
   FolderTree,
   History,
   MessageSquare,
-  PlusCircle // <-- Thêm icon PlusCircle cho nút tạo chat mới
+  PlusCircle 
 } from "lucide-react"
 
 export default function Sidebar() {
@@ -34,7 +34,6 @@ export default function Sidebar() {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState("student")
   
-  // 🎯 Quản lý trạng thái mở/đóng submenu
   const [openSubmenu, setOpenSubmenu] = useState({
     "Danh mục khóa học": false,
     "Danh mục tài liệu": false,
@@ -44,7 +43,6 @@ export default function Sidebar() {
   
   const [expandedSubmenus, setExpandedSubmenus] = useState({})
 
-  // Danh mục khóa học từ DB
   const [courseCategories, setCourseCategories] = useState([
     { name: "Toán học & Giải tích", slug: "toan-hoc" },
     { name: "Tin học & Lập trình", slug: "tin-hoc" },
@@ -53,7 +51,6 @@ export default function Sidebar() {
     { name: "Hóa học & Sinh học", slug: "khoa-hoc-tu-nhien" }
   ])
 
-  // Danh mục tài liệu chuẩn từ DB
   const [docCategories, setDocCategories] = useState([
     { name: "Đề thi & Kiểm tra", slug: "de-thi-kiem-tra" },
     { name: "Ghi chép lớp học", slug: "ghi-chep-lop-hoc" },
@@ -61,7 +58,6 @@ export default function Sidebar() {
     { name: "Tiểu luận & Nghiên cứu", slug: "tieu-luan" }
   ])
 
-  // 🎯 THÊM MỚI: State lưu lịch sử chat cho Sidebar
   const [recentChats, setRecentChats] = useState([])
 
   useEffect(() => {
@@ -88,7 +84,6 @@ export default function Sidebar() {
     return () => window.removeEventListener("storage", loadUserData)
   }, [])
 
-  // Fetch cả 2 loại danh mục từ backend
   useEffect(() => {
     const fetchCategories = async () => {
       const baseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
@@ -111,25 +106,27 @@ export default function Sidebar() {
     fetchCategories()
   }, [])
 
-  // 🎯 THÊM MỚI: Fetch Lịch sử AI từ MongoDB để nhúng vào Menu
+  // 🎯 HÀM TẢI LỊCH SỬ TỰ ĐỘNG BẮT ĐÚNG USER VÀ LẮNG NGHE LOCATION.SEARCH
   useEffect(() => {
     const fetchRecentChats = async () => {
       try {
         const AI_API_URL = import.meta.env.VITE_API_AI_URL || "http://localhost:8000/api/v1/ai"
-        const res = await fetch(`${AI_API_URL}/chat/history?user_id=guest`)
+        
+        const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const userId = currentUser.id || currentUser._id || currentUser.uid || currentUser.userId || currentUser.email || currentUser.fullName || currentUser.full_name || "guest";
+
+        const res = await fetch(`${AI_API_URL}/chat/history?user_id=${userId}`)
         const data = await res.json()
         if (data.success && data.data) {
-          // Chỉ lấy tối đa 5 đoạn chat gần nhất để tránh menu quá dài
-          setRecentChats(data.data.slice(0, 5))
+          setRecentChats(data.data.slice(0, 3))
         }
       } catch (err) {
         console.error("Lỗi lấy lịch sử AI trên Sidebar:", err)
       }
     }
     fetchRecentChats()
-  }, [])
+  }, [location.pathname, location.search]) // Refresh lịch sử khi chuyển trang hoặc URL có thay đổi session
 
-  // 🎯 Tự động mở submenu khi URL đang ở trang AI hoặc các trang con liên quan
   useEffect(() => {
     if (location.pathname.includes("/courses/category/")) {
       setOpenSubmenu(prev => ({ ...prev, "Danh mục khóa học": true }))
@@ -164,19 +161,17 @@ export default function Sidebar() {
     path: `/${role}/docs/${cat.slug}`
   }))
 
-  // 🎯 CẬP NHẬT MẠNH: Map dữ liệu API vào menu con của AI
   const dynamicAIChildren = [
     { 
       name: "Tạo trò chuyện mới", 
       path: `/${role}/ai-assistant`,
-      icon: PlusCircle // Icon rõ ràng cho việc tạo mới
+      icon: PlusCircle 
     },
     { 
       name: "Tất cả phiên học", 
       path: `/${role}/ai-history`,
       icon: History
     },
-    // Trải phẳng các đoạn chat đã fetch được từ MongoDB thành menu con
     ...recentChats.map(chat => ({
       name: chat.title.length > 22 ? chat.title.substring(0, 22) + "..." : chat.title,
       path: `/${role}/ai-assistant?session=${chat.id}`,
@@ -238,14 +233,11 @@ export default function Sidebar() {
     navigate("/login")
   }
 
-  // Giữ hiển thị mặc định 5 mục (Tạo mới, Lịch sử + 3 đoạn chat gần nhất)
-  // Nếu có nhiều hơn, người dùng bấm "+ Xem thêm" sẽ thấy đủ
   const ITEM_LIMIT = 5
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between text-slate-700 select-none shrink-0 p-4 transition-all">
       <div className="space-y-4">
-        {/* User Card */}
         <Link
           to={`/${role}/profile`}
           className={`relative group p-3 rounded-2xl border shadow-xs flex items-center space-x-3 transition-all cursor-pointer block ${
@@ -299,7 +291,6 @@ export default function Sidebar() {
           </div>
         </Link>
 
-        {/* Navigation List */}
         <div className="space-y-1.5">
           <div className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center justify-between pb-1">
             <span>{isTeacher ? "Menu Quản Lý" : "Menu Học Tập"}</span>
@@ -310,12 +301,11 @@ export default function Sidebar() {
             )}
           </div>
 
-          <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-280px)] custom-scrollbar pr-1">
+          <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-280px)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
             {navItems.map((item) => {
               const Icon = item.icon
               const hasChildren = Boolean(item.children && item.children.length > 0)
               
-              // 🎯 Highlight submenu item nếu URL (kèm params) khớp chính xác
               const isChildActive = hasChildren && item.children.some(c => 
                 (location.pathname + location.search) === c.path || location.pathname === c.path
               )
@@ -384,11 +374,9 @@ export default function Sidebar() {
                     </Link>
                   )}
 
-                  {/* 🎯 Hiển thị mục con khi submenu được mở */}
                   {hasChildren && isOpen && (
                     <div className="mt-1 ml-4 pl-2 border-l-2 border-slate-100 space-y-0.5 animate-in fade-in duration-200">
                       {visibleChildren.map((sub) => {
-                        // So khớp chính xác cả param ?session= trên URL để bôi đậm đúng bài chat
                         const currentFullPath = location.pathname + location.search
                         const isSubActive = currentFullPath === sub.path || location.pathname === sub.path
                         const SubIcon = sub.icon
@@ -430,7 +418,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Footer Sidebar */}
       <div className="pt-3 border-t border-slate-100 space-y-2">
         <div className={`p-3 rounded-2xl border space-y-1.5 ${
           isTeacher 
