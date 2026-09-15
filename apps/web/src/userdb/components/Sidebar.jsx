@@ -24,7 +24,8 @@ import {
   Tags,
   FolderTree,
   History,
-  MessageSquare
+  MessageSquare,
+  PlusCircle // <-- Thêm icon PlusCircle cho nút tạo chat mới
 } from "lucide-react"
 
 export default function Sidebar() {
@@ -59,6 +60,9 @@ export default function Sidebar() {
     { name: "Bài tập về nhà", slug: "bai-tap-ve-nha" },
     { name: "Tiểu luận & Nghiên cứu", slug: "tieu-luan" }
   ])
+
+  // 🎯 THÊM MỚI: State lưu lịch sử chat cho Sidebar
+  const [recentChats, setRecentChats] = useState([])
 
   useEffect(() => {
     const loadUserData = () => {
@@ -107,6 +111,24 @@ export default function Sidebar() {
     fetchCategories()
   }, [])
 
+  // 🎯 THÊM MỚI: Fetch Lịch sử AI từ MongoDB để nhúng vào Menu
+  useEffect(() => {
+    const fetchRecentChats = async () => {
+      try {
+        const AI_API_URL = import.meta.env.VITE_API_AI_URL || "http://localhost:8000/api/v1/ai"
+        const res = await fetch(`${AI_API_URL}/chat/history?user_id=guest`)
+        const data = await res.json()
+        if (data.success && data.data) {
+          // Chỉ lấy tối đa 5 đoạn chat gần nhất để tránh menu quá dài
+          setRecentChats(data.data.slice(0, 5))
+        }
+      } catch (err) {
+        console.error("Lỗi lấy lịch sử AI trên Sidebar:", err)
+      }
+    }
+    fetchRecentChats()
+  }, [])
+
   // 🎯 Tự động mở submenu khi URL đang ở trang AI hoặc các trang con liên quan
   useEffect(() => {
     if (location.pathname.includes("/courses/category/")) {
@@ -142,18 +164,24 @@ export default function Sidebar() {
     path: `/${role}/docs/${cat.slug}`
   }))
 
-  // 🎯 Menu con của Trợ lý AI: gồm Chat mới và Lịch sử trò chuyện
+  // 🎯 CẬP NHẬT MẠNH: Map dữ liệu API vào menu con của AI
   const dynamicAIChildren = [
     { 
-      name: "Trò chuyện AI mới", 
+      name: "Tạo trò chuyện mới", 
       path: `/${role}/ai-assistant`,
-      icon: MessageSquare
+      icon: PlusCircle // Icon rõ ràng cho việc tạo mới
     },
     { 
-      name: "Lịch sử trò chuyện & Phiên học", 
+      name: "Tất cả phiên học", 
       path: `/${role}/ai-history`,
       icon: History
-    }
+    },
+    // Trải phẳng các đoạn chat đã fetch được từ MongoDB thành menu con
+    ...recentChats.map(chat => ({
+      name: chat.title.length > 22 ? chat.title.substring(0, 22) + "..." : chat.title,
+      path: `/${role}/ai-assistant?session=${chat.id}`,
+      icon: MessageSquare
+    }))
   ]
 
   const studentNavItems = [
@@ -173,7 +201,6 @@ export default function Sidebar() {
     { name: "Tủ sách & Bộ sưu tập", path: `/${role}/bookshelf`, icon: Bookmark },
   ]
 
-  // 🎯 ĐÃ BỔ SUNG "Video Edu & Bài giảng" CHO GIẢNG VIÊN
   const teacherNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
     { 
@@ -211,6 +238,8 @@ export default function Sidebar() {
     navigate("/login")
   }
 
+  // Giữ hiển thị mặc định 5 mục (Tạo mới, Lịch sử + 3 đoạn chat gần nhất)
+  // Nếu có nhiều hơn, người dùng bấm "+ Xem thêm" sẽ thấy đủ
   const ITEM_LIMIT = 5
 
   return (
@@ -281,11 +310,12 @@ export default function Sidebar() {
             )}
           </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-280px)] custom-scrollbar pr-1">
             {navItems.map((item) => {
               const Icon = item.icon
               const hasChildren = Boolean(item.children && item.children.length > 0)
               
+              // 🎯 Highlight submenu item nếu URL (kèm params) khớp chính xác
               const isChildActive = hasChildren && item.children.some(c => 
                 (location.pathname + location.search) === c.path || location.pathname === c.path
               )
@@ -358,9 +388,11 @@ export default function Sidebar() {
                   {hasChildren && isOpen && (
                     <div className="mt-1 ml-4 pl-2 border-l-2 border-slate-100 space-y-0.5 animate-in fade-in duration-200">
                       {visibleChildren.map((sub) => {
+                        // So khớp chính xác cả param ?session= trên URL để bôi đậm đúng bài chat
                         const currentFullPath = location.pathname + location.search
                         const isSubActive = currentFullPath === sub.path || location.pathname === sub.path
                         const SubIcon = sub.icon
+                        
                         return (
                           <Link
                             key={sub.path}

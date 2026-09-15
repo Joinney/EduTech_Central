@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Upload, 
@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Sparkles,
   Paperclip,
-  RotateCcw
+  RotateCcw,
+  Loader2
 } from "lucide-react";
 
 export default function ChatHistoryPage() {
@@ -23,65 +24,67 @@ export default function ChatHistoryPage() {
   const [selectedType, setSelectedType] = useState("Tất cả loại");
   const [selectedTime, setSelectedTime] = useState("Mọi lúc");
 
-  // Dữ liệu danh sách các phiên học
-  const [sessions, setSessions] = useState([
-    {
-      id: "chat-1",
-      group: "HÔM NAY",
-      subject: "Toán học 12",
-      model: "EduTech 4.5 Turbo",
-      messageCount: 12,
-      updatedAt: "25 phút trước",
-      starred: true,
-      title: "Giải tích phân hàm ẩn nâng cao f(x)",
-      status: "ĐÃ HOÀN THÀNH GIẢI",
-      statusColor: "bg-emerald-50 text-emerald-600 border-emerald-200",
-      aiPreview: "Để tìm nguyên hàm của f(x) thỏa mãn điều kiện 2f(x) + 3f(1-x) = x², ta thực hiện phương pháp thế biến t = 1 - x để lập hệ phương trình hai ẩn hàm f(x) và f(1-x)...",
-      actionType: "chat",
-      actionLabel: "Tiếp tục chat"
-    },
-    {
-      id: "chat-2",
-      group: "HÔM NAY",
-      subject: "Sinh học 12",
-      attachment: "SinhHoc12_Ch4.pdf (2.4 MB)",
-      messageCount: 8,
-      updatedAt: "3 giờ trước",
-      starred: false,
-      title: "Tóm tắt di truyền học & ADN Sinh 12",
-      aiPreview: "Các enzym tháo xoắn Helicase, DNA Polymerase tổng hợp mạch mới theo chiều 5' -> 3'. Mạch khuôn 3' -> 5' tổng hợp liên tục, mạch khuôn 5' -> 3' tổng hợp ngắt quãng tạo các đoạn Okazaki...",
-      actionType: "review",
-      actionLabel: "Xem lại kết quả"
-    },
-    {
-      id: "chat-3",
-      group: "7 NGÀY TRƯỚC",
-      subject: "Toán học 12",
-      badge: "Bộ 50 câu trắc nghiệm",
-      badgeColor: "bg-amber-50 text-amber-700 border-amber-100",
-      result: "Kết quả: 46/50 câu đúng",
-      updatedAt: "4 ngày trước",
-      starred: true,
-      title: "Đề thi thử Toán THPT Quốc Gia Số 08",
-      aiPreview: "Phân tích các câu hỏi phân loại 8+: Phương trình logarit chứa tham số m, hình học không gian tính góc giữa hai mặt phẳng, và cực trị số phức...",
-      actionType: "retry",
-      actionLabel: "Làm lại đề thi"
-    },
-    {
-      id: "chat-4",
-      group: "7 NGÀY TRƯỚC",
-      subject: "Tiếng Anh IELTS",
-      badge: "Chữa lỗi ngữ pháp & Lexical Resource",
-      badgeColor: "bg-slate-100 text-slate-600",
-      result: "Ước tính Band: 7.5",
-      updatedAt: "5 ngày trước",
-      starred: false,
-      title: "Bài luận Task 2: Urbanization & Environmental Impact",
-      aiPreview: "Phân tích cấu trúc câu phức, nâng cấp collocations và chỉnh sửa cách liên kết đoạn theo tiêu chuẩn Coherence & Cohesion band 7.5+...",
-      actionType: "review",
-      actionLabel: "Xem lại bài sửa"
-    }
-  ]);
+  // State lưu lịch sử thật từ Database thay vì dữ liệu cứng
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // URL gọi tới Backend FastAPI
+  const API_URL = import.meta.env.VITE_API_AI_URL || "http://localhost:8000/api/v1/ai";
+
+  // 🎯 GỌI API LẤY LỊCH SỬ TỪ MONGODB NGAY KHI VÀO TRANG
+  useEffect(() => {
+    const fetchChatHistory = async () => {
+      try {
+        const res = await fetch(`${API_URL}/chat/history?user_id=guest`);
+        const data = await res.json();
+        
+        if (data.success) {
+          // Lấy ngày hôm nay định dạng dd/mm/yyyy để phân loại nhóm
+          const todayString = new Date().toLocaleDateString('vi-VN', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+          });
+
+          // Map lại data từ Database cho khớp với UI
+          const formattedSessions = data.data.map(s => {
+            const isToday = s.time && s.time.includes(todayString);
+            
+            // Trích xuất tin nhắn làm preview (Ưu tiên lấy tin nhắn cuối cùng)
+            let previewText = "Chưa có nội dung";
+            if (s.messages && s.messages.length > 0) {
+              const lastMsg = s.messages[s.messages.length - 1].content;
+              previewText = typeof lastMsg === 'string' 
+                ? (lastMsg.length > 150 ? lastMsg.substring(0, 150) + "..." : lastMsg)
+                : "[Nội dung hình ảnh/file]";
+            }
+
+            return {
+              id: s.id,
+              group: isToday ? "HÔM NAY" : "CÁC NGÀY TRƯỚC",
+              subject: s.subject || "Chung",
+              model: "EduTech AI", 
+              messageCount: s.messages ? s.messages.length : 0,
+              updatedAt: s.time || "Gần đây",
+              starred: false,
+              title: s.title || "Phiên học chưa đặt tên",
+              status: "ĐÃ LƯU",
+              statusColor: "bg-emerald-50 text-emerald-600 border-emerald-200",
+              aiPreview: previewText,
+              actionType: "chat",
+              actionLabel: "Tiếp tục chat"
+            };
+          });
+          
+          setSessions(formattedSessions);
+        }
+      } catch (error) {
+        console.error("Lỗi khi tải lịch sử:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchChatHistory();
+  }, []);
 
   // Bật/tắt trạng thái gắn sao
   const toggleStar = (id) => {
@@ -95,7 +98,7 @@ export default function ChatHistoryPage() {
     setSessions(prev => prev.filter(item => item.id !== id));
   };
 
-  // Điều hướng sang trang chat hoặc tải lại phiên
+  // 🎯 ĐIỀU HƯỚNG VÀ TRUYỀN ID SANG TRANG CHAT AI
   const handleNavigateChat = (sessionId) => {
     const role = localStorage.getItem("role") || "student";
     navigate(`/${role.toLowerCase()}/ai-assistant${sessionId ? `?session=${sessionId}` : ""}`);
@@ -109,7 +112,7 @@ export default function ChatHistoryPage() {
   );
 
   const todaySessions = filteredSessions.filter(item => item.group === "HÔM NAY");
-  const pastSessions = filteredSessions.filter(item => item.group === "7 NGÀY TRƯỚC");
+  const pastSessions = filteredSessions.filter(item => item.group === "CÁC NGÀY TRƯỚC");
 
   return (
     <div className="min-h-screen bg-slate-50/50 p-6 lg:p-8 space-y-6 max-w-6xl mx-auto font-sans antialiased text-slate-800 select-none">
@@ -154,14 +157,6 @@ export default function ChatHistoryPage() {
         <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
           <span><b>{sessions.filter(s => s.starred).length} Đã gắn sao</b></span>
-        </div>
-        <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span><b>1.4k Tin nhắn & Lời giải</b></span>
-        </div>
-        <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-          <span><b>19 Tệp tài liệu ôn tập</b></span>
         </div>
       </div>
 
@@ -219,8 +214,15 @@ export default function ChatHistoryPage() {
         </div>
       </div>
 
+      {/* Hiển thị Loading khi đang kéo dữ liệu từ Database */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+           <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        </div>
+      )}
+
       {/* 4. SECTION: HÔM NAY */}
-      {todaySessions.length > 0 && (
+      {!loading && todaySessions.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-blue-600" />
@@ -240,12 +242,6 @@ export default function ChatHistoryPage() {
                   {session.model && (
                     <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-medium flex items-center gap-1">
                       <Sparkles className="w-2.5 h-2.5 text-blue-500" /> {session.model}
-                    </span>
-                  )}
-
-                  {session.attachment && (
-                    <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-600 border border-purple-100 text-[10px] font-semibold flex items-center gap-1">
-                      <Paperclip className="w-2.5 h-2.5" /> {session.attachment}
                     </span>
                   )}
 
@@ -287,25 +283,14 @@ export default function ChatHistoryPage() {
                   )}
                 </div>
 
-                {session.actionType === "chat" ? (
-                  <button 
-                    type="button" 
-                    onClick={() => handleNavigateChat(session.id)}
-                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#5252f8] hover:bg-[#4343e8] text-white text-xs font-semibold shadow-2xs self-start sm:self-auto cursor-pointer"
-                  >
-                    <span>{session.actionLabel}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                ) : (
-                  <button 
-                    type="button" 
-                    onClick={() => handleNavigateChat(session.id)}
-                    className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs self-start sm:self-auto cursor-pointer"
-                  >
-                    <span>{session.actionLabel}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                  </button>
-                )}
+                <button 
+                  type="button" 
+                  onClick={() => handleNavigateChat(session.id)}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-[#5252f8] hover:bg-[#4343e8] text-white text-xs font-semibold shadow-2xs self-start sm:self-auto cursor-pointer"
+                >
+                  <span>{session.actionLabel}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               <div className="bg-slate-50 rounded-xl p-2.5 text-[11px] text-slate-600 leading-relaxed border border-slate-100">
@@ -316,13 +301,13 @@ export default function ChatHistoryPage() {
         </div>
       )}
 
-      {/* 5. SECTION: 7 NGÀY TRƯỚC */}
-      {pastSessions.length > 0 && (
+      {/* 5. SECTION: CÁC NGÀY TRƯỚC */}
+      {!loading && pastSessions.length > 0 && (
         <div className="space-y-3 pt-2">
           <div className="flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-slate-400" />
             <h2 className="text-xs font-black uppercase tracking-wider text-slate-700">
-              7 NGÀY TRƯỚC <span className="text-slate-400 font-normal lowercase">({pastSessions.length} phiên thảo luận)</span>
+              CÁC NGÀY TRƯỚC <span className="text-slate-400 font-normal lowercase">({pastSessions.length} phiên thảo luận)</span>
             </h2>
           </div>
 
@@ -333,12 +318,6 @@ export default function ChatHistoryPage() {
                   <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${session.subject.includes("Toán") ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-purple-50 text-purple-600 border-purple-100"}`}>
                     {session.subject}
                   </span>
-
-                  {session.badge && (
-                    <span className={`px-2 py-0.5 rounded-md border text-[10px] font-semibold ${session.badgeColor}`}>
-                      {session.badge}
-                    </span>
-                  )}
 
                   <span className="text-[11px] text-slate-400">
                     {session.result ? `• ${session.result} • ` : "• "} {session.updatedAt}
@@ -352,9 +331,6 @@ export default function ChatHistoryPage() {
                     className="p-1 hover:text-amber-400 transition cursor-pointer"
                   >
                     <Star className={`w-3.5 h-3.5 ${session.starred ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
-                  </button>
-                  <button type="button" className="p-1 hover:text-slate-600 transition cursor-pointer">
-                    <Download className="w-3.5 h-3.5" />
                   </button>
                   <button 
                     type="button" 
@@ -370,26 +346,14 @@ export default function ChatHistoryPage() {
                 <h3 className="text-sm font-bold text-slate-900">
                   {session.title}
                 </h3>
-
-                {session.actionType === "retry" ? (
-                  <button 
-                    type="button" 
-                    onClick={() => handleNavigateChat(session.id)}
-                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs self-start sm:self-auto cursor-pointer"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                    <span>{session.actionLabel}</span>
-                  </button>
-                ) : (
-                  <button 
-                    type="button" 
-                    onClick={() => handleNavigateChat(session.id)}
-                    className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs self-start sm:self-auto cursor-pointer"
-                  >
-                    <span>{session.actionLabel}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                  </button>
-                )}
+                <button 
+                  type="button" 
+                  onClick={() => handleNavigateChat(session.id)}
+                  className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs self-start sm:self-auto cursor-pointer"
+                >
+                  <span>{session.actionLabel}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                </button>
               </div>
 
               <div className="bg-slate-50 rounded-xl p-2.5 text-[11px] text-slate-600 leading-relaxed border border-slate-100">
@@ -397,6 +361,17 @@ export default function ChatHistoryPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* HIỂN THỊ KHI TRỐNG */}
+      {!loading && sessions.length === 0 && (
+        <div className="text-center py-16">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <LayoutGrid className="w-6 h-6 text-slate-400" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-700">Chưa có dữ liệu lịch sử</h3>
+          <p className="text-slate-400 text-xs mt-1">Hãy bắt đầu một cuộc trò chuyện với EduTech AI để xem lịch sử tại đây.</p>
         </div>
       )}
     </div>
