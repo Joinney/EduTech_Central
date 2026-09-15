@@ -18,15 +18,6 @@ import {
   Layers,
 } from "lucide-react";
 
-const FILTER_CATEGORIES = [
-  "Kỹ thuật Phần mềm",
-  "Toán học",
-  "Pháp luật",
-  "Ngoại ngữ",
-  "Kinh tế",
-  "Khác",
-];
-
 export default function Search() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -286,6 +277,25 @@ export default function Search() {
     return { courses, documents, videos };
   }, [allData, keyword, filters]);
 
+  // --- TỰ ĐỘNG LẤY DANH SÁCH CHUYÊN NGÀNH TỪ DỮ LIỆU THẬT ---
+  const availableCategories = useMemo(() => {
+    const cats = new Set();
+
+    // Quét chuyên ngành từ khóa học
+    allData.courses.forEach((c) => {
+      if (c.subject && c.subject.trim() !== "") cats.add(c.subject.trim());
+    });
+
+    // Quét khoa/danh mục từ tài liệu
+    allData.documents.forEach((d) => {
+      if (d.faculty && d.faculty.trim() !== "") cats.add(d.faculty.trim());
+      else if (d.category && d.category.trim() !== "")
+        cats.add(d.category.trim());
+    });
+
+    return Array.from(cats).filter(Boolean).sort();
+  }, [allData]);
+
   const handleCategoryToggle = (cat) => {
     setFilters((prev) => ({
       ...prev,
@@ -493,7 +503,7 @@ export default function Search() {
 
           <div className="h-5 w-px bg-slate-200 mx-1 hidden sm:block"></div>
 
-          {/* 2. LỌC CHUYÊN NGÀNH */}
+          {/* 2. LỌC CHUYÊN NGÀNH (AUTO-GENERATED TỪ DATA THẬT) */}
           <div className="relative">
             <button
               onClick={() =>
@@ -514,22 +524,28 @@ export default function Search() {
             {openFilterDropdown === "category" && (
               <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden py-2 animate-in fade-in zoom-in-95 duration-100 z-50">
                 <div className="max-h-60 overflow-y-auto px-2">
-                  {FILTER_CATEGORIES.map((cat) => (
-                    <label
-                      key={cat}
-                      className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer group transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={filters.categories.includes(cat)}
-                        onChange={() => handleCategoryToggle(cat)}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                      />
-                      <span className="text-sm font-medium text-slate-700 group-hover:text-blue-800">
-                        {cat}
-                      </span>
-                    </label>
-                  ))}
+                  {availableCategories.length === 0 ? (
+                    <p className="p-3 text-xs text-center text-slate-400">
+                      Không có chuyên ngành nào
+                    </p>
+                  ) : (
+                    availableCategories.map((cat) => (
+                      <label
+                        key={cat}
+                        className="flex items-center gap-3 p-2 hover:bg-blue-50 rounded-lg cursor-pointer group transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={filters.categories.includes(cat)}
+                          onChange={() => handleCategoryToggle(cat)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                        />
+                        <span className="text-sm font-medium text-slate-700 group-hover:text-blue-800">
+                          {cat}
+                        </span>
+                      </label>
+                    ))
+                  )}
                 </div>
                 <div className="border-t border-slate-100 p-2 mt-2 flex justify-between gap-2 bg-slate-50/50">
                   <button
