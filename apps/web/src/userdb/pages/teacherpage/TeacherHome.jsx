@@ -5,21 +5,18 @@ import {
   Video,
   PlusCircle,
   Users,
-  BookOpen,
   FileCheck,
-  Clock,
   BarChart3,
   Calendar,
   ArrowUpRight,
-  CheckCircle2,
-  AlertCircle,
   FolderPlus,
-  MessageSquare,
   Search,
   BookMarked,
   FileText,
   Globe,
   ArrowRight,
+  Settings,
+  BookOpen,
 } from "lucide-react";
 
 // Import Modal Onboarding dành riêng cho Giảng viên
@@ -68,7 +65,7 @@ function TeacherParticleCanvas() {
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 237, 213, ${p.alpha})`;
+        ctx.fillStyle = `rgba(255, 237, 213, ${p.alpha})`; // Hạt màu cam nhạt
         ctx.shadowBlur = 6;
         ctx.shadowColor = "#ffedd5";
         ctx.fill();
@@ -139,15 +136,23 @@ export default function TeacherHome() {
         try {
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser);
+
+          // Đọc cả 2 kiểu tên cờ isOnboarded và is_onboarded
           const isOnboarded =
             parsedUser.isOnboarded ?? parsedUser.is_onboarded ?? false;
-          if (!isOnboarded) setShowTeacherModal(true);
+
+          // Nếu CHƯA onboard -> Bật Modal Giảng viên
+          if (!isOnboarded) {
+            setShowTeacherModal(true);
+          }
         } catch (e) {
           console.error("Lỗi đọc dữ liệu người dùng:", e);
         }
       }
     };
+
     loadUserData();
+
     window.addEventListener("storage", loadUserData);
     return () => window.removeEventListener("storage", loadUserData);
   }, []);
@@ -161,7 +166,7 @@ export default function TeacherHome() {
           fetch(`${baseUrl}/shared-documents?all=true`).catch(() => ({
             json: () => [],
           })),
-          fetch(`${baseUrl}/videos`).catch(() => ({ json: () => [] })), // ĐÃ FIX THÀNH /videos
+          fetch(`${baseUrl}/videos`).catch(() => ({ json: () => [] })),
         ]);
 
         const courseData = await courseRes.json();
@@ -188,7 +193,7 @@ export default function TeacherHome() {
             String(d.category || "").toLowerCase() !== "video",
         );
 
-        // Chuẩn hóa dữ liệu Video
+        // Chuẩn hóa dữ liệu Video thật
         const formattedVideos = rawVideos.map((v) => ({
           id: v.id,
           title: v.title || v.video_title || "Video bài giảng",
@@ -227,29 +232,27 @@ export default function TeacherHome() {
       value: searchKeyword.trim(),
     };
 
-    // Quét tìm trong Khóa học (Kiểm tra cả title và courseName)
     const matchedCourses = allData.courses
-      .filter((c) => {
-        const cTitle = String(c.title || c.courseName || "").toLowerCase();
-        const cSubj = String(c.subject || "").toLowerCase();
-        return cTitle.includes(kw) || cSubj.includes(kw);
-      })
+      .filter(
+        (c) =>
+          c.title?.toLowerCase().includes(kw) ||
+          c.subject?.toLowerCase().includes(kw),
+      )
       .slice(0, 3)
       .map((c) => ({
         isGlobal: false,
         type: "course",
-        text: c.title || c.courseName,
-        value: c.title || c.courseName,
+        text: c.title,
+        value: c.title,
         id: c.id || c.id_course,
       }));
 
-    // Quét tìm trong Tài liệu
     const matchedDocs = allData.documents
-      .filter((d) => {
-        const dTitle = String(d.title || "").toLowerCase();
-        const dFac = String(d.faculty || d.category || "").toLowerCase();
-        return dTitle.includes(kw) || dFac.includes(kw);
-      })
+      .filter(
+        (d) =>
+          d.title?.toLowerCase().includes(kw) ||
+          d.faculty?.toLowerCase().includes(kw),
+      )
       .slice(0, 3)
       .map((d) => ({
         isGlobal: false,
@@ -259,13 +262,12 @@ export default function TeacherHome() {
         id: d.id,
       }));
 
-    // Quét tìm trong Video
     const matchedVideos = allData.videos
-      .filter((v) => {
-        const vTitle = String(v.title || "").toLowerCase();
-        const vAuth = String(v.author || "").toLowerCase();
-        return vTitle.includes(kw) || vAuth.includes(kw);
-      })
+      .filter(
+        (v) =>
+          v.title?.toLowerCase().includes(kw) ||
+          v.author?.toLowerCase().includes(kw),
+      )
       .slice(0, 3)
       .map((v) => ({
         isGlobal: false,
@@ -275,11 +277,10 @@ export default function TeacherHome() {
         id: v.id,
       }));
 
-    // Từ khóa tĩnh
     const staticKeywords = [
       "Giáo án mẫu",
       "Bài giảng tương tác",
-      "Trí tuệ nhân tạo (AI)",
+      "Trí tuệ nhân tạo (AI) trong giáo dục",
       "Ma trận đề thi",
     ];
     const matchedStatic = staticKeywords
@@ -668,11 +669,14 @@ export default function TeacherHome() {
               </div>
 
               <div className="pt-2 flex space-x-2">
-                <button className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition cursor-pointer">
-                  Vào lớp học
+                <button
+                  onClick={() => navigate(`/${role}/courses/1`)}
+                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <BookOpen className="w-3.5 h-3.5" /> Xem giáo án
                 </button>
-                <button className="px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition cursor-pointer">
-                  Sửa giáo án
+                <button className="px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5">
+                  <Settings className="w-3.5 h-3.5" /> Quản lý
                 </button>
               </div>
             </div>
@@ -698,11 +702,14 @@ export default function TeacherHome() {
               </div>
 
               <div className="pt-2 flex space-x-2">
-                <button className="flex-1 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition cursor-pointer">
-                  Vào lớp học
+                <button
+                  onClick={() => navigate(`/${role}/courses/2`)}
+                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <BookOpen className="w-3.5 h-3.5" /> Xem giáo án
                 </button>
-                <button className="px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition cursor-pointer">
-                  Sửa giáo án
+                <button className="px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5">
+                  <Settings className="w-3.5 h-3.5" /> Quản lý
                 </button>
               </div>
             </div>

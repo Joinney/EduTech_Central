@@ -822,7 +822,7 @@ export default function TeacherSearch() {
                               {course.subject || "Chuyên ngành"}
                             </span>
                             <span className="text-xs font-black text-orange-600 group-hover:underline">
-                              Chi tiết
+                              Tham khảo
                             </span>
                           </div>
                         </div>
