@@ -2,7 +2,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
-import { CheckCircle2, XCircle, ArrowRight, Loader2, CreditCard, ShieldCheck } from "lucide-react"
+import { CheckCircle2, XCircle, ArrowRight, Loader2 } from "lucide-react"
 import { paymentApi } from "../../../../api/payment.api"
 
 export default function PaymentResult() {
@@ -10,6 +10,8 @@ export default function PaymentResult() {
   const navigate = useNavigate()
   const [status, setStatus] = useState("loading") // "loading" | "success" | "failed"
   const [transactionData, setTransactionData] = useState(null)
+
+  const courseBaseUrl = import.meta.env.VITE_API_COURSE_URL || "http://localhost:8002/api/v1"
 
   useEffect(() => {
     const verify = async () => {
@@ -28,6 +30,19 @@ export default function PaymentResult() {
         if (res.status === "SUCCESS") {
           setStatus("success")
           setTransactionData(res.data)
+
+          // 🎯 FALLBACK ĐẢM BẢO 100%: Kích hoạt enroll sang course-service ngay từ client
+          if (res.data?.course_id && res.data?.user_id) {
+            fetch(`${courseBaseUrl}/courses/${res.data.course_id}/join`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                student_id: res.data.user_id,
+                student_name: res.data.user_name || "Học viên",
+                email: res.data.user_email || ""
+              })
+            }).catch(e => console.warn("Enroll fallback warning:", e))
+          }
         } else {
           setStatus("failed")
         }
@@ -39,6 +54,15 @@ export default function PaymentResult() {
 
     verify()
   }, [searchParams])
+
+  const handleGoToCourse = () => {
+    if (transactionData?.course_id) {
+      // Chuyển thẳng vào không gian học tập của khóa học đó
+      navigate(`/student/courses/${transactionData.course_id}`)
+    } else {
+      navigate("/student/courses")
+    }
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-6 animate-fadeIn">
@@ -70,8 +94,8 @@ export default function PaymentResult() {
             )}
 
             <button
-              onClick={() => navigate("/student/courses")}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer"
+              onClick={handleGoToCourse}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition active:scale-95"
             >
               <span>Vào Học Khóa Này Ngay</span>
               <ArrowRight className="w-4 h-4" />

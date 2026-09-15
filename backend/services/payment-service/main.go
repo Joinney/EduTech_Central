@@ -232,18 +232,24 @@ func enrollStudentToCourse(courseID, studentID uint, name, email string) {
 	}
 
 	reqBody, _ := json.Marshal(map[string]interface{}{
-		"student_id":   studentID,
-		"student_name": name,
-		"email":        email,
+		"student_id":    studentID,
+		"student_name":  name,
+		"student_email": email, // Khớp chuẩn với Course-Service
+		"email":         email,
 	})
 
 	url := fmt.Sprintf("%s/courses/%d/join", courseServiceURL, courseID)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBody))
+	log.Printf("🔄 [payment-service] Đang gửi yêu cầu ghi danh: %s với student_id=%d", url, studentID)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
-		log.Printf("⚠️ Lỗi gọi ghi danh sang course-service: %v", err)
+		log.Printf("❌ [payment-service] Lỗi gọi ghi danh sang course-service: %v", err)
 		return
 	}
 	defer resp.Body.Close()
+
+	log.Printf("✅ [payment-service] Kết quả ghi danh từ course-service: HTTP Status %d", resp.StatusCode)
 }
 
 // 🎯 3. API: Lấy toàn bộ lịch sử thanh toán (Admin)

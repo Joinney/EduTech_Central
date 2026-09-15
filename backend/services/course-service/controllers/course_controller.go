@@ -873,17 +873,25 @@ func DeleteDiscussion(c *gin.Context) {
 // @Param        request body  object  true  "Thông tin học viên"
 // @Success      201     {object} map[string]interface{}
 // @Router       /courses/{id}/join [post]
+// POST /api/v1/courses/:id/join
 func JoinCourse(c *gin.Context) {
 	courseID := c.Param("id")
 	var req struct {
 		StudentID    uint   `json:"student_id"`
 		StudentName  string `json:"student_name"`
 		StudentEmail string `json:"student_email"`
+		Email        string `json:"email"` // Hỗ trợ fallback nhận cả key "email"
 		AvatarURL    string `json:"avatar_url"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Dữ liệu không hợp lệ: " + err.Error()})
 		return
+	}
+
+	// Chuẩn hóa email
+	finalEmail := req.StudentEmail
+	if finalEmail == "" {
+		finalEmail = req.Email
 	}
 
 	var course models.Course
@@ -899,9 +907,16 @@ func JoinCourse(c *gin.Context) {
 		return
 	}
 
+	// Kiểm tra đã tham gia chưa bằng StudentID
 	var existing models.CourseStudent
-	if err := configs.DB.Where("course_id = ? AND (student_id = ? OR student_email = ?)", course.ID, req.StudentID, req.StudentEmail).First(&existing).Error; err == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Bạn đã tham gia lớp học này rồi!"})
+	query := configs.DB.Where("course_id = ? AND student_id = ?", course.ID, req.StudentID)
+	if finalEmail != "" {
+		query = configs.DB.Where("course_id = ? AND (student_id = ? OR student_email = ?)", course.ID, req.StudentID, finalEmail)
+	}
+
+	if err := query.First(&existing).Error; err == nil {
+		// Đã ghi danh rồi -> Phản hồi thành công luôn để payment-service không bị fail
+		c.JSON(http.StatusOK, gin.H{"message": "Học viên đã tham gia khóa học này từ trước.", "data": existing})
 		return
 	}
 
@@ -909,13 +924,13 @@ func JoinCourse(c *gin.Context) {
 		CourseID:     course.ID,
 		StudentID:    req.StudentID,
 		StudentName:  req.StudentName,
-		StudentEmail: req.StudentEmail,
+		StudentEmail: finalEmail,
 		AvatarURL:    req.AvatarURL,
 		CreatedAt:    time.Now(),
 	}
 
 	if err := configs.DB.Create(&enrollment).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu dữ liệu tham gia"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Không thể lưu dữ liệu tham gia: " + err.Error()})
 		return
 	}
 
