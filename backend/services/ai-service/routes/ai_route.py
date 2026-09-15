@@ -1,7 +1,9 @@
 import os
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
-from controllers.ai_controller import AIController, MultiModelChatRequest
+
+# Đừng quên import thêm ChatSaveRequest ở dòng này
+from controllers.ai_controller import AIController, MultiModelChatRequest, ChatSaveRequest
 from services.ai_service import AIService
 
 router = APIRouter(prefix="/ai", tags=["Multi-Model Chat"])
@@ -40,3 +42,21 @@ async def upload_document(file: UploadFile = File(...)):
     if not file:
         raise HTTPException(status_code=400, detail="Không có tệp nào được gửi lên")
     return await AIController.upload_and_process(file)
+
+# ----------------------------------------------------------------------
+# CÁC ENDPOINT BỔ SUNG CHO TÍNH NĂNG LỊCH SỬ CHAT (MONGODB)
+# ----------------------------------------------------------------------
+
+@router.post("/chat/save", summary="Lưu hoặc cập nhật lịch sử chat")
+async def save_chat_history(payload: ChatSaveRequest):
+    """Nhận dữ liệu từ React và lưu vào MongoDB."""
+    return await AIController.save_chat_history(payload)
+
+@router.get("/chat/history", summary="Lấy danh sách lịch sử chat")
+async def get_history(user_id: str = "guest"):
+    """
+    Trả về danh sách 20 phiên chat gần nhất của user.
+    Lưu ý: Tạm dùng mặc định user_id = "guest".
+    Sau này khi có chức năng Login, bạn sẽ lấy ID từ Token.
+    """
+    return await AIController.get_chat_history(user_id)

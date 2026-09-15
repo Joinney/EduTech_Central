@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+# Tải các biến môi trường từ file .env
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,6 +21,10 @@ class Settings:
     DEEPSEEK_BASE_URL: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.iamhc.cn/v1")
     DEFAULT_MODEL: str = os.getenv("DEEPSEEK_MODEL", "DeepSeek-V4-Flash")
 
+    # MongoDB Configs (Mới thêm)
+    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    DB_NAME: str = os.getenv("DB_NAME", "edutech_lichsuchatai")
+
     # Danh sách model lấy từ Model Limits của bạn
     AVAILABLE_MODELS: list = [
         "DeepSeek-V4-Flash",
@@ -34,4 +39,5 @@ class Settings:
         "spark-x2.5"
     ]
 
+# Khởi tạo instance settings để import ở các file khác
 settings = Settings()
