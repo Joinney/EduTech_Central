@@ -175,11 +175,18 @@ export default function CourseDetailPage({ onBack }) {
   const currentUserEmail = storedUser.email || "";
   const currentUserAvatar = storedUser.avatar || storedUser.avatar_url || "";
 
-  // 🎯 Bóc tách ID an toàn
+  // 🎯 Bóc tách ID an toàn tuyệt đối
   const targetId = useMemo(() => {
-    if (params?.id) return String(params.id).trim();
     if (params?.courseId) return String(params.courseId).trim();
+    if (params?.id) return String(params.id).trim();
+    
+    // Quét trực tiếp pathname: ví dụ /student/courses/18 hoặc /courses/18/learn
     const pathParts = location.pathname.split("/").filter(Boolean);
+    const courseIndex = pathParts.indexOf("courses");
+    if (courseIndex !== -1 && pathParts[courseIndex + 1]) {
+      const nextSegment = pathParts[courseIndex + 1];
+      if (!isNaN(nextSegment)) return String(nextSegment).trim();
+    }
     const lastPart = pathParts[pathParts.length - 1];
     return lastPart && !isNaN(lastPart) ? String(lastPart).trim() : "";
   }, [params, location.pathname]);
@@ -268,9 +275,17 @@ export default function CourseDetailPage({ onBack }) {
             });
           }
 
-          if (!cData && allList.length > 0) {
-            cData = allList[0];
-          }
+          if (!cData || (!cData.id && !cData.id_course)) {
+    const allRes = await courseService.getAllCourses().catch(() => []);
+    const allList = Array.isArray(allRes) ? allRes : (allRes?.data || []);
+
+    if (targetId) {
+      cData = allList.find((item) => {
+        const rawId = item.id ?? item.id_course ?? item.course_id;
+        return String(rawId).trim() === String(targetId).trim();
+      });
+    }
+  }
         }
 
         if (cData) {
@@ -962,44 +977,51 @@ export default function CourseDetailPage({ onBack }) {
             </div>
 
             {/* 🎯 NÚT BẤM DÀNH CHO GIẢNG VIÊN ĐI THẲNG VÀO KHÔNG GIAN HỌC */}
-            <button
-              className="reg-sparkle-btn"
-              onClick={() => {
-                if (isTeacher) {
-                  navigate(`/teacher/courses/${course.id}/learn`);
-                } else if (isRegistered) {
-                  navigate(`/teacher/courses/${course.id}/learn`);
-                } else {
-                  setShowConfirmModal(true);
-                }
-              }}
-            >
-              {isTeacher ? (
-                <>
-                  <BookOpen className="w-4 h-4" />
-                  <span>VÀO LỚP HỌC (GIẢNG VIÊN)</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              ) : isRegistered ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>VÀO KHÔNG GIAN HỌC</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              ) : course.price > 0 ? (
-                <>
-                  <CreditCard className="w-4 h-4" />
-                  <span>
-                    THANH TOÁN VNPAY ({course.price.toLocaleString("vi-VN")} đ)
-                  </span>
-                </>
-              ) : (
-                <>
-                  <PlusCircle className="w-4 h-4" />
-                  <span>ĐĂNG KÝ HỌC PHẦN (MIỄN PHÍ)</span>
-                </>
-              )}
-            </button>
+<button
+  className={`reg-sparkle-btn ${isTeacher || isRegistered ? "registered" : ""}`}
+  disabled={isProcessing}
+  onClick={() => {
+    const finalCourseId = course?.id || targetId;
+    if (isTeacher) {
+      navigate(`/teacher/courses/${finalCourseId}/learn`);
+    } else if (isRegistered) {
+      navigate(`/student/courses/${finalCourseId}/learn`);
+    } else {
+      setShowConfirmModal(true);
+    }
+  }}
+>
+  {isProcessing ? (
+    <>
+      <Loader2 className="w-4 h-4 animate-spin" />
+      <span>ĐANG XỬ LÝ...</span>
+    </>
+  ) : isTeacher ? (
+    <>
+      <Building className="w-4 h-4" />
+      <span>VÀO LỚP HỌC QUẢN LÝ (GV)</span>
+      <ArrowRight className="w-4 h-4" />
+    </>
+  ) : isRegistered ? (
+    <>
+      <CheckCircle2 className="w-4 h-4" />
+      <span>VÀO KHÔNG GIAN HỌC</span>
+      <ArrowRight className="w-4 h-4" />
+    </>
+  ) : course.price > 0 ? (
+    <>
+      <CreditCard className="w-4 h-4" />
+      <span>
+        THANH TOÁN VNPAY ({course.price.toLocaleString("vi-VN")} đ)
+      </span>
+    </>
+  ) : (
+    <>
+      <PlusCircle className="w-4 h-4" />
+      <span>ĐĂNG KÝ HỌC PHẦN (MIỄN PHÍ)</span>
+    </>
+  )}
+</button>
           </div>
         </div>
       </section>

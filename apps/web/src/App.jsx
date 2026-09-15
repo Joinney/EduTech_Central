@@ -131,14 +131,19 @@ export default function App() {
             <Route index element={<Navigate to="/teacher/home" replace />} />
             <Route path="home" element={<TeacherHome />} />
             <Route path="search" element={<Search />} />
+            
+            {/* 1. Trang xem thông tin chi tiết / giới thiệu khóa học */}
             <Route path="courses/:courseId" element={<CourseDetail />} />
-            <Route
-              path="courses/:courseId/learn"
-              element={<StudentCourseDetail />}
-            />
+
+            {/* 2. 🎯 Trang QUẢN LÝ LỚP HỌC của Giảng viên (Không dùng StudentCourseDetail) */}
+            <Route path="courses/:courseId/learn" element={<CourseManagement />} />
+            <Route path="courses/:courseId/manage" element={<CourseManagement />} />
+
             <Route path="ai-assistant" element={<TroLyAIPage />} />
             <Route path="ai-history" element={<ChatHistorySidebar />} />
             <Route path="dashboard" element={<TeacherHome />} />
+            
+            {/* Quản lý danh sách các khóa học của giáo viên */}
             <Route path="courses" element={<CourseManagement />} />
             <Route path="courses/request" element={<TeacherRequestCourse />} />
 
