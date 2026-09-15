@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"crypto/hmac"
@@ -49,7 +49,6 @@ func removeAccents(str string) string {
 	for replace, regex := range accents {
 		str = regex.ReplaceAllString(str, replace)
 	}
-	// Bỏ ký tự đặc biệt, chỉ giữ chữ cái, số và khoảng trắng
 	re := regexp.MustCompile(`[^a-zA-Z0-9\s]`)
 	str = re.ReplaceAllString(str, "")
 	return strings.TrimSpace(str)
