@@ -228,7 +228,7 @@ export default function Header() {
       navigate(`/${role}/courses/${item.id || item.id_course}`);
     else if (item.itemType === "document")
       navigate(`/${role}/documents/${item.id}`);
-    else if (item.itemType === "video") navigate(`/${role}/videos/${item.id}`); // Trỏ về trang video thật
+    else if (item.itemType === "video") navigate(`/${role}/videos/${item.id}`);
   };
 
   const handleLogout = async () => {
@@ -277,7 +277,6 @@ export default function Header() {
   };
 
   return (
-    // THAY ĐỔI z-40 THÀNH z-[100] ĐỂ HEADER LUÔN NẰM TRÊN CÙNG
     <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-[100] shrink-0">
       <Link
         to={dashboardPath}
@@ -366,14 +365,17 @@ export default function Header() {
           <span className="hidden sm:inline">Trợ lý AI</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => navigate(upgradePath)}
-          className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-full text-xs font-black shadow-xs shadow-orange-500/25 transition cursor-pointer"
-        >
-          <Crown className="w-3.5 h-3.5 fill-white" />
-          <span className="hidden sm:inline">Nâng cấp Edu</span>
-        </button>
+        {/* CHỈ HỌC VIÊN MỚI THẤY NÚT NÂNG CẤP EDU */}
+        {!isTeacher && (
+          <button
+            type="button"
+            onClick={() => navigate(upgradePath)}
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-full text-xs font-black shadow-xs shadow-orange-500/25 transition cursor-pointer"
+          >
+            <Crown className="w-3.5 h-3.5 fill-white" />
+            <span className="hidden sm:inline">Nâng cấp Edu</span>
+          </button>
+        )}
 
         <div className="hidden lg:flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full text-xs font-bold">
           <GraduationCap className="w-4 h-4 text-slate-600" />
@@ -400,11 +402,11 @@ export default function Header() {
               <img
                 src={avatarUrl}
                 alt={fullName}
-                className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm hover:ring-2 hover:ring-blue-500 transition"
+                className={`w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm transition ${isTeacher ? "hover:ring-2 hover:ring-orange-500" : "hover:ring-2 hover:ring-blue-500"}`}
               />
             ) : (
               <div
-                className={`w-8 h-8 rounded-full bg-gradient-to-r ${theme.gradient} text-white font-black text-[10px] flex items-center justify-center border border-slate-200 shadow-sm hover:ring-2 hover:ring-blue-500 transition`}
+                className={`w-8 h-8 rounded-full bg-gradient-to-r ${theme.gradient} text-white font-black text-[10px] flex items-center justify-center border border-slate-200 shadow-sm transition ${isTeacher ? "hover:ring-2 hover:ring-orange-500" : "hover:ring-2 hover:ring-blue-500"}`}
               >
                 {getInitials(fullName)}
               </div>
@@ -450,28 +452,33 @@ export default function Header() {
                   <UserIcon className="w-4 h-4 text-slate-400" />
                   <span>Trang cá nhân</span>
                 </button>
-                <button
-                  onClick={() => {
-                    setShowDropdown(false);
-                    navigate(upgradePath);
-                  }}
-                  className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 transition cursor-pointer"
-                >
-                  <Crown className="w-4 h-4 text-orange-500 fill-orange-400" />
-                  <span>Nâng cấp tài khoản Edu Pro</span>
-                </button>
+
+                {/* CHỈ HỌC VIÊN MỚI THẤY NÚT NÂNG CẤP TRONG DROPDOWN VÀ LỊCH SỬ THANH TOÁN */}
                 {!isTeacher && (
-                  <button
-                    onClick={() => {
-                      setShowDropdown(false);
-                      navigate("/student/transactions");
-                    }}
-                    className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 transition cursor-pointer"
-                  >
-                    <Receipt className="w-4 h-4 text-blue-500" />
-                    <span>Lịch sử thanh toán (VNPay)</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowDropdown(false);
+                        navigate(upgradePath);
+                      }}
+                      className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-orange-600 hover:bg-orange-50 transition cursor-pointer"
+                    >
+                      <Crown className="w-4 h-4 text-orange-500 fill-orange-400" />
+                      <span>Nâng cấp tài khoản Edu Pro</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDropdown(false);
+                        navigate("/student/transactions");
+                      }}
+                      className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+                    >
+                      <Receipt className="w-4 h-4 text-blue-500" />
+                      <span>Lịch sử thanh toán (VNPay)</span>
+                    </button>
+                  </>
                 )}
+
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center space-x-2.5 px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 border-t border-slate-100 mt-1 transition cursor-pointer"

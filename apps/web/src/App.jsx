@@ -45,6 +45,7 @@ import Grading from "./userdb/pages/teacherpage/chamdiemdiemso/Grading.jsx";
 import StudentList from "./userdb/pages/teacherpage/danhsachhocvien/StudentList.jsx";
 import Schedule from "./userdb/pages/teacherpage/lichdaymeet/Schedule.jsx";
 import TeacherExamSubmissions from "./userdb/pages/teacherpage/quanlylophoc/TeacherExamSubmissions.jsx";
+import TeacherSearch from "./userdb/pages/teacherpage/TeacherSearch.jsx";
 
 // ================= ADMIN PAGES =================
 import AdminHome from "./admindb/pages/AdminHome.jsx";
@@ -133,7 +134,7 @@ export default function App() {
             {/* 🎯 TRỢ LÝ TRỢ GIẢNG AI & LỊCH SỬ CHO TEACHER */}
             <Route path="ai-assistant" element={<TroLyAIPage />} />
             <Route path="ai-history" element={<ChatHistorySidebar />} />
-
+            <Route path="search" element={<TeacherSearch />} />
             <Route path="dashboard" element={<TeacherHome />} />
             <Route path="courses" element={<CourseManagement />} />
             <Route path="courses/request" element={<TeacherRequestCourse />} />
