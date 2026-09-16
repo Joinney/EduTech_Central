@@ -1,7 +1,7 @@
 /* eslint-disable react/prop-types */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useParams } from "react-router-dom"
 import CourseDetail from "./CourseDetail.jsx"
 import { courseService } from "../../../../api/course.api" 
 import { 
@@ -25,15 +25,13 @@ import {
 
 export default function CourseManagement() {
   const navigate = useNavigate()
+  const { courseId } = useParams()
+
   const [courses, setCourses] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [activeTypeTab, setActiveTypeTab] = useState("external")
   const [searchTerm, setSearchTerm] = useState("")
-
-  useEffect(() => {
-    fetchCourses()
-  }, [])
 
   const fetchCourses = async () => {
     try {
@@ -43,7 +41,8 @@ export default function CourseManagement() {
       const teacherId = currentUser?.id || currentUser?.id_users || null
 
       const data = await courseService.getAllCourses(teacherId)
-      setCourses(data || [])
+      const courseList = Array.isArray(data) ? data : (data?.data || [])
+      setCourses(courseList)
     } catch (error) {
       console.error("Lỗi khi tải danh sách lớp học:", error)
     } finally {
@@ -51,7 +50,26 @@ export default function CourseManagement() {
     }
   }
 
-  const filteredCourses = courses.filter(c => {
+  useEffect(() => {
+    fetchCourses()
+  }, [])
+
+  // 🎯 TỰ ĐỘNG MỞ LỚP HỌC KHI URL CÓ COURSE ID (/teacher/courses/:courseId/learn)
+  useEffect(() => {
+    if (courseId && courses.length > 0) {
+      const matched = courses.find(
+        (c) => String(c.id) === String(courseId) || String(c.id_course) === String(courseId)
+      )
+      if (matched) {
+        setSelectedCourse(matched)
+        if (matched.type) {
+          setActiveTypeTab(matched.type)
+        }
+      }
+    }
+  }, [courseId, courses])
+
+  const filteredCourses = courses.filter((c) => {
     const matchesType = c.type === activeTypeTab
     const matchesSearch = 
       (c.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -65,7 +83,7 @@ export default function CourseManagement() {
     if (window.confirm("Thầy/Cô có chắc chắn muốn xóa khóa học này?")) {
       try {
         await courseService.deleteCourse(id)
-        setCourses(courses.filter(c => c.id !== id))
+        setCourses(courses.filter((c) => c.id !== id))
       } catch (error) {
         console.error("Lỗi khi xóa lớp học:", error)
         alert("Không thể xóa lớp học lúc này.")
@@ -73,11 +91,18 @@ export default function CourseManagement() {
     }
   }
 
+  // 🎯 KHI MỞ CHI TIẾT LỚP HỌC DÀNH CHO GIẢNG VIÊN
   if (selectedCourse) {
-    return <CourseDetail course={selectedCourse} onBack={() => {
-      setSelectedCourse(null);
-      fetchCourses();
-    }} />
+    return (
+      <CourseDetail 
+        course={selectedCourse} 
+        onBack={() => {
+          setSelectedCourse(null)
+          navigate("/teacher/courses")
+          fetchCourses()
+        }} 
+      />
+    )
   }
 
   return (
@@ -97,7 +122,6 @@ export default function CourseManagement() {
           </p>
         </div>
 
-        {/* Nút điều hướng sang trang tạo khóa học riêng */}
         <button
           onClick={() => navigate("/teacher/courses/request")}
           className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold rounded-xl shadow-md shadow-orange-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
@@ -119,7 +143,7 @@ export default function CourseManagement() {
             }`}
           >
             <Globe className="w-4 h-4" />
-            <span>Khóa Kỹ Năng / Tự Do ({courses.filter(c => c.type === "external").length})</span>
+            <span>Khóa Kỹ Năng / Tự Do ({courses.filter((c) => c.type === "external").length})</span>
           </button>
 
           <button
@@ -131,7 +155,7 @@ export default function CourseManagement() {
             }`}
           >
             <School className="w-4 h-4" />
-            <span>Lớp Trường Học Chính Quy ({courses.filter(c => c.type === "school").length})</span>
+            <span>Lớp Trường Học Chính Quy ({courses.filter((c) => c.type === "school").length})</span>
           </button>
         </div>
 
@@ -169,7 +193,10 @@ export default function CourseManagement() {
             return (
               <div 
                 key={course.id} 
-                onClick={() => setSelectedCourse(course)}
+                onClick={() => {
+                  setSelectedCourse(course)
+                  navigate(`/teacher/courses/${course.id}/learn`)
+                }}
                 className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col group cursor-pointer"
               >
                 {/* Ảnh Thumbnail & Tag Trạng Thái */}
@@ -184,7 +211,6 @@ export default function CourseManagement() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
                   
-                  {/* Badge Trạng Thái */}
                   <div className="absolute top-3 left-3 flex items-center space-x-1.5">
                     {status === "APPROVED" && (
                       <span className="px-2.5 py-0.5 bg-emerald-600 text-white text-[10px] font-black uppercase rounded-md shadow-2xs flex items-center space-x-1">

@@ -116,7 +116,7 @@ export default function Sidebar() {
         if (res.ok) {
           const data = await res.json()
           if (data.success && data.data) {
-            // SỬA: slice(0, 3) để hiển thị đúng 3 phiên bản gần nhất cho gọn gàng
+            // Hiển thị đúng 3 phiên bản gần nhất cho gọn gàng
             setRecentChats(data.data.slice(0, 3))
           }
         }
@@ -231,7 +231,6 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between text-slate-700 select-none shrink-0 p-4 transition-all">
       <div className="space-y-4">
-        {/* User Card */}
         <Link
           to={`/${role}/profile`}
           className={`relative group p-3 rounded-2xl border shadow-xs flex items-center space-x-3 transition-all cursor-pointer block ${
@@ -285,7 +284,6 @@ export default function Sidebar() {
           </div>
         </Link>
 
-        {/* Navigation List */}
         <div className="space-y-1.5">
           <div className="px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center justify-between pb-1">
             <span>{isTeacher ? "Menu Quản Lý" : "Menu Học Tập"}</span>
@@ -296,7 +294,7 @@ export default function Sidebar() {
             )}
           </div>
 
-          <nav className="space-y-1">
+          <nav className="space-y-1 overflow-y-auto max-h-[calc(100vh-280px)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
             {navItems.map((item) => {
               const Icon = item.icon
               const hasChildren = Boolean(item.children && item.children.length > 0)
@@ -369,7 +367,6 @@ export default function Sidebar() {
                     </Link>
                   )}
 
-                  {/* 🎯 Hiển thị mục con khi submenu được mở */}
                   {hasChildren && isOpen && (
                     <div className="mt-1.5 ml-4 pl-3 border-l-[1.5px] border-slate-100 space-y-1 animate-in fade-in duration-200">
                       {visibleChildren.map((sub) => {
@@ -427,7 +424,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Footer Sidebar */}
       <div className="pt-3 border-t border-slate-100 space-y-2">
         <div className={`p-3 rounded-2xl border space-y-1.5 ${
           isTeacher 

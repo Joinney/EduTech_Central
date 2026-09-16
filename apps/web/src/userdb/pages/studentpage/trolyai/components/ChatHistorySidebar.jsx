@@ -24,6 +24,7 @@ export default function ChatHistoryPage() {
   const [selectedType, setSelectedType] = useState("Tất cả loại");
   const [selectedTime, setSelectedTime] = useState("Mọi lúc");
 
+<<<<<<< HEAD
   // State lưu lịch sử thật từ Database thay vì dữ liệu cứng
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,15 +41,38 @@ export default function ChatHistoryPage() {
         
         if (data.success) {
           // Lấy ngày hôm nay định dạng dd/mm/yyyy để so sánh
+=======
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const API_URL = import.meta.env.VITE_API_AI_URL || "http://localhost:8000/api/v1/ai";
+
+  useEffect(() => {
+    const fetchChatHistory = async () => {
+      try {
+        const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const userId = currentUser.id || currentUser._id || currentUser.uid || currentUser.userId || currentUser.email || currentUser.fullName || currentUser.full_name || "guest";
+
+        const res = await fetch(`${API_URL}/chat/history?user_id=${userId}`);
+        const data = await res.json();
+        
+        if (data.success) {
+>>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
           const todayString = new Date().toLocaleDateString('vi-VN', {
             day: '2-digit', month: '2-digit', year: 'numeric'
           });
 
+<<<<<<< HEAD
           // Map lại data từ Database cho khớp với UI
           const formattedSessions = data.data.map(s => {
             const isToday = s.time && s.time.includes(todayString);
             
             // Trích xuất tin nhắn làm preview (Ưu tiên lấy tin nhắn cuối cùng)
+=======
+          const formattedSessions = data.data.map(s => {
+            const isToday = s.time && s.time.includes(todayString);
+            
+>>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
             let previewText = "Chưa có nội dung";
             if (s.messages && s.messages.length > 0) {
               const lastMsg = s.messages[s.messages.length - 1].content;
@@ -86,26 +110,26 @@ export default function ChatHistoryPage() {
     fetchChatHistory();
   }, []);
 
-  // Bật/tắt trạng thái gắn sao
   const toggleStar = (id) => {
     setSessions(prev =>
       prev.map(item => item.id === id ? { ...item, starred: !item.starred } : item)
     );
   };
 
-  // Xóa một phiên học khỏi danh sách
   const deleteSession = (id) => {
     setSessions(prev => prev.filter(item => item.id !== id));
     // Lưu ý: Có thể gọi thêm API DELETE tới backend ở đây trong tương lai
   };
 
+<<<<<<< HEAD
   // 🎯 ĐIỀU HƯỚNG VÀ TRUYỀN ID SANG TRANG CHAT AI
+=======
+>>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
   const handleNavigateChat = (sessionId) => {
     const role = localStorage.getItem("role") || "student";
     navigate(`/${role.toLowerCase()}/ai-assistant${sessionId ? `?session=${sessionId}` : ""}`);
   };
 
-  // Lọc theo từ khóa tìm kiếm
   const filteredSessions = sessions.filter(item =>
     item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -117,7 +141,6 @@ export default function ChatHistoryPage() {
 
   return (
     <div className="min-h-screen bg-slate-50/50 p-6 lg:p-8 space-y-6 max-w-6xl mx-auto font-sans antialiased text-slate-800 select-none">
-      {/* 1. HEADER: TIÊU ĐỀ & NÚT THAO TÁC */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
@@ -149,7 +172,6 @@ export default function ChatHistoryPage() {
         </div>
       </div>
 
-      {/* 2. STATS PILLS: THỐNG KÊ TỔNG QUAN */}
       <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-medium text-slate-600">
         <div className="flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white border border-slate-200/80 shadow-2xs">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
@@ -161,9 +183,7 @@ export default function ChatHistoryPage() {
         </div>
       </div>
 
-      {/* 3. BỘ LỌC & Ô TÌM KIẾM */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 space-y-3 shadow-2xs">
-        {/* Search Bar */}
         <div className="relative flex items-center">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5" />
           <input
@@ -178,7 +198,6 @@ export default function ChatHistoryPage() {
           </span>
         </div>
 
-        {/* Dropdowns Filter */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div className="flex flex-wrap items-center gap-2">
             <button 
@@ -215,14 +234,20 @@ export default function ChatHistoryPage() {
         </div>
       </div>
 
+<<<<<<< HEAD
       {/* Hiển thị Loading khi đang kéo dữ liệu từ Database */}
+=======
+>>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
       {loading && (
         <div className="flex justify-center items-center py-12">
            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
         </div>
       )}
 
+<<<<<<< HEAD
       {/* 4. SECTION: HÔM NAY */}
+=======
+>>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
       {!loading && todaySessions.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
@@ -302,7 +327,10 @@ export default function ChatHistoryPage() {
         </div>
       )}
 
+<<<<<<< HEAD
       {/* 5. SECTION: CÁC NGÀY TRƯỚC */}
+=======
+>>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
       {!loading && pastSessions.length > 0 && (
         <div className="space-y-3 pt-2">
           <div className="flex items-center space-x-2">
@@ -333,9 +361,6 @@ export default function ChatHistoryPage() {
                   >
                     <Star className={`w-3.5 h-3.5 ${session.starred ? "fill-amber-400 text-amber-400" : "text-slate-400"}`} />
                   </button>
-                  <button type="button" className="p-1 hover:text-slate-600 transition cursor-pointer">
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
                   <button 
                     type="button" 
                     onClick={() => deleteSession(session.id)}
@@ -347,6 +372,7 @@ export default function ChatHistoryPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<<<<<<< HEAD
                 <div className="flex items-center space-x-2">
                   <h3 className="text-sm font-bold text-slate-900">
                     {session.title}
@@ -360,6 +386,18 @@ export default function ChatHistoryPage() {
                 >
                   <span>{session.actionLabel}</span>
                   <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
+=======
+                <h3 className="text-sm font-bold text-slate-900">
+                  {session.title}
+                </h3>
+                <button 
+                  type="button" 
+                  onClick={() => handleNavigateChat(session.id)}
+                  className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs self-start sm:self-auto cursor-pointer"
+                >
+                  <span>{session.actionLabel}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+>>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
                 </button>
               </div>
 
@@ -370,10 +408,21 @@ export default function ChatHistoryPage() {
           ))}
         </div>
       )}
+<<<<<<< HEAD
       
       {!loading && sessions.length === 0 && (
         <div className="text-center py-16">
           <p className="text-slate-400 text-sm">Chưa có lịch sử phiên học nào được lưu lại.</p>
+=======
+
+      {!loading && sessions.length === 0 && (
+        <div className="text-center py-16">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <LayoutGrid className="w-6 h-6 text-slate-400" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-700">Chưa có dữ liệu lịch sử</h3>
+          <p className="text-slate-400 text-xs mt-1">Hãy bắt đầu một cuộc trò chuyện với EduTech AI để xem lịch sử tại đây.</p>
+>>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
         </div>
       )}
     </div>
