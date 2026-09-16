@@ -43,8 +43,7 @@
 
 | Giao diện Học viên (Tìm kiếm & Khóa học) | Giao diện Quản trị viên (Dashboard & Kiểm duyệt) |
 | :---: | :---: |
-| <img width="1906" height="901" alt="image" src="https://github.com/user-attachments/assets/7b4de0f7-c220-4e26-ab4c-30e260a48a06" />| <img width="1907" height="908" alt="image" src="https://github.com/user-attachments/assets/4bfd02fe-da59-491d-8844-f83184d725ab" />
- |
+| <img width="1906" height="901" alt="image" src="https://github.com/user-attachments/assets/7b4de0f7-c220-4e26-ab4c-30e260a48a06" />| <img width="1907" height="908" alt="image" src="https://github.com/user-attachments/assets/4bfd02fe-da59-491d-8844-f83184d725ab" />|
 
 ---
 
