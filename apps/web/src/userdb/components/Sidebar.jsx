@@ -25,7 +25,7 @@ import {
   FolderTree,
   History,
   MessageSquare,
-  Plus 
+  PlusCircle 
 } from "lucide-react"
 
 export default function Sidebar() {
@@ -58,7 +58,6 @@ export default function Sidebar() {
     { name: "Tiểu luận & Nghiên cứu", slug: "tieu-luan" }
   ])
 
-  // Lịch sử chat AI
   const [recentChats, setRecentChats] = useState([])
 
   useEffect(() => {
@@ -107,25 +106,26 @@ export default function Sidebar() {
     fetchCategories()
   }, [])
 
-  // 🎯 GỌI API LẤY LỊCH SỬ CHAT (Chỉ lấy 3 kết quả)
+  // 🎯 HÀM TẢI LỊCH SỬ TỰ ĐỘNG BẮT ĐÚNG USER VÀ LẮNG NGHE LOCATION.SEARCH
   useEffect(() => {
-    const fetchAIHistory = async () => {
-      const aiUrl = import.meta.env.VITE_API_AI_URL || "http://localhost:8000/api/v1/ai"
+    const fetchRecentChats = async () => {
       try {
-        const res = await fetch(`${aiUrl}/chat/history?user_id=guest`)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.success && data.data) {
-            // Hiển thị đúng 3 phiên bản gần nhất cho gọn gàng
-            setRecentChats(data.data.slice(0, 3))
-          }
+        const AI_API_URL = import.meta.env.VITE_API_AI_URL || "http://localhost:8000/api/v1/ai"
+        
+        const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const userId = currentUser.id || currentUser._id || currentUser.uid || currentUser.userId || currentUser.email || currentUser.fullName || currentUser.full_name || "guest";
+
+        const res = await fetch(`${AI_API_URL}/chat/history?user_id=${userId}`)
+        const data = await res.json()
+        if (data.success && data.data) {
+          setRecentChats(data.data.slice(0, 3))
         }
       } catch (err) {
-        console.warn("Lỗi tải lịch sử AI trên Sidebar:", err)
+        console.error("Lỗi lấy lịch sử AI trên Sidebar:", err)
       }
     }
-    fetchAIHistory()
-  }, [location.pathname, location.search])
+    fetchRecentChats()
+  }, [location.pathname, location.search]) // Refresh lịch sử khi chuyển trang hoặc URL có thay đổi session
 
   useEffect(() => {
     if (location.pathname.includes("/courses/category/")) {
@@ -163,18 +163,17 @@ export default function Sidebar() {
 
   const dynamicAIChildren = [
     { 
-      name: "Đoạn chat mới", 
+      name: "Tạo trò chuyện mới", 
       path: `/${role}/ai-assistant`,
-      icon: Plus
+      icon: PlusCircle 
     },
     { 
       name: "Tất cả phiên học", 
       path: `/${role}/ai-history`,
       icon: History
     },
-    // Gắn tối đa 3 lịch sử chat mới nhất bên dưới
     ...recentChats.map(chat => ({
-      name: chat.title || "Trò chuyện mới",
+      name: chat.title.length > 22 ? chat.title.substring(0, 22) + "..." : chat.title,
       path: `/${role}/ai-assistant?session=${chat.id}`,
       icon: MessageSquare
     }))
@@ -182,7 +181,11 @@ export default function Sidebar() {
 
   const studentNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
-    { name: "Trợ lý Học tập AI", icon: Sparkles, children: dynamicAIChildren },
+    { 
+      name: "Trợ lý Học tập AI", 
+      icon: Sparkles, 
+      children: dynamicAIChildren 
+    },
     { name: "Bảng điều khiển", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Chương trình & Khối lớp", path: `/${role}/programs`, icon: GraduationCap },
     { name: "Kho Học liệu & Thư viện", path: `/${role}/library`, icon: Library },
@@ -195,7 +198,11 @@ export default function Sidebar() {
 
   const teacherNavItems = [
     { name: "Trang chủ", path: `/${role}/home`, icon: HomeIcon },
-    { name: "Trợ lý Trợ giảng AI", icon: Sparkles, children: dynamicAIChildren },
+    { 
+      name: "Trợ lý Trợ giảng AI", 
+      icon: Sparkles, 
+      children: dynamicAIChildren 
+    },
     { name: "Bảng quản lý Giảng viên", path: `/${role}/dashboard`, icon: LayoutDashboard },
     { name: "Quản lý Lớp & Khóa học", path: `/${role}/courses`, icon: FolderPlus },
     { name: "Video Edu & Bài giảng", path: `/${role}/videos`, icon: Video },
@@ -226,7 +233,7 @@ export default function Sidebar() {
     navigate("/login")
   }
 
-  const ITEM_LIMIT = 7 
+  const ITEM_LIMIT = 5
 
   return (
     <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between text-slate-700 select-none shrink-0 p-4 transition-all">
@@ -368,37 +375,24 @@ export default function Sidebar() {
                   )}
 
                   {hasChildren && isOpen && (
-                    <div className="mt-1.5 ml-4 pl-3 border-l-[1.5px] border-slate-100 space-y-1 animate-in fade-in duration-200">
+                    <div className="mt-1 ml-4 pl-2 border-l-2 border-slate-100 space-y-0.5 animate-in fade-in duration-200">
                       {visibleChildren.map((sub) => {
                         const currentFullPath = location.pathname + location.search
                         const isSubActive = currentFullPath === sub.path || location.pathname === sub.path
                         const SubIcon = sub.icon
                         
-                        // 🎯 Kiểm tra nút "Đoạn chat mới" để tô màu nền xanh nhạt chuyên nghiệp
-                        const isNewChatBtn = sub.name === "Đoạn chat mới"
-
                         return (
                           <Link
                             key={sub.path}
                             to={sub.path}
-                            className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all truncate ${
-                              isNewChatBtn
-                                // Style riêng cho nút "Đoạn chat mới" giống ảnh tham khảo
-                                ? isTeacher 
-                                  ? "text-orange-700 bg-orange-50 hover:bg-orange-100 border border-transparent shadow-sm mb-1.5" 
-                                  : "text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-transparent shadow-sm mb-1.5"
-                                // Style cho các nút còn lại (Lịch sử chat)
-                                : isSubActive
-                                  ? isTeacher ? "text-orange-600 font-bold" : "text-blue-600 font-bold"
-                                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                            className={`flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors truncate ${
+                              isSubActive
+                                ? isTeacher ? "text-orange-600 bg-orange-50 font-bold" : "text-blue-600 bg-blue-50 font-bold"
+                                : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                             }`}
                             title={sub.name}
                           >
-                            {SubIcon && (
-                              <SubIcon className={`w-3.5 h-3.5 shrink-0 ${
-                                isNewChatBtn ? (isTeacher ? "text-orange-600" : "text-blue-600") : "opacity-60"
-                              }`} />
-                            )}
+                            {SubIcon && <SubIcon className="w-3.5 h-3.5 shrink-0 opacity-70" />}
                             <span className="truncate">{sub.name}</span>
                           </Link>
                         )
@@ -408,8 +402,8 @@ export default function Sidebar() {
                         <button
                           type="button"
                           onClick={() => toggleExpandSubmenu(item.name)}
-                          className={`w-full text-left px-3 py-1.5 text-[11px] font-bold cursor-pointer transition-colors ${
-                            isTeacher ? "text-orange-500 hover:text-orange-700" : "text-blue-500 hover:text-blue-700"
+                          className={`w-full text-left px-2.5 py-1 text-[11px] font-bold cursor-pointer transition-colors ${
+                            isTeacher ? "text-orange-500 hover:text-orange-700" : "text-blue-600 hover:text-blue-800"
                           }`}
                         >
                           {isExpanded ? "− Thu gọn" : `+ Xem thêm (${item.children.length - ITEM_LIMIT})`}

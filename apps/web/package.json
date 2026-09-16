@@ -25,6 +25,7 @@
         "pdfjs-dist": "^6.3.289",
         "react": "^19.2.8",
         "react-dom": "^19.2.8",
+        "react-image-crop": "^11.1.2",
         "react-markdown": "^10.1.0",
         "react-pdf": "^10.5.0",
         "react-router-dom": "^7.18.2",

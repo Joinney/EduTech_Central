@@ -24,24 +24,6 @@ export default function ChatHistoryPage() {
   const [selectedType, setSelectedType] = useState("Tất cả loại");
   const [selectedTime, setSelectedTime] = useState("Mọi lúc");
 
-<<<<<<< HEAD
-  // State lưu lịch sử thật từ Database thay vì dữ liệu cứng
-  const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  // URL gọi tới Backend FastAPI
-  const API_URL = import.meta.env.VITE_API_AI_URL || "http://localhost:8000/api/v1/ai";
-
-  // 🎯 GỌI API LẤY LỊCH SỬ TỪ MONGODB
-  useEffect(() => {
-    const fetchChatHistory = async () => {
-      try {
-        const res = await fetch(`${API_URL}/chat/history?user_id=guest`);
-        const data = await res.json();
-        
-        if (data.success) {
-          // Lấy ngày hôm nay định dạng dd/mm/yyyy để so sánh
-=======
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,22 +39,13 @@ export default function ChatHistoryPage() {
         const data = await res.json();
         
         if (data.success) {
->>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
           const todayString = new Date().toLocaleDateString('vi-VN', {
             day: '2-digit', month: '2-digit', year: 'numeric'
           });
 
-<<<<<<< HEAD
-          // Map lại data từ Database cho khớp với UI
           const formattedSessions = data.data.map(s => {
             const isToday = s.time && s.time.includes(todayString);
             
-            // Trích xuất tin nhắn làm preview (Ưu tiên lấy tin nhắn cuối cùng)
-=======
-          const formattedSessions = data.data.map(s => {
-            const isToday = s.time && s.time.includes(todayString);
-            
->>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
             let previewText = "Chưa có nội dung";
             if (s.messages && s.messages.length > 0) {
               const lastMsg = s.messages[s.messages.length - 1].content;
@@ -118,13 +91,8 @@ export default function ChatHistoryPage() {
 
   const deleteSession = (id) => {
     setSessions(prev => prev.filter(item => item.id !== id));
-    // Lưu ý: Có thể gọi thêm API DELETE tới backend ở đây trong tương lai
   };
 
-<<<<<<< HEAD
-  // 🎯 ĐIỀU HƯỚNG VÀ TRUYỀN ID SANG TRANG CHAT AI
-=======
->>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
   const handleNavigateChat = (sessionId) => {
     const role = localStorage.getItem("role") || "student";
     navigate(`/${role.toLowerCase()}/ai-assistant${sessionId ? `?session=${sessionId}` : ""}`);
@@ -234,20 +202,12 @@ export default function ChatHistoryPage() {
         </div>
       </div>
 
-<<<<<<< HEAD
-      {/* Hiển thị Loading khi đang kéo dữ liệu từ Database */}
-=======
->>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
       {loading && (
         <div className="flex justify-center items-center py-12">
            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
         </div>
       )}
 
-<<<<<<< HEAD
-      {/* 4. SECTION: HÔM NAY */}
-=======
->>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
       {!loading && todaySessions.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
@@ -327,10 +287,6 @@ export default function ChatHistoryPage() {
         </div>
       )}
 
-<<<<<<< HEAD
-      {/* 5. SECTION: CÁC NGÀY TRƯỚC */}
-=======
->>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
       {!loading && pastSessions.length > 0 && (
         <div className="space-y-3 pt-2">
           <div className="flex items-center space-x-2">
@@ -372,21 +328,6 @@ export default function ChatHistoryPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-<<<<<<< HEAD
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-sm font-bold text-slate-900">
-                    {session.title}
-                  </h3>
-                </div>
-
-                <button 
-                  type="button" 
-                  onClick={() => handleNavigateChat(session.id)}
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs self-start sm:self-auto cursor-pointer"
-                >
-                  <span>{session.actionLabel}</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
-=======
                 <h3 className="text-sm font-bold text-slate-900">
                   {session.title}
                 </h3>
@@ -397,23 +338,16 @@ export default function ChatHistoryPage() {
                 >
                   <span>{session.actionLabel}</span>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
->>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
                 </button>
               </div>
 
               <div className="bg-slate-50 rounded-xl p-2.5 text-[11px] text-slate-600 leading-relaxed border border-slate-100">
-                <b className="text-slate-700">EduTech AI:</b> &ldquo;{session.aiPreview}&rdquo;
+                {session.aiPreview}
               </div>
             </div>
           ))}
         </div>
       )}
-<<<<<<< HEAD
-      
-      {!loading && sessions.length === 0 && (
-        <div className="text-center py-16">
-          <p className="text-slate-400 text-sm">Chưa có lịch sử phiên học nào được lưu lại.</p>
-=======
 
       {!loading && sessions.length === 0 && (
         <div className="text-center py-16">
@@ -422,7 +356,6 @@ export default function ChatHistoryPage() {
           </div>
           <h3 className="text-sm font-bold text-slate-700">Chưa có dữ liệu lịch sử</h3>
           <p className="text-slate-400 text-xs mt-1">Hãy bắt đầu một cuộc trò chuyện với EduTech AI để xem lịch sử tại đây.</p>
->>>>>>> 4070cbbc0b9ec0611d0d9c4ec0049c93f43b83d7
         </div>
       )}
     </div>
