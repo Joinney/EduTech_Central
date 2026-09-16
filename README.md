@@ -1,8 +1,7 @@
 # EduTech Central - Nền Tảng Học Tập Trực Tuyến Đa Dịch Vụ
 
-<p align="center">
-  <img src="./screenshots/banner.jpg" alt="EduTech Central Banner" width="100%">
-</p>
+<img width="1906" height="907" alt="image" src="https://github.com/user-attachments/assets/9506f286-1974-41e0-ac54-c5923557cf82" />
+
 
 > Nền tảng giáo dục trực tuyến toàn diện được xây dựng theo kiến trúc **Microservices** và quản lý mã nguồn **Monorepo**. Hệ thống tích hợp **Frontend React (Vite)**, **Backend Node.js**, cơ sở dữ liệu **PostgreSQL (Prisma ORM)** cùng hệ sinh thái **Trợ lý AI (DeepSeek, Qwen)** giúp tối ưu hóa trải nghiệm dạy và học.
 
@@ -44,7 +43,8 @@
 
 | Giao diện Học viên (Tìm kiếm & Khóa học) | Giao diện Quản trị viên (Dashboard & Kiểm duyệt) |
 | :---: | :---: |
-| ![Student View](./screenshots/student.png) | ![Admin View](./screenshots/admin.png) |
+| <img width="1906" height="901" alt="image" src="https://github.com/user-attachments/assets/7b4de0f7-c220-4e26-ab4c-30e260a48a06" />| <img width="1907" height="908" alt="image" src="https://github.com/user-attachments/assets/4bfd02fe-da59-491d-8844-f83184d725ab" />
+ |
 
 ---
 
