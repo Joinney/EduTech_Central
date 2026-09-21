@@ -16,18 +16,30 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------
-# BỔ SUNG: QUẢN LÝ KẾT NỐI MONGODB THEO VÒNG ĐỜI SERVER
+# QUẢN LÝ KẾT NỐI MONGODB THEO VÒNG ĐỜI SERVER (AN TOÀN)
 # ---------------------------------------------------------
 @app.on_event("startup")
 async def startup_db_client():
-    await connect_to_mongo()
+    try:
+        await connect_to_mongo()
+        print("✅ Kết nối MongoDB thành công.")
+    except Exception as e:
+        print(f"⚠️ Cảnh báo kết nối MongoDB thất bại: {e}")
+        print("👉 Vui lòng kiểm tra lại IP Whitelist (Network Access) trên MongoDB Atlas.")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    await close_mongo_connection()
+    try:
+        await close_mongo_connection()
+        print("🔌 Đã đóng kết nối MongoDB.")
+    except Exception as e:
+        print(f"Lỗi khi đóng kết nối MongoDB: {e}")
 # ---------------------------------------------------------
 
-# Cấu hình CORS - Cho phép Web App (React/Vite) gọi API
+# Middleware ghi log (Được thêm TRƯỚC để CORSMiddleware bọc ngoài cùng)
+app.add_middleware(LoggingMiddleware)
+
+# Cấu hình CORS BẮT BUỘC BỌC NGOÀI CÙNG (Cho phép React/Vite localhost:5173 gọi vào)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,9 +47,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Gắn Middleware ghi log request
-app.add_middleware(LoggingMiddleware)
 
 # Đăng ký Router cho API
 app.include_router(ai_router, prefix=settings.API_PREFIX)

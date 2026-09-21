@@ -159,7 +159,7 @@ const KNOWLEDGE_BASE = [
     },
   },
 
-  // --- 3. DÀNH CHO GIÁNG VIÊN (TEACHER) ---
+  // --- 3. DÀNH CHO GIẢNG VIÊN (TEACHER) ---
   {
     id: "teacher_courses",
     category: "teacher",
@@ -634,9 +634,6 @@ export default function AIChatWidget() {
                   <h3 className="font-bold text-sm tracking-tight text-white">
                     EduTech Copilot
                   </h3>
-                  <span className="text-[9px] uppercase font-bold tracking-wider bg-white/25 px-1.5 py-0.5 rounded-md backdrop-blur-sm border border-white/20 text-orange-50">
-                    {currentRole}
-                  </span>
                 </div>
                 <p className="text-[11px] text-orange-100/90 font-medium flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
@@ -801,7 +798,6 @@ export default function AIChatWidget() {
               );
             })}
 
-            {/* HIỆU ỨNG TYPING KHI CHỜ TRẢ LỜI */}
             {isTyping && (
               <div className="flex gap-3 items-center">
                 <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
@@ -817,8 +813,8 @@ export default function AIChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* GỢI Ý NHANH THEO VAI TRÒ (QUICK CHIPS) */}
-          <div className="px-4 py-2 bg-white/90 backdrop-blur border-t border-slate-100 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
+          {/* GỢI Ý NHANH THEO VAI TRÒ (ĐÃ BỎ NO-SCROLLBAR ĐỂ HIỆN THANH CUỘN) */}
+          <div className="px-4 py-2 bg-white/90 backdrop-blur border-t border-slate-100 flex gap-2 overflow-x-auto shrink-0">
             {quickPrompts.map((q, idx) => (
               <button
                 key={idx}

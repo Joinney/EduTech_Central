@@ -110,7 +110,7 @@ export default function Footer() {
       {/* ================= NÚT TRỢ LÝ HỌC TẬP AI NỔI GÓC PHẢI ================= */}
       <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end space-y-2">
         <div className="bg-amber-500 text-slate-900 font-extrabold text-[11px] px-3 py-1 rounded-md shadow-md animate-bounce">
-          Trợ lý học tập AI
+          Trợ lý tư vấn AI
         </div>
         <button className="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 transition-all hover:scale-105 cursor-pointer">
           <Bot className="w-6 h-6" />

@@ -8,9 +8,11 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Cài đặt các thư viện hệ thống cần thiết (nếu có dùng thêm xử lý ảnh/audio sau này)
+# Cài đặt các thư viện hệ thống cần thiết cho OpenCV, RapidOCR và curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy file requirements trước để tận dụng Docker cache layer

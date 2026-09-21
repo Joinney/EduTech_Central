@@ -1,9 +1,7 @@
-# configs/setting.py
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Tải các biến môi trường từ file .env
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -15,29 +13,31 @@ class Settings:
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", 8000))
     API_PREFIX: str = "/api/v1"
-    
-    # Provider Configs
+
+    # API Provider
     DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
     DEEPSEEK_BASE_URL: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.iamhc.cn/v1")
     DEFAULT_MODEL: str = os.getenv("DEEPSEEK_MODEL", "DeepSeek-V4-Flash")
 
-    # MongoDB Configs (Mới thêm)
+    # MongoDB
     MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
     DB_NAME: str = os.getenv("DB_NAME", "edutech_lichsuchatai")
 
-    # Danh sách model lấy từ Model Limits của bạn
+    # Danh sách model CHẮC CHẮN SỐNG (đã xác thực qua curl có ["openai"])
     AVAILABLE_MODELS: list = [
         "DeepSeek-V4-Flash",
         "DeepSeek-V4-Pro",
-        "deepseek-v4-flash-vision-exp",
         "glm-5.3-flash",
         "glm-4.5-air",
         "kimi-k3",
         "Qwen3.8-Flash-Next",
         "Qwen3.8-27B",
         "step-3.7-flash",
-        "spark-x2.5"
+        "spark-x2.5",
+        "Qwen3.6-35B-A3B",
+        "sensenova-6.8-flash-lite",
+        "sensenova-u1.5-lite",
+        "step-router-v1"
     ]
 
-# Khởi tạo instance settings để import ở các file khác
 settings = Settings()

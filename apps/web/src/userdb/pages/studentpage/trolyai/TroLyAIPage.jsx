@@ -7,23 +7,40 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   Sparkles, Paperclip, Camera, Mic, ArrowUp, BookOpen, FileText, Edit3, 
-  ListChecks, ChevronDown, GraduationCap, RotateCcw, Cpu, X, 
+  ListChecks, ChevronDown, RotateCcw, Cpu, X, 
   Image as ImageIcon, Bot, User, Copy, Check, LayoutDashboard, Loader2, 
-  History, Eye, BrainCircuit, Gauge, Square, Volume2, PenTool, Crop, Zap,
+  History, BrainCircuit, Gauge, Square, Volume2, PenTool, Crop, Zap,
   AudioLines
 } from "lucide-react";
 
+// Tiện ích nén ảnh canvas chống nghẽn payload
+const compressCanvasImage = (canvas, maxWidth = 960, quality = 0.75) => {
+  let width = canvas.width;
+  let height = canvas.height;
+
+  if (width > maxWidth) {
+    height = Math.round((height * maxWidth) / width);
+    width = maxWidth;
+  }
+
+  const outputCanvas = document.createElement("canvas");
+  outputCanvas.width = width;
+  outputCanvas.height = height;
+
+  const ctx = outputCanvas.getContext("2d");
+  ctx.drawImage(canvas, 0, 0, width, height);
+
+  return outputCanvas.toDataURL("image/jpeg", quality);
+};
+
 // ==========================================
-// COMPONENT: KHOANH VÙNG CẮT ẢNH THUẦN (KHÔNG CẦN CÀI THÊM THƯ VIỆN)
-// Hỗ trợ kéo thả di chuyển, kéo 8 điểm neo (4 góc + 4 cạnh), hỗ trợ cả Mobile
+// COMPONENT: KHOANH VÙNG CẮT ẢNH THUẦN
 // ==========================================
 const ImageCropperModal = ({ imageSrc, onClose, onCropComplete }) => {
   const containerRef = useRef(null);
   const imgRef = useRef(null);
-
-  // Tỉ lệ vùng crop (tính theo phần trăm 0 -> 100)
   const [crop, setCrop] = useState({ x: 10, y: 10, width: 80, height: 80 });
-  const [dragState, setDragState] = useState(null); // 'move' hoặc 'nw', 'ne', 'se', 'sw', 'n', 's', 'e', 'w'
+  const [dragState, setDragState] = useState(null);
 
   const getClientPos = (e) => {
     if (e.touches && e.touches.length > 0) {
@@ -91,9 +108,7 @@ const ImageCropperModal = ({ imageSrc, onClose, onCropComplete }) => {
       setCrop(newCrop);
     };
 
-    const handleEnd = () => {
-      setDragState(null);
-    };
+    const handleEnd = () => setDragState(null);
 
     if (dragState) {
       window.addEventListener("mousemove", handleMove);
@@ -127,13 +142,8 @@ const ImageCropperModal = ({ imageSrc, onClose, onCropComplete }) => {
     if (!ctx) return;
 
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(
-      img,
-      realX, realY, realW, realH,
-      0, 0, canvas.width, canvas.height
-    );
-
-    const base64 = canvas.toDataURL("image/jpeg", 0.95);
+    ctx.drawImage(img, realX, realY, realW, realH, 0, 0, canvas.width, canvas.height);
+    const base64 = compressCanvasImage(canvas, 960, 0.75);
     onCropComplete(base64);
   };
 
@@ -150,36 +160,20 @@ const ImageCropperModal = ({ imageSrc, onClose, onCropComplete }) => {
               <p className="text-[11px] text-slate-400 font-medium">Kéo 4 góc hoặc các cạnh để chọn đúng phần bài tập cần giải</p>
             </div>
           </div>
-          <button 
-            type="button"
-            onClick={onClose} 
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-          >
+          <button type="button" onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div ref={containerRef} className="relative w-full h-[55vh] sm:h-[60vh] bg-slate-950/95 flex items-center justify-center p-4 overflow-hidden select-none">
           <div className="relative inline-block max-h-full max-w-full">
-            <img
-              ref={imgRef}
-              src={imageSrc}
-              alt="Crop target"
-              className="max-h-[50vh] sm:max-h-[55vh] w-auto object-contain block pointer-events-none user-select-none"
-            />
-            {/* Lớp phủ & khung Crop */}
+            <img ref={imgRef} src={imageSrc} alt="Crop target" className="max-h-[50vh] sm:max-h-[55vh] w-auto object-contain block pointer-events-none user-select-none" />
             <div
               className="absolute border-2 border-indigo-400 bg-indigo-500/15 cursor-move shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]"
-              style={{
-                left: `${crop.x}%`,
-                top: `${crop.y}%`,
-                width: `${crop.width}%`,
-                height: `${crop.height}%`
-              }}
+              style={{ left: `${crop.x}%`, top: `${crop.y}%`, width: `${crop.width}%`, height: `${crop.height}%` }}
               onMouseDown={(e) => handleStartDrag("move", e)}
               onTouchStart={(e) => handleStartDrag("move", e)}
             >
-              {/* Lưới chia 3x3 */}
               <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-30">
                 <div className="border-r border-b border-white"></div>
                 <div className="border-r border-b border-white"></div>
@@ -191,14 +185,10 @@ const ImageCropperModal = ({ imageSrc, onClose, onCropComplete }) => {
                 <div className="border-r border-white"></div>
                 <div></div>
               </div>
-
-              {/* 4 Góc */}
               <div onMouseDown={(e) => handleStartDrag("nw", e)} onTouchStart={(e) => handleStartDrag("nw", e)} className="absolute -top-2 -left-2 w-4 h-4 bg-white border-2 border-indigo-600 rounded-full cursor-nwse-resize shadow-md" />
               <div onMouseDown={(e) => handleStartDrag("ne", e)} onTouchStart={(e) => handleStartDrag("ne", e)} className="absolute -top-2 -right-2 w-4 h-4 bg-white border-2 border-indigo-600 rounded-full cursor-nesw-resize shadow-md" />
               <div onMouseDown={(e) => handleStartDrag("sw", e)} onTouchStart={(e) => handleStartDrag("sw", e)} className="absolute -bottom-2 -left-2 w-4 h-4 bg-white border-2 border-indigo-600 rounded-full cursor-nesw-resize shadow-md" />
               <div onMouseDown={(e) => handleStartDrag("se", e)} onTouchStart={(e) => handleStartDrag("se", e)} className="absolute -bottom-2 -right-2 w-4 h-4 bg-white border-2 border-indigo-600 rounded-full cursor-nwse-resize shadow-md" />
-
-              {/* 4 Cạnh */}
               <div onMouseDown={(e) => handleStartDrag("n", e)} onTouchStart={(e) => handleStartDrag("n", e)} className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-6 h-2 bg-white border border-indigo-600 rounded-full cursor-ns-resize" />
               <div onMouseDown={(e) => handleStartDrag("s", e)} onTouchStart={(e) => handleStartDrag("s", e)} className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-6 h-2 bg-white border border-indigo-600 rounded-full cursor-ns-resize" />
               <div onMouseDown={(e) => handleStartDrag("w", e)} onTouchStart={(e) => handleStartDrag("w", e)} className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2 h-6 bg-white border border-indigo-600 rounded-full cursor-ew-resize" />
@@ -208,19 +198,10 @@ const ImageCropperModal = ({ imageSrc, onClose, onCropComplete }) => {
         </div>
 
         <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-[13px] hover:bg-slate-100 transition-colors cursor-pointer"
-          >
+          <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-[13px] hover:bg-slate-100 transition-colors cursor-pointer">
             Hủy bỏ
           </button>
-
-          <button
-            type="button"
-            onClick={handleConfirmCrop}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-[13px] hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-all cursor-pointer"
-          >
+          <button type="button" onClick={handleConfirmCrop} className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-[13px] hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-all cursor-pointer">
             <Check className="w-4 h-4 stroke-[2.5]" />
             Xác nhận vùng chọn
           </button>
@@ -231,7 +212,7 @@ const ImageCropperModal = ({ imageSrc, onClose, onCropComplete }) => {
 };
 
 // ==========================================
-// COMPONENT: HIỆU ỨNG GÕ CHỮ THÔNG MINH (TYPEWRITER)
+// COMPONENT: TYPEWRITER GREETING
 // ==========================================
 const AnimatedGreeting = () => {
   const phrases = [
@@ -279,7 +260,7 @@ const AnimatedGreeting = () => {
 };
 
 // ==========================================
-// COMPONENT 1: INTERACTIVE QUIZ CARD
+// COMPONENT: INTERACTIVE QUIZ CARD
 // ==========================================
 const InteractiveQuiz = ({ quizData }) => {
   const [selectedAnswers, setSelectedAnswers] = useState({});
@@ -323,7 +304,9 @@ const InteractiveQuiz = ({ quizData }) => {
             {showResults && (
               <div className={`mt-3 p-3 rounded-xl text-[13px] ${isCorrect ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
                 <span className="font-bold">{isCorrect ? "🎉 Chính xác!" : "❌ Rất tiếc!"}</span> 
-                <span className="ml-2 block mt-1 text-slate-700"><ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{q.explanation}</ReactMarkdown></span>
+                <span className="ml-2 block mt-1 text-slate-700">
+                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{q.explanation}</ReactMarkdown>
+                </span>
               </div>
             )}
           </div>
@@ -331,11 +314,11 @@ const InteractiveQuiz = ({ quizData }) => {
       })}
 
       {!showResults ? (
-        <button onClick={() => setShowResults(true)} disabled={Object.keys(selectedAnswers).length < quizData.length} className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-[14px] hover:bg-indigo-700 disabled:opacity-50 transition-colors mt-2">
+        <button onClick={() => setShowResults(true)} disabled={Object.keys(selectedAnswers).length < quizData.length} className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-[14px] hover:bg-indigo-700 disabled:opacity-50 transition-colors mt-2 cursor-pointer">
           Nộp bài & Chấm điểm
         </button>
       ) : (
-        <button onClick={() => { setSelectedAnswers({}); setShowResults(false); }} className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-[14px] hover:bg-slate-200 transition-colors mt-2">
+        <button onClick={() => { setSelectedAnswers({}); setShowResults(false); }} className="w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-[14px] hover:bg-slate-200 transition-colors mt-2 cursor-pointer">
           Làm lại
         </button>
       )}
@@ -344,7 +327,7 @@ const InteractiveQuiz = ({ quizData }) => {
 };
 
 // ==========================================
-// MAIN COMPONENT
+// MAIN COMPONENT: TROLYAIPAGE
 // ==========================================
 export default function TroLyAIPage() {
   const location = useLocation();
@@ -355,7 +338,6 @@ export default function TroLyAIPage() {
   const [selectedSubject, setSelectedSubject] = useState("Tự động phát hiện");
   const [copiedId, setCopiedId] = useState(null);
 
-  // --- STATE TÍNH NĂNG MỚI ---
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
@@ -369,33 +351,31 @@ export default function TroLyAIPage() {
   const docInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   const chatContainerRef = useRef(null);
-  const modelDropdownRef = useRef(null);
   const isAutoScrollEnabled = useRef(true);
+  const modelDropdownRef = useRef(null);
   
-  // REF CHO NHẬN DIỆN GIỌNG NÓI VÀ ABORT
   const recognitionRef = useRef(null);
   const abortControllerRef = useRef(null);
 
   const userAvatar = "https://ui-avatars.com/api/?name=Hoc+Sinh&background=0D8ABC&color=fff"; 
-  
-  // 🌟 LOGO TRANG WEB
   const aiLogo = "/edutechcentrallogoai.png"; 
 
+  // Danh sách model khớp với tài khoản API hoạt động
   const fallbackModels = [
-    { id: "deepseek-v4-flash-vision-exp", name: "DeepSeek Vision", tag: "Mắt thần OCR", type: "vision" },
+    { id: "DeepSeek-V4-Flash", name: "DeepSeek Flash", tag: "Mặc định", type: "fast" },
     { id: "DeepSeek-V4-Pro", name: "DeepSeek Pro", tag: "Suy luận sâu", type: "reasoning" },
-    { id: "DeepSeek-V4-Flash", name: "DeepSeek Flash", tag: "Tốc độ cao", type: "fast" },
     { id: "glm-5.3-flash", name: "GLM 5.3 Flash", tag: "Đa năng", type: "general" },
     { id: "glm-4.5-air", name: "GLM 4.5 Air", tag: "Siêu nhẹ", type: "fast" },
     { id: "kimi-k3", name: "Kimi K3", tag: "Ngữ cảnh dài", type: "general" },
-    { id: "Qwen3.8-Flash-Next", name: "Qwen 3.8 Next", tag: "Logic & Code", type: "reasoning" },
+    { id: "Qwen3.8-Flash-Next", name: "Qwen 3.8 Flash", tag: "Logic & Code", type: "reasoning" },
     { id: "Qwen3.8-27B", name: "Qwen 3.8 27B", tag: "Chính xác cao", type: "reasoning" },
-    { id: "step-3.7-flash", name: "Step 3.7 Flash", tag: "Phản hồi tức thì", type: "fast" },
-    { id: "spark-x2.5", name: "Spark X2.5", tag: "Toán học & Khoa học", type: "general" }
+    { id: "step-3.7-flash", name: "Step 3.7 Flash", tag: "Tốc độ cao", type: "fast" },
+    { id: "spark-x2.5", name: "Spark X2.5", tag: "Toán & Khoa học", type: "general" },
+    { id: "Qwen3.6-35B-A3B", name: "Qwen 3.6 35B", tag: "Cân bằng", type: "reasoning" }
   ];
 
   const [availableModels, setAvailableModels] = useState(fallbackModels);
-  const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash-vision-exp");
+  const [selectedModel, setSelectedModel] = useState("DeepSeek-V4-Flash");
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
 
   const [messages, setMessages] = useState([]);
@@ -403,13 +383,9 @@ export default function TroLyAIPage() {
   const [attachedImage, setAttachedImage] = useState(null);
   const [attachedDoc, setAttachedDoc] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const API_URL = import.meta.env.VITE_API_AI_URL || "http://localhost:8000/api/v1/ai";
 
-  // ==========================================
-  // HÀM NGẮT (DỪNG) AI KHI ĐANG TRẢ LỜI
-  // ==========================================
   const stopGenerating = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -417,9 +393,6 @@ export default function TroLyAIPage() {
     }
   };
 
-  // ==========================================
-  // LOGIC VOICE-TO-TEXT (THỰC SỰ GHI ÂM)
-  // ==========================================
   const toggleRecording = () => {
     if (isRecording) {
       if (recognitionRef.current) recognitionRef.current.stop();
@@ -427,7 +400,7 @@ export default function TroLyAIPage() {
     } else {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        alert("Trình duyệt của bạn không hỗ trợ nhận diện giọng nói. Khuyên dùng Chrome hoặc Edge.");
+        alert("Trình duyệt không hỗ trợ nhận diện giọng nói. Hãy dùng Chrome hoặc Edge.");
         return;
       }
       
@@ -440,7 +413,6 @@ export default function TroLyAIPage() {
       const originalText = inputMessage;
 
       recognition.onstart = () => setIsRecording(true);
-      
       recognition.onresult = (event) => {
         let currentTranscript = "";
         for (let i = 0; i < event.results.length; i++) {
@@ -448,14 +420,11 @@ export default function TroLyAIPage() {
         }
         setInputMessage(originalText + (originalText ? " " : "") + currentTranscript);
       };
-
       recognition.onerror = (event) => {
         console.error("Lỗi Microphone:", event.error);
         setIsRecording(false);
       };
-
       recognition.onend = () => setIsRecording(false);
-
       recognition.start();
     }
   };
@@ -466,13 +435,12 @@ export default function TroLyAIPage() {
     };
   }, []);
 
-  // ==========================================
-  // LOGIC CÁC TÍNH NĂNG MỚI (AUDIO, CROP, DRAW)
-  // ==========================================
   const handleSpeak = (text, msgId) => {
     if (!window.speechSynthesis) return alert("Trình duyệt không hỗ trợ đọc giọng nói!");
     if (playingMsgId === msgId) {
-      window.speechSynthesis.cancel(); setPlayingMsgId(null); return;
+      window.speechSynthesis.cancel(); 
+      setPlayingMsgId(null); 
+      return;
     }
     window.speechSynthesis.cancel();
     let cleanText = text.replace(/[*_#`]/g, '').replace(/\\[a-zA-Z]+/g, ' ').replace(/[{}]/g, '');
@@ -483,23 +451,26 @@ export default function TroLyAIPage() {
     window.speechSynthesis.speak(utterance);
     setPlayingMsgId(msgId);
   };
-  useEffect(() => { return () => window.speechSynthesis && window.speechSynthesis.cancel(); }, []);
+
+  useEffect(() => { 
+    return () => window.speechSynthesis && window.speechSynthesis.cancel(); 
+  }, []);
 
   const handleCropComplete = (croppedBase64) => {
     setAttachedImage(croppedBase64);
-    setSelectedModel("deepseek-v4-flash-vision-exp");
     setImageToCrop(null);
   };
 
   const saveDrawing = () => {
     if (drawingCanvasRef.current) {
-      setAttachedImage(drawingCanvasRef.current.toDataURL("image/png"));
-      setSelectedModel("deepseek-v4-flash-vision-exp");
+      const compressed = compressCanvasImage(drawingCanvasRef.current, 960, 0.75);
+      setAttachedImage(compressed);
       setIsDrawingMode(false);
     }
   };
 
-  let drawingContext = null; let isDrawingCanvas = false;
+  let drawingContext = null; 
+  let isDrawingCanvas = false;
   const startDrawing = (e) => { isDrawingCanvas = true; draw(e); };
   const stopDrawing = () => { isDrawingCanvas = false; drawingContext?.beginPath(); };
   const draw = (e) => {
@@ -510,9 +481,13 @@ export default function TroLyAIPage() {
     const x = e.clientX ? e.clientX - rect.left : e.touches[0].clientX - rect.left;
     const y = e.clientY ? e.clientY - rect.top : e.touches[0].clientY - rect.top;
 
-    drawingContext.lineWidth = 3; drawingContext.lineCap = "round"; drawingContext.strokeStyle = "#fff";
-    drawingContext.lineTo(x, y); drawingContext.stroke();
-    drawingContext.beginPath(); drawingContext.moveTo(x, y);
+    drawingContext.lineWidth = 3; 
+    drawingContext.lineCap = "round"; 
+    drawingContext.strokeStyle = "#fff";
+    drawingContext.lineTo(x, y); 
+    drawingContext.stroke();
+    drawingContext.beginPath(); 
+    drawingContext.moveTo(x, y);
   };
 
   useEffect(() => {
@@ -524,9 +499,6 @@ export default function TroLyAIPage() {
     }
   }, [isDrawingMode]);
 
-  // ==========================================
-  // CORE LOGIC CỦA BẠN (GIỮ NGUYÊN 100%)
-  // ==========================================
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target)) {
@@ -548,26 +520,29 @@ export default function TroLyAIPage() {
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      setCameraStream(mediaStream); setIsCameraOpen(true);
+      setCameraStream(mediaStream); 
+      setIsCameraOpen(true);
     } catch (error) {
-      console.warn("Không thể mở Camera web, fallback dùng app mặc định của thiết bị.", error);
       cameraInputRef.current?.click();
     }
   };
 
   const stopCamera = () => {
-    if (cameraStream) { cameraStream.getTracks().forEach(track => track.stop()); setCameraStream(null); }
+    if (cameraStream) { 
+      cameraStream.getTracks().forEach(track => track.stop()); 
+      setCameraStream(null); 
+    }
     setIsCameraOpen(false);
   };
 
   const capturePhoto = () => {
     if (videoRef.current) {
       const canvas = document.createElement("canvas");
-      canvas.width = videoRef.current.videoWidth; canvas.height = videoRef.current.videoHeight;
+      canvas.width = videoRef.current.videoWidth; 
+      canvas.height = videoRef.current.videoHeight;
       canvas.getContext("2d").drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      const photoData = canvas.toDataURL("image/jpeg", 0.8);
+      const photoData = compressCanvasImage(canvas, 960, 0.75);
       setAttachedImage(photoData);
-      setSelectedModel("deepseek-v4-flash-vision-exp");
       stopCamera();
     }
   };
@@ -580,7 +555,7 @@ export default function TroLyAIPage() {
         if (data.success && Array.isArray(data.models)) {
           const mapped = data.models.map(mId => {
             const found = fallbackModels.find(f => f.id === mId);
-            return found || { id: mId, name: mId, tag: "Mô hình AI", type: "general" };
+            return found || { id: mId, name: mId, tag: "Mô hình", type: "general" };
           });
           setAvailableModels(mapped);
         }
@@ -604,12 +579,13 @@ export default function TroLyAIPage() {
     const loadInitialData = async () => {
       const params = new URLSearchParams(location.search);
       const urlSessionId = params.get("session");
-      const openHistory = params.get("openHistory");
-
-      if (openHistory === "true") setIsSidebarOpen(true);
 
       if (!urlSessionId) {
-        setMessages([]); setCurrentSessionId(null); setAttachedImage(null); setAttachedDoc(null); return;
+        setMessages([]); 
+        setCurrentSessionId(null); 
+        setAttachedImage(null); 
+        setAttachedDoc(null); 
+        return;
       }
 
       const historyData = await fetchHistory();
@@ -617,15 +593,19 @@ export default function TroLyAIPage() {
         const targetSession = historyData.find(s => s.id === urlSessionId);
         if (targetSession) {
           const loadedMessages = targetSession.messages.map((msg, index) => {
-            let textContent = msg.content; let imageUrl = null;
+            let textContent = msg.content; 
+            let imageUrl = null;
             if (Array.isArray(msg.content)) {
               const textObj = msg.content.find(item => item.type === "text");
               const imgObj = msg.content.find(item => item.type === "image_url");
-              textContent = textObj ? textObj.text : ""; imageUrl = imgObj ? imgObj.image_url.url : null;
+              textContent = textObj ? textObj.text : ""; 
+              imageUrl = imgObj ? imgObj.image_url.url : null;
             }
             return { id: `loaded-${index}`, role: msg.role, content: textContent, image: imageUrl, time: "" };
           });
-          setMessages(loadedMessages); setCurrentSessionId(targetSession.id); setSelectedSubject(targetSession.subject || "Tự động phát hiện");
+          setMessages(loadedMessages); 
+          setCurrentSessionId(targetSession.id); 
+          setSelectedSubject(targetSession.subject || "Tự động phát hiện");
         }
       }
     };
@@ -633,10 +613,10 @@ export default function TroLyAIPage() {
   }, [location.search]);
 
   const promptSuggestions = [
-    { icon: BookOpen, iconBg: "bg-indigo-50 text-indigo-500", title: "Giải chi tiết bài toán", desc: "Từng bước phương pháp giải", prompt: "Hãy hướng dẫn giải chi tiết bài toán này theo từng bước." },
-    { icon: FileText, iconBg: "bg-emerald-50 text-emerald-500", title: "Tóm tắt tài liệu PDF", desc: "Rút gọn ý chính, công thức", prompt: "Hãy tóm tắt ngắn gọn các ý chính của tài liệu này." },
-    { icon: Edit3, iconBg: "bg-amber-50 text-amber-500", title: "Kiểm tra ngữ pháp", desc: "Sửa văn phong, nâng cấp từ vựng", prompt: "Sửa lỗi ngữ pháp và nâng cấp từ vựng bài viết sau:" },
-    { icon: ListChecks, iconBg: "bg-purple-50 text-purple-500", title: "Tạo bài trắc nghiệm", desc: "Kèm đáp án và giải thích", prompt: "Tạo 10 câu trắc nghiệm kèm đáp án và giải thích chi tiết." },
+    { icon: BookOpen, iconBg: "bg-indigo-50 text-indigo-500", title: "Giải chi tiết bài toán", desc: "Từng bước phương pháp đổi biến, tích phân", prompt: "Hãy hướng dẫn giải chi tiết bài toán theo từng bước rõ ràng." },
+    { icon: FileText, iconBg: "bg-emerald-50 text-emerald-500", title: "Tóm tắt tài liệu PDF/Word", desc: "Rút gọn ý chính, công thức cốt lõi", prompt: "Hãy tóm tắt ngắn gọn các ý chính và công thức cốt lõi của tài liệu này." },
+    { icon: Edit3, iconBg: "bg-amber-50 text-amber-500", title: "Kiểm tra ngữ pháp & câu từ", desc: "Sửa văn phong, nâng cấp từ vựng", prompt: "Sửa lỗi ngữ pháp và nâng cấp từ vựng cho bài viết sau:" },
+    { icon: ListChecks, iconBg: "bg-purple-50 text-purple-500", title: "Tạo 10 câu trắc nghiệm ôn tập", desc: "Kèm đáp án và giải thích tường tận", prompt: "Tạo 10 câu trắc nghiệm ôn tập kèm đáp án và giải thích chi tiết cho tôi." },
   ];
 
   const handleScroll = () => {
@@ -646,7 +626,9 @@ export default function TroLyAIPage() {
   };
 
   useEffect(() => {
-    if (chatContainerRef.current && isAutoScrollEnabled.current) chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    if (chatContainerRef.current && isAutoScrollEnabled.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const handleIncomingFile = async (file) => {
@@ -654,34 +636,63 @@ export default function TroLyAIPage() {
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setAttachedImage(e.target.result);
-        setSelectedModel("deepseek-v4-flash-vision-exp");
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          const compressed = compressCanvasImage(canvas, 960, 0.75);
+          setAttachedImage(compressed);
+        };
+        img.src = e.target.result;
       };
       reader.readAsDataURL(file); 
       return;
     }
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
     if ([".pdf", ".doc", ".docx", ".txt"].includes(ext)) {
-      setUploadingFile(true); const formData = new FormData(); formData.append("file", file);
+      setUploadingFile(true); 
+      const formData = new FormData(); 
+      formData.append("file", file);
       try {
         const res = await fetch(`${API_URL}/upload-document`, { method: "POST", body: formData });
         const data = await res.json();
-        if (data.success) setAttachedDoc({ filename: file.name, extractedText: data.data.extracted_text, fileType: ext.replace(".", "").toUpperCase() });
-        else alert("Không thể phân tích file: " + (data.detail || "Lỗi đọc dữ liệu"));
-      } catch { alert("Lỗi tải lên tài liệu!"); } finally { setUploadingFile(false); }
-    } else alert("Định dạng chưa được hỗ trợ!");
+        if (data.success) {
+          setAttachedDoc({ filename: file.name, extractedText: data.data.extracted_text, fileType: ext.replace(".", "").toUpperCase() });
+        } else {
+          alert("Không thể phân tích file: " + (data.detail || "Lỗi đọc dữ liệu"));
+        }
+      } catch { 
+        alert("Lỗi tải lên tài liệu! Vui lòng kiểm tra lại backend service."); 
+      } finally { 
+        setUploadingFile(false); 
+      }
+    } else {
+      alert("Định dạng chưa được hỗ trợ! Vui lòng chọn ảnh hoặc file PDF, DOC, DOCX, TXT.");
+    }
   };
 
   const handlePaste = (e) => {
-    const items = e.clipboardData?.items; if (!items) return;
+    const items = e.clipboardData?.items; 
+    if (!items) return;
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf("image") !== -1) { handleIncomingFile(items[i].getAsFile()); break; }
+      if (items[i].type.indexOf("image") !== -1) { 
+        handleIncomingFile(items[i].getAsFile()); 
+        break; 
+      }
     }
   };
 
   const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => { setIsDragging(false); };
-  const handleDrop = (e) => { e.preventDefault(); setIsDragging(false); const files = e.dataTransfer.files; if (files && files.length > 0) handleIncomingFile(files[0]); };
+  const handleDrop = (e) => { 
+    e.preventDefault(); 
+    setIsDragging(false); 
+    const files = e.dataTransfer.files; 
+    if (files && files.length > 0) handleIncomingFile(files[0]); 
+  };
 
   const formatLatex = (text) => {
     if (!text || typeof text !== "string") return "";
@@ -689,7 +700,7 @@ export default function TroLyAIPage() {
   };
 
   // ==========================================
-  // XỬ LÝ GỬI TIN NHẮN (KHÔNG TỰ ĐỘNG CHÈN PROMPT MẶC ĐỊNH)
+  // XỬ LÝ GỬI TIN NHẮN (CHÍNH XÁC MODEL ĐƯỢC CHỌN)
   // ==========================================
   const handleSendMessage = async (textToSend) => {
     const promptText = (textToSend || inputMessage).trim();
@@ -697,19 +708,43 @@ export default function TroLyAIPage() {
     if (loading || uploadingFile) return;
 
     let userPrompt = promptText;
+    if (!userPrompt) {
+      if (attachedDoc) {
+        userPrompt = `Hãy đọc, tóm tắt và giải thích các điểm trọng tâm trong tài liệu "${attachedDoc.filename}".`;
+      } else if (attachedImage) {
+        userPrompt = "Hãy nhận diện đề bài trong ảnh và giải chi tiết từng bước giúp tôi.";
+      }
+    }
 
-    const currentImg = attachedImage; const currentDoc = attachedDoc;
-    const userDisplayMessage = { id: Date.now().toString(), role: "user", content: userPrompt, image: currentImg, doc: currentDoc, time: "" };
+    const currentImg = attachedImage; 
+    const currentDoc = attachedDoc;
+
+    const userDisplayMessage = { 
+      id: Date.now().toString(), 
+      role: "user", 
+      content: userPrompt, 
+      image: currentImg, 
+      doc: currentDoc, 
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    };
+
     const assistantId = (Date.now() + 1).toString();
-    const initialAssistantMessage = { id: assistantId, role: "assistant", content: "", model: selectedModel, time: "" };
+    const initialAssistantMessage = { 
+      id: assistantId, 
+      role: "assistant", 
+      content: "", 
+      model: selectedModel, 
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    };
 
     isAutoScrollEnabled.current = true;
     setMessages((prev) => [...prev, userDisplayMessage, initialAssistantMessage]);
-    setInputMessage(""); setAttachedImage(null); setAttachedDoc(null); setLoading(true);
+    setInputMessage(""); 
+    setAttachedImage(null); 
+    setAttachedDoc(null); 
+    setLoading(true);
 
-    if (isRecording) {
-      toggleRecording();
-    }
+    if (isRecording) toggleRecording();
 
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
@@ -718,36 +753,49 @@ export default function TroLyAIPage() {
     try {
       let finalPrompt = userPrompt;
       if (currentDoc && currentDoc.extractedText) {
-        finalPrompt = `[NỘI DUNG TÀI LIỆU "${currentDoc.filename}"]:\n${currentDoc.extractedText.slice(0, 8000)}\n\n[YÊU CẦU CỦA HỌC SINH]:\n${userPrompt}`;
+        finalPrompt = `[NỘI DUNG TÀI LIỆU "${currentDoc.filename}"]:\n${currentDoc.extractedText.slice(0, 6000)}\n\n[YÊU CẦU]:\n${userPrompt}`;
       }
 
-      let messageContent = currentImg 
-        ? [{ type: "text", text: finalPrompt || "" }, { type: "image_url", image_url: { url: currentImg } }] 
-        : finalPrompt;
+      const apiMessages = messages.map((m) => ({
+        role: m.role,
+        content: typeof m.content === "string" ? m.content : "Đã gửi tệp đính kèm trước đó."
+      }));
 
-      const apiMessages = messages.map((m) => {
-        if (m.image) return { role: m.role, content: [{ type: "text", text: m.content || "" }, { type: "image_url", image_url: { url: m.image } }] };
-        return { role: m.role, content: m.content || "" };
-      });
-      apiMessages.push({ role: "user", content: messageContent });
+      let newContent;
+      if (currentImg) {
+        newContent = [
+          { type: "text", text: finalPrompt },
+          { type: "image_url", image_url: { url: currentImg } }
+        ];
+      } else {
+        newContent = finalPrompt;
+      }
+      apiMessages.push({ role: "user", content: newContent });
 
       const systemInstruction = {
         role: "system",
         content: `Bạn là gia sư AI EduTech chuyên sâu. 
-1. Nếu học sinh gửi tài liệu hoặc ảnh, nắm bắt chính xác câu hỏi hoặc lý thuyết.
+1. Nếu học sinh gửi tài liệu hoặc ảnh, hãy đọc và nhận diện chính xác đề bài, công thức và hình vẽ.
 2. Trình bày bài giải rõ ràng theo từng bước logic, chuẩn xác.
-3. Đưa ra kết luận đáp số rõ ràng. Định hướng môn: ${selectedSubject}.`
+3. Đưa ra kết luận đáp số rõ ràng, định dạng công thức bằng LaTeX chuẩn ($...$ hoặc $$...$$). Môn học: ${selectedSubject}.`
       };
 
+      // Gửi đúng model được chọn từ dropdown (không can thiệp)
       const response = await fetch(`${API_URL}/chat/stream`, {
-        method: "POST", headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
-        body: JSON.stringify({ model: currentImg ? "deepseek-v4-flash-vision-exp" : selectedModel, temperature: 0.3, messages: [systemInstruction, ...apiMessages] }),
+        method: "POST", 
+        headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+        body: JSON.stringify({ 
+          model: selectedModel, 
+          temperature: 0.2, 
+          messages: [systemInstruction, ...apiMessages] 
+        }),
         signal: signal
       });
 
       if (!response.ok || !response.body) throw new Error("Mất kết nối stream");
 
-      const reader = response.body.getReader(); const decoder = new TextDecoder("utf-8"); 
+      const reader = response.body.getReader(); 
+      const decoder = new TextDecoder("utf-8"); 
 
       while (true) {
         const { done, value } = await reader.read();
@@ -756,39 +804,41 @@ export default function TroLyAIPage() {
         setMessages((prev) => prev.map((msg) => msg.id === assistantId ? { ...msg, content: accumulatedText } : msg));
       }
 
+      // Lưu lịch sử sạch vào MongoDB
       try {
-        const cleanHistory = [...messages, userDisplayMessage, { role: "assistant", content: accumulatedText }].map(m => ({ role: String(m.role), content: m.content || "" }));
+        const cleanHistory = [...messages, userDisplayMessage, { role: "assistant", content: accumulatedText }].map(m => ({ 
+          role: String(m.role), 
+          content: m.content || "" 
+        }));
+
         const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
         const rawUserId = currentUser.id || currentUser._id || currentUser.uid || currentUser.userId || currentUser.email || currentUser.fullName || currentUser.full_name || "guest";
         
         const saveRes = await fetch(`${API_URL}/chat/save`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: currentSessionId || null, user_id: String(rawUserId), subject: selectedSubject || "Chung", messages: cleanHistory })
+          method: "POST", 
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            session_id: currentSessionId || null, 
+            user_id: String(rawUserId), 
+            subject: selectedSubject || "Chung", 
+            messages: cleanHistory 
+          })
         });
         
         const saveData = await saveRes.json();
-        if (saveData.success) {
-          if (!currentSessionId) setCurrentSessionId(saveData.session_id);
+        if (saveData.success && !currentSessionId) {
+          setCurrentSessionId(saveData.session_id);
           const role = localStorage.getItem('role') || 'student';
-          navigate(`/${role}/ai-assistant?session=${saveData.session_id || currentSessionId}`, { replace: true });
+          navigate(`/${role}/ai-assistant?session=${saveData.session_id}`, { replace: true });
         }
-      } catch (saveErr) { console.error("Lỗi tự động lưu lịch sử:", saveErr); }
+      } catch (saveErr) { 
+        console.error("Lỗi lưu lịch sử:", saveErr); 
+      }
 
     } catch (error) {
-      if (error.name === 'AbortError') {
-        try {
-          const cleanHistory = [...messages, userDisplayMessage, { role: "assistant", content: accumulatedText }].map(m => ({ role: String(m.role), content: m.content || "" }));
-          const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-          const rawUserId = currentUser.id || currentUser._id || currentUser.uid || currentUser.userId || currentUser.email || currentUser.fullName || currentUser.full_name || "guest";
-          const saveRes = await fetch(`${API_URL}/chat/save`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ session_id: currentSessionId || null, user_id: String(rawUserId), subject: selectedSubject || "Chung", messages: cleanHistory })
-          });
-          const saveData = await saveRes.json();
-          if (saveData.success && !currentSessionId) setCurrentSessionId(saveData.session_id);
-        } catch (saveErr) {}
-      } else {
-        setMessages((prev) => prev.map((msg) => msg.id === assistantId ? { ...msg, content: "❌ Không thể kết nối đến AI Service hoặc phiên kết nối bị gián đoạn." } : msg));
+      if (error.name !== 'AbortError') {
+        console.error("API Error:", error);
+        setMessages((prev) => prev.map((msg) => msg.id === assistantId ? { ...msg, content: "❌ Không thể kết nối dịch vụ AI. Vui lòng thử lại hoặc chuyển sang mô hình khác." } : msg));
       }
     } finally { 
       setLoading(false); 
@@ -796,14 +846,21 @@ export default function TroLyAIPage() {
     }
   };
 
-  const handleKeyDown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } };
-  const handleCopy = (text, id) => { navigator.clipboard.writeText(text); setCopiedId(id); setTimeout(() => setCopiedId(null), 2000); };
-  const handleResetChat = () => { const role = localStorage.getItem('role') || 'student'; navigate(`/${role}/ai-assistant`, { replace: true }); };
+  const handleCopy = (text, id) => { 
+    navigator.clipboard.writeText(text); 
+    setCopiedId(id); 
+    setTimeout(() => setCopiedId(null), 2000); 
+  };
+  
+  const handleResetChat = () => { 
+    const role = localStorage.getItem('role') || 'student'; 
+    navigate(`/${role}/ai-assistant`, { replace: true }); 
+  };
 
   const currentSelectedModelObj = availableModels.find(m => m.id === selectedModel) || { id: selectedModel, name: selectedModel, tag: "Tự chọn", type: "general" };
 
   const handleGenerateQuiz = () => {
-    const prompt = `Tạo 3 câu trắc nghiệm tương tự bài vừa rồi. BẮT BUỘC TRẢ VỀ DUY NHẤT 1 BLOCK JSON (KHÔNG GHI GÌ THÊM), cấu trúc JSON như sau:
+    const prompt = `Tạo 3 câu trắc nghiệm tương tự bài vừa rồi. BẮT BUỘC TRẢ VỀ DUY NHẤT 1 BLOCK JSON (KHÔNG GHI GÌ THÊM), cấu trúc:
 {"quiz": [ {"question": "Nội dung...", "options": ["A. ...", "B. ...", "C. ...", "D. ..."], "answerIndex": 0, "explanation": "Giải thích..."} ]}`;
     handleSendMessage(prompt);
   };
@@ -827,7 +884,6 @@ export default function TroLyAIPage() {
               <img src={attachedImage} alt="Preview" className="h-12 w-12 object-cover rounded-xl" />
               <div className="pr-3"><div className="text-[12px] font-bold text-slate-800">Ảnh đã tải lên</div></div>
               
-              {/* NÚT CHỌN CẮT ẢNH: KHI BẤM NÚT NÀY MỚI MỞ POPUP CẮT */}
               <button 
                 type="button" 
                 onClick={() => setImageToCrop(attachedImage)} 
@@ -837,14 +893,18 @@ export default function TroLyAIPage() {
                 <Crop className="w-3.5 h-3.5" />
               </button>
 
-              <button onClick={() => setAttachedImage(null)} className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-800 text-white shadow hover:bg-red-500 transition-colors cursor-pointer"><X className="w-3 h-3" /></button>
+              <button onClick={() => setAttachedImage(null)} className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-800 text-white shadow hover:bg-red-500 transition-colors cursor-pointer">
+                <X className="w-3 h-3" />
+              </button>
             </div>
           )}
           {attachedDoc && (
             <div className="relative inline-flex items-center gap-2 p-1.5 bg-blue-50 rounded-2xl border border-blue-200 w-fit mb-2">
               <span className="w-9 h-9 rounded-xl bg-blue-600 text-white font-black text-[10px] flex items-center justify-center shadow-sm">{attachedDoc.fileType}</span>
               <div className="pr-3"><div className="text-[12px] font-bold text-slate-800 truncate max-w-[200px]">{attachedDoc.filename}</div></div>
-              <button onClick={() => setAttachedDoc(null)} className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-800 text-white shadow hover:bg-red-500 transition-colors cursor-pointer"><X className="w-3 h-3" /></button>
+              <button onClick={() => setAttachedDoc(null)} className="absolute -top-2 -right-2 p-1 rounded-full bg-slate-800 text-white shadow hover:bg-red-500 transition-colors cursor-pointer">
+                <X className="w-3 h-3" />
+              </button>
             </div>
           )}
         </div>
@@ -855,7 +915,7 @@ export default function TroLyAIPage() {
           onChange={(e) => setInputMessage(e.target.value)}
           onPaste={handlePaste}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-          placeholder={isRecording ? "Đang lắng nghe (Hãy nói gì đó)..." : "Hỏi AI bất kỳ điều gì, dán đề bài (Nhấn Enter để gửi)..."}
+          placeholder={isRecording ? "Đang lắng nghe (Hãy nói gì đó)..." : "Hỏi AI bất kỳ điều gì, dán ảnh đề bài (Nhấn Enter để gửi)..."}
           disabled={loading || uploadingFile}
           className="w-full bg-transparent border-none outline-none text-[15px] text-slate-800 placeholder:text-slate-400 px-3 py-2 resize-none custom-scrollbar min-h-[44px] disabled:opacity-50"
         />
@@ -901,7 +961,7 @@ export default function TroLyAIPage() {
                   <div className="max-h-60 overflow-y-auto space-y-1 custom-scrollbar pr-1">
                     {availableModels.map((m) => (
                       <button key={m.id} onClick={() => { setSelectedModel(m.id); setIsModelDropdownOpen(false); }} className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${selectedModel === m.id ? "bg-blue-50 text-blue-700" : "hover:bg-slate-50 text-slate-700"}`}>
-                        {m.type === "vision" ? <Eye className="w-4 h-4 text-emerald-500 shrink-0" /> : m.type === "reasoning" ? <BrainCircuit className="w-4 h-4 text-purple-500 shrink-0" /> : <Gauge className="w-4 h-4 text-blue-500 shrink-0" />}
+                        {m.type === "reasoning" ? <BrainCircuit className="w-4 h-4 text-purple-500 shrink-0" /> : <Gauge className="w-4 h-4 text-blue-500 shrink-0" />}
                         <div className="flex flex-col min-w-0">
                           <span className="text-[12px] font-bold truncate">{m.name}</span>
                           <span className="text-[10px] opacity-70 truncate">{m.tag}</span>
@@ -940,9 +1000,6 @@ export default function TroLyAIPage() {
     </div>
   );
 
-  // ==========================================
-  // RENDER GIAO DIỆN CHÍNH TRANG CHAT
-  // ==========================================
   return (
     <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop} className="flex flex-col h-[calc(100vh-4.5rem)] w-full bg-white font-sans text-slate-800 antialiased overflow-hidden select-none relative">
       
@@ -961,7 +1018,7 @@ export default function TroLyAIPage() {
         </div>
       )}
 
-      {/* 2. OVERLAY KHOANH VÙNG CẮT ẢNH CHUYÊN NGHIỆP */}
+      {/* 2. OVERLAY KHOANH VÙNG CẮT ẢNH */}
       {imageToCrop && (
         <ImageCropperModal
           imageSrc={imageToCrop}
@@ -970,7 +1027,7 @@ export default function TroLyAIPage() {
         />
       )}
 
-      {/* 3. OVERLAY BẢNG VẼ CÔNG THỨC */}
+      {/* 3. OVERLAY BẢNG VẼ */}
       {isDrawingMode && (
         <div className="fixed inset-0 z-[999] bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-[#1e293b] rounded-3xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col">
@@ -1009,13 +1066,16 @@ export default function TroLyAIPage() {
                   <option value="Vật lý 12">⚡ Vật lý</option>
                   <option value="Hóa học 12">🧪 Hóa học</option>
                 </select>
-                <button onClick={() => navigate(`/${localStorage.getItem('role') || 'student'}/ai-history`)} className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition cursor-pointer"><History className="w-3.5 h-3.5" /><span className="hidden sm:inline">Lịch sử</span></button>
+                <button onClick={() => navigate(`/${localStorage.getItem('role') || 'student'}/ai-history`)} className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition cursor-pointer">
+                  <History className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Lịch sử</span>
+                </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto flex flex-col p-4 md:p-6 w-full custom-scrollbar">
+              {/* VÙNG CHỨA NỘI DUNG CHÍNH */}
+              <div className="flex-1 overflow-y-auto flex flex-col p-4 md:p-6 w-full transition-all [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 hover:[&::-webkit-scrollbar-thumb]:rounded-full">
                 <div className="flex flex-col items-center max-w-2xl mx-auto w-full text-center space-y-5 my-auto py-4 md:py-8 animate-in fade-in duration-300">
                   
-                  {/* LOGO MÀN HÌNH CHÍNH (KHÔNG KHUNG, BÓNG TỰ NHIÊN) */}
                   <div className="flex items-center justify-center">
                     <img 
                       src={aiLogo} 
@@ -1026,7 +1086,6 @@ export default function TroLyAIPage() {
                     <Sparkles className="w-10 h-10 text-indigo-600 hidden" />
                   </div>
                   
-                  {/* HIỆU ỨNG GÕ CHỮ */}
                   <div className="space-y-1 px-2">
                     <AnimatedGreeting />
                     <p className="text-[13px] sm:text-[14px] text-slate-500 max-w-md mx-auto leading-relaxed">
@@ -1055,27 +1114,44 @@ export default function TroLyAIPage() {
           ) : (
             <div className="flex flex-col h-full w-full bg-slate-50/40">
               <header className="h-14 border-b border-slate-200/70 px-6 flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md z-10">
-                <button onClick={handleResetChat} className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer"><LayoutDashboard className="w-3.5 h-3.5 text-blue-600" /><span className="hidden sm:block">Trang chính</span></button>
+                <button onClick={handleResetChat} className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all cursor-pointer">
+                  <LayoutDashboard className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="hidden sm:block">Trang chính</span>
+                </button>
                 <div className="flex items-center space-x-2">
-                  <button onClick={() => navigate(`/${localStorage.getItem('role') || 'student'}/ai-history`)} className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer"><History className="w-3.5 h-3.5 text-slate-500" /></button>
-                  <button onClick={handleResetChat} className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 text-slate-600 text-xs font-bold cursor-pointer"><RotateCcw className="w-3.5 h-3.5" /><span className="hidden sm:inline">Mới</span></button>
+                  <button onClick={() => navigate(`/${localStorage.getItem('role') || 'student'}/ai-history`)} className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer">
+                    <History className="w-3.5 h-3.5 text-slate-500" />
+                  </button>
+                  <button onClick={handleResetChat} className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 text-slate-600 text-xs font-bold cursor-pointer">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Mới</span>
+                  </button>
                 </div>
               </header>
 
               <div className="flex-1 flex overflow-hidden">
                 <div className="flex-1 flex flex-col h-full">
-                  <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 scroll-smooth bg-white">
+                  {/* VÙNG CHAT */}
+                  <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 md:px-8 py-6 scroll-smooth bg-white transition-all [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 hover:[&::-webkit-scrollbar-thumb]:rounded-full">
                     <div className="max-w-3xl mx-auto space-y-6">
                       {messages.map((m) => {
-                        let isQuizContent = false; let quizData = null;
+                        let isQuizContent = false; 
+                        let quizData = null;
                         if (m.role === "assistant" && m.content.includes('"quiz"')) {
-                          try { const jsonStr = m.content.match(/\{[\s\S]*"quiz"[\s\S]*\}/); if (jsonStr) { const parsed = JSON.parse(jsonStr[0]); if (parsed.quiz && Array.isArray(parsed.quiz)) { isQuizContent = true; quizData = parsed.quiz; } } } catch (e) {}
+                          try { 
+                            const jsonStr = m.content.match(/\{[\s\S]*"quiz"[\s\S]*\}/); 
+                            if (jsonStr) { 
+                              const parsed = JSON.parse(jsonStr[0]); 
+                              if (parsed.quiz && Array.isArray(parsed.quiz)) { 
+                                isQuizContent = true; 
+                                quizData = parsed.quiz; 
+                              } 
+                            } 
+                          } catch (e) {}
                         }
 
                         return (
                         <div key={m.id} className={`flex gap-3.5 ${m.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in duration-300`}>
-                          
-                          {/* LOGO AVATAR CỦA BOT TRONG ĐOẠN CHAT */}
                           {m.role === "assistant" && (
                             <div className="h-10 w-10 flex items-center justify-center shrink-0 mt-0.5 z-10 bg-transparent">
                               <img 
@@ -1091,10 +1167,18 @@ export default function TroLyAIPage() {
                           )}
 
                           <div className={`max-w-[88%] rounded-3xl p-4.5 space-y-2 ${m.role === "user" ? "bg-slate-900 text-white shadow-md rounded-tr-xs" : "bg-white border border-slate-200/90 shadow-sm text-slate-800 rounded-tl-xs"}`}>
-                            {m.image && <div className="relative overflow-hidden rounded-2xl border border-slate-200 mb-2 bg-slate-50"><img src={m.image} alt="Bài tập" className="max-h-64 max-w-full object-contain rounded-2xl" /></div>}
-                            {m.doc && <div className="inline-flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-xl mb-2 border border-slate-200"><span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded uppercase font-bold">{m.doc.fileType}</span><span className="text-sm font-semibold text-slate-700">{m.doc.filename}</span></div>}
+                            {m.image && (
+                              <div className="relative overflow-hidden rounded-2xl border border-slate-200 mb-2 bg-slate-50">
+                                <img src={m.image} alt="Bài tập" className="max-h-64 max-w-full object-contain rounded-2xl" />
+                              </div>
+                            )}
+                            {m.doc && (
+                              <div className="inline-flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-xl mb-2 border border-slate-200">
+                                <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded uppercase font-bold">{m.doc.fileType}</span>
+                                <span className="text-sm font-semibold text-slate-700">{m.doc.filename}</span>
+                              </div>
+                            )}
 
-                            {/* Chỉ hiển thị bong bóng chữ khi có nội dung gõ */}
                             {(m.content || (!m.image && !m.doc)) && (
                               <div className={`text-[15px] leading-relaxed ${m.role === "user" ? "text-slate-100" : "text-slate-800"} prose prose-slate max-w-none prose-p:my-1.5 prose-pre:bg-slate-900 prose-pre:text-slate-100`}>
                                 {isQuizContent && quizData ? <InteractiveQuiz quizData={quizData} /> : <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{formatLatex(m.content)}</ReactMarkdown>}
@@ -1109,7 +1193,9 @@ export default function TroLyAIPage() {
                                   {playingMsgId === m.id ? "Đang phát..." : "Nghe giảng"}
                                 </button>
                                 <div className="w-px h-3 bg-slate-300"></div>
-                                <button onClick={handleGenerateQuiz} className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-amber-50 hover:text-amber-700 transition-colors cursor-pointer"><Zap className="w-4 h-4" /> Luyện tập tiếp</button>
+                                <button onClick={handleGenerateQuiz} className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-amber-50 hover:text-amber-700 transition-colors cursor-pointer">
+                                  <Zap className="w-4 h-4" /> Luyện tập tiếp
+                                </button>
                                 <div className="w-px h-3 bg-slate-300"></div>
                                 <button onClick={() => handleCopy(m.content, m.id)} className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
                                   {copiedId === m.id ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />} {copiedId === m.id ? "Đã chép" : "Sao chép"}
@@ -1117,7 +1203,11 @@ export default function TroLyAIPage() {
                               </div>
                             )}
                           </div>
-                          {m.role === "user" && <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0 mt-1 overflow-hidden shadow-sm border border-slate-200">{userAvatar ? <img src={userAvatar} alt="User" /> : <User className="w-4 h-4 text-slate-600" />}</div>}
+                          {m.role === "user" && (
+                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0 mt-1 overflow-hidden shadow-sm border border-slate-200">
+                              {userAvatar ? <img src={userAvatar} alt="User" /> : <User className="w-4 h-4 text-slate-600" />}
+                            </div>
+                          )}
                         </div>
                       )})}
                     </div>
